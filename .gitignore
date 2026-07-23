@@ -7,3 +7,8 @@ settings.py
 
 db.sqlite3
 *.pyc
+
+#estilos
+bootstrap*
+staticfiles*
+*.png

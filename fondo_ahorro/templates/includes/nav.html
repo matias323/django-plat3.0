@@ -1,0 +1,112 @@
+{% load static %}
+
+<nav class="navbar navbar-expand-lg navbar-light bg-body-tertiary border-bottom py-2">
+  <div class="container-fluid px-4">
+    
+    <!-- Logo -->
+    <a class="navbar-brand d-flex align-items-center me-4 py-0" href="{% url 'core:home' %}">
+      <img src="{% static 'core/images/logo_dibicar.png' %}" 
+           alt="Logo Dibicar" 
+           height="38" 
+           style="max-height: 38px; width: auto; object-fit: contain;" />
+    </a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#megaNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="megaNavbar">
+        {% if user.is_authenticated %}
+
+
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
+
+        <li class="nav-item me-3">
+          <a class="nav-link fw-medium d-flex align-items-center gap-2" href="#">
+            <i class="bi bi-house-door fs-5"></i> Búsqueda
+          </a>
+        </li>
+
+        {% if user.is_staff %}
+        <li class="nav-item dropdown me-3">
+          <a class="nav-link dropdown-toggle fw-medium d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-gear fs-5"></i> Administrador
+          </a>
+          <ul class="dropdown-menu shadow-sm">
+            <li>
+              <a class="dropdown-item" href="{% url 'admin:index' %}">
+                <i class="bi bi-gear-fill me-2"></i> Panel Admin
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %}
+
+      </ul>
+        {% endif %}
+
+
+      <ul class="navbar-nav ms-auto align-items-center gap-2">
+        
+        <li class="nav-item dropdown">
+          <button class="btn btn-sm btn-navlink dropdown-toggle d-flex align-items-center gap-2"
+                  data-bs-toggle="dropdown" aria-expanded="false" id="themeDropdown">
+            <i class="bi bi-circle-half" id="themeIcon"></i>
+            <span class="d-none d-md-inline" id="themeLabel">Tema</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+            <li>
+              <button class="dropdown-item d-flex align-items-center gap-2" data-theme-value="auto">
+                <i class="bi bi-circle-half"></i> Auto
+              </button>
+            </li>
+            <li>
+              <button class="dropdown-item d-flex align-items-center gap-2" data-theme-value="light">
+                <i class="bi bi-brightness-high"></i> Claro
+              </button>
+            </li>
+            <li>
+              <button class="dropdown-item d-flex align-items-center gap-2" data-theme-value="dark">
+                <i class="bi bi-moon-stars"></i> Oscuro
+              </button>
+            </li>
+          </ul>
+        </li>
+
+        {% if user.is_authenticated %}
+          <li class="nav-item dropdown">
+            <button class="btn btn-sm btn-navlink dropdown-toggle d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle"></i> {{ user.get_short_name|default:user.username }}
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              {% if user.is_staff %}
+              <li>
+                <a class="dropdown-item" href="{% url 'admin:index' %}">
+                  <i class="bi bi-gear-fill me-2"></i> Administración
+                </a>
+              </li>
+              <li><hr class="dropdown-divider"></li>
+              {% endif %}
+              <li>
+                <form method="post" action="{% url 'core:logout' %}">
+                  {% csrf_token %}
+                  <button type="submit" class="dropdown-item text-danger" id="logoutBtn">
+                    <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="btn btn-primary btn-sm" href="{% url 'core:login' %}">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Ingresar
+            </a>
+          </li>
+        {% endif %}
+
+      </ul>
+
+    </div>
+  </div>
+</nav>
