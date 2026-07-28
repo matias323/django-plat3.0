@@ -27,7 +27,7 @@ class PersonType(models.Model):
 class Person(models.Model):
     rut = models.PositiveIntegerField(
                         verbose_name="RUT",
-                        max_length=8,
+                        # max_length=8,
                         unique=True
                         )
     dv = models.CharField(

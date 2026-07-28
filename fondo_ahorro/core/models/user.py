@@ -26,7 +26,7 @@ class User(models.Model):
     person = models.ForeignKey(
                             Person, 
                             on_delete=models.CASCADE, 
-                            unique=True,
+                            # unique=True,
                             verbose_name="Persona",
                             related_name="persona",
                             # db_column="id"
