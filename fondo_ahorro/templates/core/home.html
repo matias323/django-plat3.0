@@ -13,6 +13,16 @@
           <p class="card-text mb-0">
             {% if user.is_authenticated %}
               Sesión iniciada como <strong>{{ user.get_username }}</strong>.
+
+              
+
+              {% for user in usuarios %}
+                <p> {{user.person.get_rut}} </p>
+              {% endfor %}
+
+
+
+
             {% else %}
               Estás navegando como <strong>invitado</strong>.
             {% endif %}

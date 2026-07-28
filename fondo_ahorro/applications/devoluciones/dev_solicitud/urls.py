@@ -19,7 +19,7 @@ from core.tviews import home_view, login_view
 
 from django.contrib.auth import views as auth_views
 
-app_name = "core"
+app_name = "dev_solicitud"
 urlpatterns = [
     path("", home_view.HomeView.as_view(), name="home"),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
