@@ -1,13 +1,12 @@
 from django.contrib import admin
 
 from .models.person import Person, PersonType
-from .models.user import UserType, User
+from .models.user import  User
 
 
 admin.site.register(Person)
 admin.site.register(PersonType)
 admin.site.register(User)
-admin.site.register(UserType)
 
 
 # @admin.register(Person)

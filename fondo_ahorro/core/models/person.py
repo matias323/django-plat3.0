@@ -1,8 +1,9 @@
 from django.db import models
 
+from .base import BaseModel
 
 
-class PersonType(models.Model):
+class PersonType(BaseModel):
     description = models.CharField(
                             verbose_name="Descripcion",
                             max_length=255,
@@ -24,7 +25,7 @@ class PersonType(models.Model):
 
 
 
-class Person(models.Model):
+class Person(BaseModel):
     rut = models.PositiveIntegerField(
                         verbose_name="RUT",
                         # max_length=8,
@@ -60,10 +61,15 @@ class Person(models.Model):
                         verbose_name="Fecha de Nacimiento", 
                         null=False
                         )
-
+    person_type = models.ForeignKey(
+                        PersonType,
+                        on_delete=models.SET_NULL,
+                        verbose_name="Tipo de Persona",
+                        null=True,
+                        )
 
     def __str__(self):
-        return self.first_name+' '+self.last_name_1 +' '+self.last_name_2
+        return self.first_name+' '+self.last_name_1 +' '+self.last_name_2 +' -> '+self.person_type.description
 
     def get_rut(self):
         return str(self.rut)+'-'+self.dv

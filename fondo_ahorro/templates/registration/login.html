@@ -5,31 +5,29 @@
   <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-4">
     <div class="card shadow-sm">
       <div class="card-body">
-        <h1 class="h4 mb-3 text-center">Ingresar</h1>
-
-        {% if form.errors %}
-          <div class="alert alert-danger">
-            Revisa tu usuario y contraseña.
-          </div>
-        {% endif %}
+        <h2>Iniciar Sesión</h2>
 
         <form method="post" novalidate>
-          {% csrf_token %}
-          {% if next %}
-            <input type="hidden" name="next" value="{{ next }}">
-          {% endif %}
+            {% csrf_token %}
 
-          <div class="mb-3">
-            <label for="id_username" class="form-label">Usuario</label>
-            <input type="text" name="username" autofocus required class="form-control" id="id_username" placeholder="tu.usuario">
-          </div>
+            <div class="form-group">
+                <label for="{{ form.rut.id_for_label }}">{{ form.rut.label }}</label>
+                {{ form.rut }}
+                {% if form.rut.errors %}
+                    <span style="color: red;">{{ form.rut.errors.0 }}</span>
+                {% endif %}
+            </div>
 
-          <div class="mb-3">
-            <label for="id_password" class="form-label">Contraseña</label>
-            <input type="password" name="password" required class="form-control" id="id_password" placeholder="••••••••">
-          </div>
+            <br>
 
-          <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+            <div class="form-group">
+                <label for="{{ form.password.id_for_label }}">{{ form.password.label }}</label>
+                {{ form.password }}
+            </div>
+
+            <br>
+
+            <button type="submit">Ingresar</button>
         </form>
 
         <p class="text-center small text-secondary mt-3 mb-0">
@@ -39,4 +37,43 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const rutInput = document.getElementById('rut_input');
+
+            if (rutInput) {
+                rutInput.addEventListener('input', function(e) {
+                    let value = e.target.value;
+
+                    // 1. Limpiar todo lo que no sea número o K/k
+                    value = value.replace(/[^0-9kK]/g, '');
+
+                    // Si está vacío, no formatear
+                    if (value.length === 0) {
+                        e.target.value = '';
+                        return;
+                    }
+
+                    // 2. Separar cuerpo y dígito verificador
+                    let dv = value.slice(-1).toUpperCase();
+                    let cuerpo = value.slice(0, -1);
+
+                    // Si solo hay 1 carácter ingresado
+                    if (value.length === 1) {
+                        e.target.value = value.toUpperCase();
+                        return;
+                    }
+
+                    // 3. Formatear el cuerpo con puntos (separador de miles)
+                    cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+                    // 4. Unir cuerpo con guión y DV
+                    e.target.value = `${cuerpo}-${dv}`;
+                });
+            }
+        });
+    </script>
 {% endblock %}

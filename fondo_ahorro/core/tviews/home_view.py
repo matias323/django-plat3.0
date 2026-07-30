@@ -1,6 +1,6 @@
 from django.views.generic import TemplateView
 
-from core.models.user import User, UserType
+from core.models.user import User
 
 class HomeView(TemplateView):
     template_name = 'core/home.html'
