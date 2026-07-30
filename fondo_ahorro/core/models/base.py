@@ -19,7 +19,7 @@ class BaseModel(models.Model):
         on_delete=models.PROTECT,  # O models.SET_NULL (si null=True)
         verbose_name="Usuario Creador",
         related_name="%(class)s_created",  # Evita colisiones de nombres entre hijos
-        null=False,
+        null=True,
         default= 1,
     )
     user_update = models.ForeignKey(
@@ -27,7 +27,7 @@ class BaseModel(models.Model):
         on_delete=models.PROTECT,
         verbose_name="Usuario Modificador",
         related_name="%(class)s_updated",  # Evita colisiones de nombres entre hijos
-        null=False,
+        null=True,
         default= 1,
     )
     is_active = models.BooleanField(
