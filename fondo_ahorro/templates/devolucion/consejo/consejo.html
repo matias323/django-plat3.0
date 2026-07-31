@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Inicio{% endblock %}
+{% block content %}
+<section class="py-4 py-md-5">
+  <div class="row align-items-center g-4">
+    <div class="col-12 col-lg-6">
+      <h1 class="display-5 fw-bold mb-3">Bienvenido(a)</h1>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title">Estado</h5>
+          <p class="card-text mb-0">
+            {% if user.is_authenticated %}
+              {{session}} 
+      
+            {% else %}
+              Estás navegando como <strong>invitado</strong>.
+            {% endif %}
+          </p>
+          
+          <br>
+          
+
+          {% comment %} {% if session %} {% endif %} {% endcomment %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

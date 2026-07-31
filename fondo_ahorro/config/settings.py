@@ -61,6 +61,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    #custom
+    'core.middleware.ActiveAppSessionMiddleware',
+    'core.middleware.CustomSessionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -75,6 +79,9 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                #processors para nav
+                'core.context_processors.navigation_menu',
+
             ],
         },
     },

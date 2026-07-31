@@ -53,5 +53,47 @@ class App(BaseModel):
     def get_apps_hijas(self):
         return self.father_app.sub_apps.all()
 
-    
-    
+    @classmethod
+    def get_navbar_menu(cls, user, session_role):
+        """
+        Retorna las aplicaciones padre permitidas para el usuario y rol activos,
+        pre-cargando de manera eficiente sus respectivas aplicaciones hijas.
+        """
+        # 1. Filtramos las aplicaciones que el usuario tiene permitidas a través de su rol/permisos
+        allowed_apps_queryset = cls.objects.filter(
+            userpermission__is_active=True,
+            roleapp__role=session_role,
+            roleapp__role__roleuser__user=user,
+            roleapp__is_active=True
+        ).distinct()
+
+        # 2. Obtenemos solo las apps Raíz (Padres), inyectándoles sus hijas ya filtradas mediante un Prefetch
+        return cls.objects.filter(
+            id__in=allowed_apps_queryset.values_list('id', flat=True),
+            father_app__isnull=True
+        ).prefetch_related(
+            models.Prefetch(
+                'sub_apps',
+                queryset=allowed_apps_queryset.order_by('order'),
+                to_attr='allowed_daughters' # Guardamos las hijas filtradas en este atributo
+            )
+        ).order_by('order')
+    @classmethod
+    def get_app_by_request(cls, request):
+        """
+        Identifica la App actual comparando el namespace/nombre de la vista
+        """
+        if not request.resolver_match:
+            return None
+
+        #Buscar por el nombre completo de la URL/vista (ej. 'core:home' o 'devolucion:solicitud')
+        view_name = request.resolver_match.view_name
+        app = cls.objects.filter(
+                            #url=view_name,
+                            userpermission__app__url=view_name,
+                            userpermission__is_active=True,
+                            
+                            ).first()
+        if app:
+            return app
+

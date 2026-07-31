@@ -22,6 +22,8 @@ urlpatterns = [
 
     #apps-urls
     path('', include('core.urls'),name="core"),
-    path('devoluciones/solicitud/', include('applications.devoluciones.dev_solicitud.urls'),name="dev_solicitud"),
+    path('devolucion/solicitud/', include('applications.devoluciones.dev_solicitud.urls'),name="dev_solicitud"),
+    path('devolucion/consejo/', include('applications.devoluciones.dev_consejo.urls'),name="dev_consejo"),
+
 
 ]

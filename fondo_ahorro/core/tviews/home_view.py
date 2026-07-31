@@ -16,15 +16,9 @@ class HomeView(TemplateView):
         context['usuarios'] = User.objects.filter(id=self.request.user.id)
 
         if self.request.user.is_authenticated:
-            session = Session.objects.filter(user__id=self.request.user.id,closed_at = None) or None
-
+            session = Session.objects.filter(user__id=self.request.user.id,closed_at = None).first() or None #arreglar esto 
             if session:
-                apps = App.objects.filter(
-                                    father_app__isnull=True,
-                                    roleapp__role = session[0].role,
-                                    roleapp__role__roleuser__user= session[0].user 
-                                    )
-                context['apps'] =apps
+                context['session'] = session
         
         
         return context

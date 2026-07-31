@@ -20,16 +20,41 @@
 
         {% if user.is_authenticated %}
 
-          {% for app in apps %}
-            <li class="nav-item me-3">
-              <a class="nav-link fw-medium d-flex align-items-center gap-2" href="#">
-                <i class="bi bi-house-door fs-5"></i> {{app.name}}
-              </a>
-            </li>
+          {% for app in navbar_apps %}
+            {% if app.sub_apps.all %}
+              <!-- App con sub-menú (Hijas) -->
+              <li class="nav-item dropdown me-2">
+                <a class="nav-link dropdown-toggle fw-medium d-flex align-items-center gap-2" 
+                  href="#" 
+                  role="button" 
+                  data-bs-toggle="dropdown" 
+                  aria-expanded="false">
+                  <i class="bi bi-folder fs-5"></i> {{ app.name }}
+                </a>
+                <ul class="dropdown-menu shadow-sm">
+                  {% for sub_app in app.sub_apps.all %}
+                    <li>
+                      <!-- Resuelve el nombre del name en urls.py -->
+                      <a class="dropdown-item d-flex align-items-center gap-2" href="{% url sub_app.url %}">
+                        <i class="bi bi-chevron-right fs-6"></i> {{ sub_app.name }}
+                      </a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </li>
+            {% else %}
+              <!-- App directa (Sin hijas) -->
+              <li class="nav-item me-3">
+                <!-- Resuelve el nombre del name en urls.py -->
+                <a class="nav-link fw-medium d-flex align-items-center gap-2" href="{% url app.url %}">
+                  <i class="bi bi-house-door fs-5"></i> {{ app.name }}
+                </a>
+              </li>
+            {% endif %}
           {% endfor %}
 
-
         {% endif %}
+
       
       </ul>
       <ul class="navbar-nav ms-auto align-items-center gap-2">
