@@ -1,12 +1,16 @@
 from django.contrib import admin
 
 from .models.person import Person, PersonType
-from .models.user import  User
+from .models.user import  User, UserPermission
+from .models.session import Session
 
 
 admin.site.register(Person)
 admin.site.register(PersonType)
 admin.site.register(User)
+admin.site.register(UserPermission)
+admin.site.register(Session)
+
 
 
 # @admin.register(Person)

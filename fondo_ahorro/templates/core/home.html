@@ -12,19 +12,17 @@
           <h5 class="card-title">Estado</h5>
           <p class="card-text mb-0">
             {% if user.is_authenticated %}
-              Sesión iniciada como <strong>{{ user.get_username }}</strong>.
+              {{session}} 
       
             {% else %}
               Estás navegando como <strong>invitado</strong>.
             {% endif %}
           </p>
-          {% if user.is_authenticated %}
+          
+          <br>
+          
 
-            {% for user in usuarios %}
-              {{user.person.get_rut }}  - {{user.user_type}}
-            {% endfor %}
-
-          {% endif %}
+          {% comment %} {% if session %} {% endif %} {% endcomment %}
         </div>
       </div>
     </div>

@@ -42,9 +42,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    #apps
+    #core
     "core",
     "applications.apps",
+    "applications.role",
+
+
+    #devoluciones
     "applications.devoluciones.dev_solicitud",
     "applications.devoluciones.dev_consejo",
 ]

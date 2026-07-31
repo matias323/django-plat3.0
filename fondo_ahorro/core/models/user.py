@@ -1,33 +1,14 @@
 from django.db import models
 from .person import Person
-
+from .session import Permission
 from .base import BaseModel
 
 from django.contrib.auth.models import AbstractUser
 
 from django.utils import timezone
 
-# class UserType(models.Model):
-#     description = models.CharField(
-#                             verbose_name="Descripcion",
-#                             max_length=255,
-#                             null=False,
-#                             blank=False,
-#                             )
-#     state = models.BooleanField(
-#                             verbose_name="Estado",
-#                             default=True,
-#                             null=False,
-#                             blank=False
-#                             )
-
-#     def __str__(self):
-#         return self.description
-
-#     class Meta:
-#         db_table="core_user_type"
-
-
+from applications.apps.models import App
+from applications.role.models import Role
 
 # AbstractUser ya los trae incluidos con la lógica de hashing y validación.
 class User(AbstractUser):
@@ -39,29 +20,6 @@ class User(AbstractUser):
                             related_name="persona",
                             # db_column="id"
                             )
-    # username = models.CharField(
-    #                         max_length=50, 
-    #                         verbose_name="Nombre de Usuario",
-    #                         unique=True
-    #                         )
-    # password = models.CharField(
-    #                         verbose_name="Contraseña",
-    #                         max_length=150,
-    #                         )
-    # email = models.EmailField(
-    #                         verbose_name="Correo",
-    #                         unique=True, 
-    #                         max_length=255, 
-    #                         null=False, 
-    #                         blank=False
-    #                         )
-    # user_type = models.ForeignKey(
-    #                         UserType,
-    #                         verbose_name="Tipo de Usuario", 
-    #                         on_delete=models.SET_NULL,
-    #                         null=True,
-    #                         related_name="tipo_usuario",
-    #                         )
     created_at = models.DateTimeField(
         default=timezone.now(), verbose_name="Fecha Creación"
     )
@@ -78,5 +36,42 @@ class User(AbstractUser):
     def validate_password(self, password):
         return self.get_password() == str(password).lower().strip()
 
+    
+
     class Meta:
         db_table="core_user"
+
+class UserPermission(BaseModel):
+    user = models.ForeignKey(
+                            User,
+                            on_delete=models.PROTECT,
+                            verbose_name="Usuario",
+                            null=False,
+                            blank=False
+                            )
+    app = models.ForeignKey(
+                            App,
+                            on_delete=models.PROTECT,
+                            verbose_name="App",
+                            null=False,
+                            blank=False
+                            )
+    role = models.ForeignKey(
+                                Role,
+                                on_delete=models.PROTECT,
+                                verbose_name="Rol",
+                                null=False,
+                                blank=False
+                                )
+    permission = models.ForeignKey(
+                                Permission,
+                                on_delete=models.PROTECT,
+                                verbose_name="Permiso",
+                                null=False,
+                                blank=False
+                                )
+    class Meta:
+        db_table = "core_user_permission"
+
+    def __str__(self):
+        return f"Permiso de usuario {self.user.person.get_full_name()} \n aplicación: {self.app.name} \n rol: {self.role.name} \n permiso: {self.permission.name}"

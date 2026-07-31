@@ -16,36 +16,22 @@
     </button>
 
     <div class="collapse navbar-collapse" id="megaNavbar">
-        {% if user.is_authenticated %}
-
-
       <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
 
-        <li class="nav-item me-3">
-          <a class="nav-link fw-medium d-flex align-items-center gap-2" href="#">
-            <i class="bi bi-house-door fs-5"></i> Búsqueda
-          </a>
-        </li>
+        {% if user.is_authenticated %}
 
-        {% if user.is_staff %}
-        <li class="nav-item dropdown me-3">
-          <a class="nav-link dropdown-toggle fw-medium d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
-            <i class="bi bi-gear fs-5"></i> Administrador
-          </a>
-          <ul class="dropdown-menu shadow-sm">
-            <li>
-              <a class="dropdown-item" href="{% url 'admin:index' %}">
-                <i class="bi bi-gear-fill me-2"></i> Panel Admin
+          {% for app in apps %}
+            <li class="nav-item me-3">
+              <a class="nav-link fw-medium d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-house-door fs-5"></i> {{app.name}}
               </a>
             </li>
-          </ul>
-        </li>
-        {% endif %}
+          {% endfor %}
 
+
+        {% endif %}
+      
       </ul>
-        {% endif %}
-
-
       <ul class="navbar-nav ms-auto align-items-center gap-2">
         
         <li class="nav-item dropdown">

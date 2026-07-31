@@ -10,12 +10,12 @@ class PersonType(BaseModel):
                             null=False,
                             blank=False,
                             )
-    state = models.BooleanField(
-                            verbose_name="Estado",
-                            default=True,
-                            null=False,
-                            blank=False
-                            )
+    # state = models.BooleanField(
+    #                         verbose_name="Estado",
+    #                         default=True,
+    #                         null=True,
+    #                         blank=True
+    #                         )
 
     def __str__(self):
         return self.description
