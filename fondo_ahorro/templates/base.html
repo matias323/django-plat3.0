@@ -8,7 +8,18 @@
   <link rel="icon" href="{% static 'core/images/favicon.png' %}" sizes="any">
 
 
-  <title>{% block title %}{% endblock %} | FAH</title>
+  <title> 
+    {% if request.user_session %}
+      {{request.user_session.app.name|default:'Ingresar'}} 
+    {% endif %}
+    {% if request.resolver_match.url_name == 'login'  %}
+      Ingresar
+    {% endif %}
+    {% if request.resolver_match.url_name == 'registration'  %}
+      Registro
+    {% endif %}
+    | FAH
+  </title>
 
   {# --- Tema: aplicar antes de cargar el CSS para evitar FOUC --- #}
   <script>
@@ -247,7 +258,50 @@
       });
 
       applyIconAndLabel();
+
+      // Seleccionamos todos los enlaces de submenú (Apps Hijas con Nietas)
+      const submenuToggles = document.querySelectorAll('.dropdown-submenu > a.dropdown-toggle');
+
+      submenuToggles.forEach(function (toggle) {
+        toggle.addEventListener('click', function (e) {
+          // Prevenimos que el clic/tap intente navegar o cerrar el menú completo
+          e.preventDefault();
+          e.stopPropagation();
+
+          const currentSubmenu = this.parentElement;
+          const currentMenu = currentSubmenu.querySelector('.dropdown-menu');
+
+          // Cerramos los otros submenús hermanos si estuvieran abiertos
+          const siblingSubmenus = currentSubmenu.parentElement.querySelectorAll('.dropdown-submenu');
+          siblingSubmenus.forEach(function (sibling) {
+            if (sibling !== currentSubmenu) {
+              sibling.classList.remove('show');
+              const siblingMenu = sibling.querySelector('.dropdown-menu');
+              if (siblingMenu) siblingMenu.classList.remove('show');
+            }
+          });
+
+          // Alternamos el estado actual (mostrar/ocultar)
+          currentSubmenu.classList.toggle('show');
+          if (currentMenu) {
+            currentMenu.classList.toggle('show');
+          }
+        });
+      });
+
+      // Limpiar estados cuando el dropdown padre principal se cierra
+      const mainDropdowns = document.querySelectorAll('.navbar-nav .dropdown');
+      mainDropdowns.forEach(function (dropdown) {
+        dropdown.addEventListener('hidden.bs.dropdown', function () {
+          const openSubmenus = this.querySelectorAll('.dropdown-submenu, .dropdown-submenu .dropdown-menu');
+          openSubmenus.forEach(function (el) {
+            el.classList.remove('show');
+          });
+        });
+      });
     });
+
+    
   </script>
 
   {% block extra_js %}{% endblock %}

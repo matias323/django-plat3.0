@@ -11,11 +11,14 @@
            style="max-height: 38px; width: auto; object-fit: contain;" />
     </a>
 
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#megaNavbar">
+    <!-- Botón Hamburguesa Móvil -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#megaNavbar" aria-controls="megaNavbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="megaNavbar">
+      
+      <!-- Menú Principal de Navegación -->
       <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
 
         {% if user.is_authenticated %}
@@ -37,7 +40,9 @@
                     {% if sub_app.allowed_daughters %}
                       <!-- Nivel 2: App Hija con sub-menú (Nietas) -->
                       <li class="dropdown-submenu">
-                        <a class="dropdown-item dropdown-toggle d-flex align-items-center justify-content-between gap-2" href="#">
+                        <a class="dropdown-item dropdown-toggle d-flex align-items-center justify-content-between gap-2" 
+                           href="#" 
+                           role="button">
                           <span><i class="bi bi-folder2 fs-6 me-2"></i>{{ sub_app.name }}</span>
                         </a>
                         
@@ -77,8 +82,10 @@
 
       </ul>
 
-      <!-- Menú de Usuario / Tema -->
+      <!-- Menú Secundario: Selector de Tema / Usuario -->
       <ul class="navbar-nav ms-auto align-items-center gap-2">
+        
+        <!-- Selector de Tema -->
         <li class="nav-item dropdown">
           <button class="btn btn-sm btn-navlink dropdown-toggle d-flex align-items-center gap-2"
                   data-bs-toggle="dropdown" aria-expanded="false" id="themeDropdown">
@@ -104,10 +111,11 @@
           </ul>
         </li>
 
+        <!-- Estado de Autenticación / Menú de Usuario -->
         {% if user.is_authenticated %}
           <li class="nav-item dropdown">
             <button class="btn btn-sm btn-navlink dropdown-toggle d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="bi bi-person-circle"></i> {{ user.get_short_name|default:user.username }}
+              <i class="bi bi-person-circle"></i> {{ user.get_short_name|default:user.person.first_name }}
             </button>
             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
               {% if user.is_staff %}
