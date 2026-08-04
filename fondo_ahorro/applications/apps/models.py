@@ -83,15 +83,14 @@ class App(BaseModel):
         """
         Identifica la App actual comparando el namespace/nombre de la vista
         """
-        # if not request.resolver_match:
-        #     return None
-
+        if request.resolver_match.app_name == 'admin':
+            return True
         #Buscar por el nombre completo de la URL/vista (ej. 'core:home' o 'devolucion:solicitud')
         view_name = request.resolver_match.view_name
         app = cls.objects.filter(
                             url=view_name,
-                            # userpermission__app__url=view_name,
-                            # userpermission__is_active=True,
+                            userpermission__app__url=view_name,
+                            userpermission__is_active=True,
                             ).first()
         if app:
             return app
