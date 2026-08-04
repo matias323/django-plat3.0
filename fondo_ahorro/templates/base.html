@@ -45,6 +45,47 @@
   <link href="{% static "core/bootstrap-5.3.8-dist/css/bootstrap.min.css" %}" rel="stylesheet">
 
   <style>
+    /* Submenús en Pantallas Grandes (Escritorio >= 992px) */
+    @media (min-width: 992px) {
+      .dropdown-submenu {
+        position: relative;
+      }
+
+      .dropdown-submenu > .dropdown-menu {
+        top: 0;
+        left: 100%;
+        margin-top: -1px;
+        display: none;
+      }
+
+      /* Despliegue en Hover en PC */
+      .dropdown-submenu:hover > .dropdown-menu {
+        display: block;
+      }
+    }
+
+    /* Submenús en Dispositivos Móviles (< 992px) */
+    @media (max-width: 991.98px) {
+      .dropdown-submenu .dropdown-menu {
+        position: static !important;
+        transform: none !important;
+        border: none;
+        box-shadow: none;
+        padding-left: 1.5rem; /* Indentación visual para las nietas */
+        background-color: transparent;
+      }
+      
+      /* Icono rotatorio para indicar apertura en móvil */
+      .dropdown-submenu > .dropdown-toggle::after {
+        display: inline-block;
+        margin-left: auto;
+        transition: transform 0.2s ease-in-out;
+      }
+      
+      .dropdown-submenu.show > .dropdown-toggle::after {
+        transform: rotate(90deg);
+      }
+    }
 
 
     /* Soporte para submenús desplegables (Nietas) en Bootstrap 5 */
