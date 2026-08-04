@@ -77,5 +77,9 @@ class Person(BaseModel):
     def get_full_name(self):
             return self.first_name+' '+self.second_name+' '+self.last_name_1+' '+self.last_name_2
 
+    def get_name(self):
+         return f" {self.first_name} {self.last_name_1} {self.last_name_2}"
+
+
     class Meta:
         db_table="core_person"

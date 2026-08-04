@@ -48,7 +48,13 @@ class Session(BaseModel):
         db_table= "core_session"
 
     def __str__(self):
-        return f"Sesión {self.status()} usuario {self.user.person.get_full_name()} \n aplicación: {self.app.name} \n rol: {self.role.name} \n permiso: {self.permission.name}"
+
+        msje = f"Sesión {self.status()}  inicio: {self.created_at.strftime("%d-%m-%Y")} "
+
+        if self.is_active == False:
+            msje = msje + f" Termino: {self.closed_at} "
+
+        return msje + f" usuario: {self.user.person.get_name()}  app : {self.app.name}"
 
     def status(self):
         if self.is_active and self.closed_at is None:

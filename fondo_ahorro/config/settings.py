@@ -63,8 +63,8 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
     #custom
+    # 'core.middleware.CustomSessionMiddleware',
     'core.middleware.ActiveAppSessionMiddleware',
-    'core.middleware.CustomSessionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
