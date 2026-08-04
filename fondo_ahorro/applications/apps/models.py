@@ -57,9 +57,9 @@ class App(BaseModel):
     def get_navbar_menu(cls, user, session_role):
         """
         Retorna las aplicaciones padre permitidas para el usuario y rol activos,
-        pre-cargando de manera eficiente sus respectivas aplicaciones hijas.
+        pre-cargando de manera eficiente sus respectivas aplicaciones hijas y nietas.
         """
-        # 1. Filtramos las aplicaciones que el usuario tiene permitidas a través de su rol/permisos
+        # 1. Filtramos las aplicaciones que el usuario tiene permitidas
         allowed_apps_queryset = cls.objects.filter(
             userpermission__is_active=True,
             roleapp__role=session_role,
@@ -67,16 +67,28 @@ class App(BaseModel):
             roleapp__is_active=True
         ).distinct()
 
-        # 2. Obtenemos solo las apps Raíz (Padres), inyectándoles sus hijas ya filtradas mediante un Prefetch
+        # 2. Definimos el prefetch anidado para las NIETAS
+        prefetch_granddaughters = models.Prefetch(
+            'sub_apps__sub_apps',
+            queryset=allowed_apps_queryset.order_by('order'),
+            to_attr='allowed_daughters'  # Atributo donde se guardarán las nietas en cada hija
+        )
+
+        # 3. Definimos el prefetch para las HIJAS (que incluye a sus nietas)
+        prefetch_daughters = models.Prefetch(
+            'sub_apps',
+            queryset=allowed_apps_queryset.order_by('order'),
+            to_attr='allowed_daughters'  # Atributo donde se guardarán las hijas en cada padre
+        )
+
+        # 4. Obtenemos las apps Raíz (Padres) ejecutando ambos prefetches
         return cls.objects.filter(
             id__in=allowed_apps_queryset.values_list('id', flat=True),
-            father_app__isnull=True
+            father_app__isnull=True,
+            userpermission__is_active=True
         ).prefetch_related(
-            models.Prefetch(
-                'sub_apps',
-                queryset=allowed_apps_queryset.order_by('order'),
-                to_attr='allowed_daughters' # Guardamos las hijas filtradas en este atributo
-            )
+            prefetch_daughters,
+            prefetch_granddaughters
         ).order_by('order')
     @classmethod
     def get_app_by_request(cls, request):
