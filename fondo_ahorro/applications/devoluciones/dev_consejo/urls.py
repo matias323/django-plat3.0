@@ -16,11 +16,10 @@ Including another URLconf
 """
 from django.urls import path
 
-from core.tviews.home_view import HomeView
-
+from .views import ConsejoView
 
 app_name = "dev_consejo"
 urlpatterns = [
-    path("", HomeView.as_view(), name="consejo"),
+    path("", ConsejoView.as_view(), name="consejo"),
 
 ]

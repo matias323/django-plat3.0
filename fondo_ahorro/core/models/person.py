@@ -18,7 +18,7 @@ class PersonType(BaseModel):
     #                         )
 
     def __str__(self):
-        return self.description
+        return f"{self.id} - {self.description}"
 
     class Meta:
         db_table="core_person_type"

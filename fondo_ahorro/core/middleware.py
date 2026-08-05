@@ -30,6 +30,12 @@ class ActiveAppSessionMiddleware:
         Se ejecuta DESPUÉS de que Django resolvió la URL (request.resolver_match ya existe)
         pero ANTES de ejecutar la vista.
         """
+        # if not request.user.is_authenticated and request.resolver_match.url_name != 'registration' :
+        #     return redirect('core:login')
+
+        # if request.resolver_match.url_name == 'registration':
+        #     return None
+
         if request.user.is_authenticated:
             current_app = App.get_app_by_request(request)
 

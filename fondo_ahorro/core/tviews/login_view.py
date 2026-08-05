@@ -27,11 +27,7 @@ class LoginView(TemplateView):
             rut = form.cleaned_data.get("rut")
             password = form.cleaned_data.get("password")
 
-            # Verifica credenciales
             rut_limpio = rut.strip().replace(".", "").replace("-", "").upper()
-
-            # messages.error(request, "rut : "+ rut_limpio[:-1]+" dv: "+rut_limpio[-1:])
-            # return self.render_to_response({"form": form})
 
             try:
                 user = User.objects.get(

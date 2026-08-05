@@ -95,7 +95,7 @@ class App(BaseModel):
         """
         Identifica la App actual comparando el namespace/nombre de la vista
         """
-        if request.resolver_match.app_name == 'admin':
+        if request.resolver_match.app_name == 'admin' or request.resolver_match.url_name == 'logout':
             return True
         #Buscar por el nombre completo de la URL/vista (ej. 'core:home' o 'devolucion:solicitud')
         view_name = request.resolver_match.view_name

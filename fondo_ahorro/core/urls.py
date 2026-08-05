@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.urls import path
 from .tviews import home_view, login_view
+from .tviews.registration_view import RegistrationView
 
 from django.contrib.auth import views as auth_views
 
@@ -23,7 +24,9 @@ app_name = "core"
 urlpatterns = [
     path("", home_view.HomeView.as_view(), name="home"),
     path("login/", login_view.LoginView.as_view(template_name="registration/login.html"), name="login"),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout')
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path("registration/", RegistrationView.as_view(template_name="registration/registration.html"), name="register"),
+
 
     #apis
 

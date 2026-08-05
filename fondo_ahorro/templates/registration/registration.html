@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Registro de Persona{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <!-- Un poco más ancho (col-lg-8 col-xl-7) ya que son más campos -->
+  <div class="col-12 col-sm-10 col-md-8 col-lg-8 col-xl-7">
+    <div class="card shadow-sm position-relative">
+      
+      <!-- Botón en la esquina superior derecha para volver al Login -->
+      <a href="{% url 'core:login' %}" class="btn btn-outline-secondary btn-sm position-absolute top-0 end-0 m-3">
+        ¿Ya tienes cuenta? Inicia sesión
+      </a>
+
+      <div class="card-body pt-5">
+        <h2 class="mt-2 mb-4">Registro de Persona</h2>
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <!-- Bloque RUT y DV -->
+            <div class="row">
+                <div class="col-8 col-md-9">
+                    <div class="form-group">
+                        <label for="{{ form.rut.id_for_label }}">{{ form.rut.label }}</label>
+                        {{ form.rut }}
+                        {% if form.rut.errors %}
+                            <span style="color: red;">{{ form.rut.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-4 col-md-3">
+                    <div class="form-group">
+                        <label for="{{ form.dv.id_for_label }}">{{ form.dv.label }}</label>
+                        {{ form.dv }}
+                        {% if form.dv.errors %}
+                            <span style="color: red;">{{ form.dv.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <br>
+
+            <!-- Nombres -->
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3 mb-md-0">
+                    <div class="form-group">
+                        <label for="{{ form.first_name.id_for_label }}">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <span style="color: red;">{{ form.first_name.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.second_name.id_for_label }}">{{ form.second_name.label }}</label>
+                        {{ form.second_name }}
+                        {% if form.second_name.errors %}
+                            <span style="color: red;">{{ form.second_name.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <br>
+
+            <!-- Apellidos -->
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3 mb-md-0">
+                    <div class="form-group">
+                        <label for="{{ form.last_name_1.id_for_label }}">{{ form.last_name_1.label }}</label>
+                        {{ form.last_name_1 }}
+                        {% if form.last_name_1.errors %}
+                            <span style="color: red;">{{ form.last_name_1.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.last_name_2.id_for_label }}">{{ form.last_name_2.label }}</label>
+                        {{ form.last_name_2 }}
+                        {% if form.last_name_2.errors %}
+                            <span style="color: red;">{{ form.last_name_2.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <br>
+
+            <!-- Fecha Nacimiento y Tipo de Persona -->
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3 mb-md-0">
+                    <div class="form-group">
+                        <label for="{{ form.birth_date.id_for_label }}">{{ form.birth_date.label }}</label>
+                        {{ form.birth_date }}
+                        {% if form.birth_date.errors %}
+                            <span style="color: red;">{{ form.birth_date.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.person_type_id.id_for_label }}">{{ form.person_type_id.label }}</label>
+                        {{ form.person_type_id }}
+                        {% if form.person_type_id.errors %}
+                            <span style="color: red;">{{ form.person_type_id.errors.0 }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <br>
+
+            <button type="submit" class="btn btn-primary w-100">Registrar Persona</button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Formateador dinámico si solo permites números en el campo RUT principal
+        const rutInput = document.getElementById('id_rut');
+        if (rutInput) {
+            rutInput.addEventListener('input', function(e) {
+                // Permite solo números en el cuerpo del RUT
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+            });
+        }
+
+        // Formateador para convertir el DV a mayúscula automáticamente
+        const dvInput = document.getElementById('id_dv');
+        if (dvInput) {
+            dvInput.addEventListener('input', function(e) {
+                e.target.value = e.target.value.toUpperCase().replace(/[^0-9K]/g, '');
+            });
+        }
+    });
+</script>
+{% endblock %}
