@@ -222,58 +222,80 @@
 <script src="{% static 'core/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js' %}"></script>
 
 
-  <script>
-    // Confirmación opcional de logout
-    document.addEventListener("DOMContentLoaded", () => {
-      const btn = document.getElementById("logoutBtn");
-      if (btn) {
-        btn.addEventListener("click", (e) => {
-          const ok = confirm("¿Seguro que deseas cerrar sesión?");
-          if (!ok) e.preventDefault();
-        });
-      }
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    
+    // ==========================================
+    // 1. CONFIRMACIÓN DE CERRAR SESIÓN
+    // ==========================================
+    const initLogoutConfirmation = () => {
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (!logoutBtn) return;
 
-      // Dropdown de tema
+      logoutBtn.addEventListener("click", (e) => {
+        const isConfirmed = confirm("¿Seguro que deseas cerrar sesión?");
+        if (!isConfirmed) e.preventDefault();
+      });
+    };
+
+    // ==========================================
+    // 2. CAMBIO Y CONMUTACIÓN DE TEMA (DARK/LIGHT)
+    // ==========================================
+    const initThemeSelector = () => {
       const themeButtons = document.querySelectorAll('[data-theme-value]');
       const icon = document.getElementById('themeIcon');
       const label = document.getElementById('themeLabel');
 
       const applyIconAndLabel = () => {
-        const stored = (window.__themeCtrl.get && window.__themeCtrl.get()) || 'auto';
-        const current = stored || 'auto';
-        let iClass = 'bi-circle-half';
-        let text = 'Auto';
-        if (current === 'light') { iClass = 'bi-brightness-high'; text = 'Claro'; }
-        if (current === 'dark') { iClass = 'bi-moon-stars'; text = 'Oscuro'; }
-        if (icon) icon.className = 'bi ' + iClass;
-        if (label) label.textContent = text;
+        const storedTheme = (window.__themeCtrl?.get && window.__themeCtrl.get()) || 'auto';
+        
+        let iconClass = 'bi-circle-half';
+        let textLabel = 'Auto';
+
+        if (storedTheme === 'light') { 
+          iconClass = 'bi-brightness-high'; 
+          textLabel = 'Claro'; 
+        } else if (storedTheme === 'dark') { 
+          iconClass = 'bi-moon-stars'; 
+          textLabel = 'Oscuro'; 
+        }
+
+        if (icon) icon.className = `bi ${iconClass}`;
+        if (label) label.textContent = textLabel;
       };
 
-      themeButtons.forEach(btn => {
+      themeButtons.forEach((btn) => {
         btn.addEventListener('click', (e) => {
-          const val = e.currentTarget.getAttribute('data-theme-value');
-          if (window.__themeCtrl) window.__themeCtrl.set(val);
+          const selectedTheme = e.currentTarget.getAttribute('data-theme-value');
+          if (window.__themeCtrl) {
+            window.__themeCtrl.set(selectedTheme);
+          }
           applyIconAndLabel();
         });
       });
 
       applyIconAndLabel();
+    };
 
-      // Seleccionamos todos los enlaces de submenú (Apps Hijas con Nietas)
+    // ==========================================
+    // 3. NAVEGACIÓN Y SUBMENÚS ANIDADOS (HIJAS/NIETAS)
+    // ==========================================
+    const initNestedNavbar = () => {
       const submenuToggles = document.querySelectorAll('.dropdown-submenu > a.dropdown-toggle');
+      const mainDropdowns = document.querySelectorAll('.navbar-nav .dropdown');
 
-      submenuToggles.forEach(function (toggle) {
-        toggle.addEventListener('click', function (e) {
-          // Prevenimos que el clic/tap intente navegar o cerrar el menú completo
+      // Toggle de submenús al hacer clic / tap
+      submenuToggles.forEach((toggle) => {
+        toggle.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
 
-          const currentSubmenu = this.parentElement;
+          const currentSubmenu = toggle.parentElement;
           const currentMenu = currentSubmenu.querySelector('.dropdown-menu');
 
-          // Cerramos los otros submenús hermanos si estuvieran abiertos
+          // Cerrar submenús hermanos abiertos en el mismo nivel
           const siblingSubmenus = currentSubmenu.parentElement.querySelectorAll('.dropdown-submenu');
-          siblingSubmenus.forEach(function (sibling) {
+          siblingSubmenus.forEach((sibling) => {
             if (sibling !== currentSubmenu) {
               sibling.classList.remove('show');
               const siblingMenu = sibling.querySelector('.dropdown-menu');
@@ -281,7 +303,7 @@
             }
           });
 
-          // Alternamos el estado actual (mostrar/ocultar)
+          // Alternar visibilidad del submenú actual
           currentSubmenu.classList.toggle('show');
           if (currentMenu) {
             currentMenu.classList.toggle('show');
@@ -289,20 +311,24 @@
         });
       });
 
-      // Limpiar estados cuando el dropdown padre principal se cierra
-      const mainDropdowns = document.querySelectorAll('.navbar-nav .dropdown');
-      mainDropdowns.forEach(function (dropdown) {
-        dropdown.addEventListener('hidden.bs.dropdown', function () {
-          const openSubmenus = this.querySelectorAll('.dropdown-submenu, .dropdown-submenu .dropdown-menu');
-          openSubmenus.forEach(function (el) {
-            el.classList.remove('show');
-          });
+      // Limpiar submenús abiertos al cerrar el menú dropdown principal
+      mainDropdowns.forEach((dropdown) => {
+        dropdown.addEventListener('hidden.bs.dropdown', () => {
+          const openSubmenus = dropdown.querySelectorAll('.dropdown-submenu, .dropdown-submenu .dropdown-menu');
+          openSubmenus.forEach((el) => el.classList.remove('show'));
         });
       });
-    });
+    };
 
-    
-  </script>
+    // ==========================================
+    // INICIALIZACIÓN
+    // ==========================================
+    initLogoutConfirmation();
+    initThemeSelector();
+    initNestedNavbar();
+
+  });
+</script>
 
   {% block extra_js %}{% endblock %}
 </body>
