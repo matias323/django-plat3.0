@@ -67,29 +67,29 @@ class App(BaseModel):
             roleapp__is_active=True
         ).distinct()
 
-        # 2. Definimos el prefetch anidado para las NIETAS
+        # 2. Prefetch de NIETAS: se guarda en 'allowed_daughters' dentro de cada HIJA
         prefetch_granddaughters = models.Prefetch(
-            'sub_apps__sub_apps',
-            queryset=allowed_apps_queryset.order_by('order'),
-            to_attr='allowed_daughters'  # Atributo donde se guardarán las nietas en cada hija
-        )
-
-        # 3. Definimos el prefetch para las HIJAS (que incluye a sus nietas)
-        prefetch_daughters = models.Prefetch(
             'sub_apps',
             queryset=allowed_apps_queryset.order_by('order'),
-            to_attr='allowed_daughters'  # Atributo donde se guardarán las hijas en cada padre
+            to_attr='allowed_daughters'
         )
 
-        # 4. Obtenemos las apps Raíz (Padres) ejecutando ambos prefetches
+        # 3. Prefetch de HIJAS: cargamos sus 'sub_apps' usando el prefetch de NIETAS anidado
+        prefetch_daughters = models.Prefetch(
+            'sub_apps',
+            queryset=allowed_apps_queryset.prefetch_related(prefetch_granddaughters).order_by('order'),
+            to_attr='allowed_daughters'
+        )
+
+        # 4. Obtenemos las apps PADRE ejecutando el prefetch ordenado
         return cls.objects.filter(
             id__in=allowed_apps_queryset.values_list('id', flat=True),
             father_app__isnull=True,
             userpermission__is_active=True
         ).prefetch_related(
-            prefetch_daughters,
-            prefetch_granddaughters
-        ).order_by('order')
+            prefetch_daughters
+        ).distinct().order_by('order')
+    
     @classmethod
     def get_app_by_request(cls, request):
         """
