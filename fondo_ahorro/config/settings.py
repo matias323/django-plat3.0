@@ -51,6 +51,10 @@ INSTALLED_APPS = [
     #devoluciones
     "applications.devoluciones.dev_solicitud",
     "applications.devoluciones.dev_consejo",
+
+    #contabilidad
+    "applications.contabilidad.plan_cuentas",
+
 ]
 
 MIDDLEWARE = [
