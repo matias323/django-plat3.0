@@ -3,3 +3,4 @@ from .user import User
 from .session import Session
 from .document import Document, DocumentType
 from .observation import Observation
+from .request import Request, RequestType, RequestStatus

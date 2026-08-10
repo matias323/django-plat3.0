@@ -6,6 +6,7 @@ from .models.session import Session
 
 from .models import Document, DocumentType
 from .models import Observation
+from .models import Request
 
 # USER
 admin.site.register(Person)
@@ -18,6 +19,9 @@ admin.site.register(Session)
 admin.site.register(Document)
 admin.site.register(DocumentType)
 admin.site.register(Observation)
+
+# REQUESTS
+admin.site.register(Request)
 
 
 
