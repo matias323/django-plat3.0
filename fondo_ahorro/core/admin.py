@@ -4,12 +4,20 @@ from .models.person import Person, PersonType
 from .models.user import  User, UserPermission
 from .models.session import Session
 
+from .models import Document, DocumentType
+from .models import Observation
 
+# USER
 admin.site.register(Person)
 admin.site.register(PersonType)
 admin.site.register(User)
 admin.site.register(UserPermission)
 admin.site.register(Session)
+
+# INFO
+admin.site.register(Document)
+admin.site.register(DocumentType)
+admin.site.register(Observation)
 
 
 
