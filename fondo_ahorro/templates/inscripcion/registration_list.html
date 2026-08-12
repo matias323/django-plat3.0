@@ -1,0 +1,1066 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container-fluid py-4">
+
+    <!-- ======================================================
+         TÍTULO
+    ======================================================= -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <h3 class="mb-1">Solicitudes de inscripción</h3>
+                    <div class="text-muted">
+                        Administración de solicitudes de ingreso de funcionarios.
+                    </div>
+                </div>
+
+                <button type="button" class="btn btn-primary" id="btnNewRegistration">
+                    <i class="fa fa-plus me-1"></i>
+                    Nueva solicitud
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ======================================================
+         TABLA
+    ======================================================= -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <strong>Solicitudes registradas</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="registrationTable"
+                       class="table table-hover align-middle text-center w-100">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Código</th>
+                            <th>RUT</th>
+                            <th>Funcionario</th>
+                            <th>Tipo</th>
+                            <th>Aporta A2</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<!-- ==========================================================
+     MODAL NUEVA SOLICITUD
+=========================================================== -->
+<div class="modal fade"
+     id="registrationModal"
+     tabindex="-1"
+     aria-hidden="true"
+     data-bs-backdrop="static">
+
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Nueva solicitud de inscripción</h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+
+            <div class="modal-body">
+
+                <!-- ==========================================
+                     BUSCADOR
+                =========================================== -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <strong>Buscar funcionario</strong>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row g-3 align-items-end">
+
+                            <div class="col-lg-4">
+                                <label class="form-label">Código funcionario</label>
+
+                                <input type="text"
+                                       class="form-control"
+                                       id="employeeCodeSearch"
+                                       placeholder="Ingrese código"
+                                       autocomplete="off">
+                            </div>
+
+                            <div class="col-lg-2">
+                                <button type="button"
+                                        class="btn btn-primary w-100"
+                                        id="btnSearchEmployee">
+
+                                    <i class="fa fa-search me-1"></i>
+                                    Buscar
+                                </button>
+                            </div>
+
+                            <div class="col-lg-6">
+                                <div id="searchMessage"></div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- ==========================================
+                     FORMULARIO
+                =========================================== -->
+                <form id="registrationForm" enctype="multipart/form-data">
+                    {% csrf_token %}
+
+                    <input type="hidden" id="personId" name="person_id">
+
+                    <input type="hidden"
+                           id="registrationTypeId"
+                           name="registration_type">
+
+
+                    <div id="registrationContent" class="d-none">
+
+                        <!-- ==================================
+                             DATOS FUNCIONARIO
+                        =================================== -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <strong>Datos del funcionario</strong>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="row g-3">
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Código</label>
+
+                                        <input type="text"
+                                               id="employeeCode"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">RUT</label>
+
+                                        <input type="text"
+                                               id="employeeRut"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+
+
+                                    <div class="col-md-6">
+                                        <label class="form-label">Nombre funcionario</label>
+
+                                        <input type="text"
+                                               id="employeeName"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Grado</label>
+
+                                        <input type="text"
+                                               id="employeeGrade"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Tipo solicitud</label>
+
+                                        <input type="text"
+                                               id="registrationTypeText"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Estado socio</label>
+
+                                        <input type="text"
+                                               id="memberStatus"
+                                               class="form-control"
+                                               readonly>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- ==================================
+                             DATOS SOLICITUD
+                        =================================== -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <strong>Datos de la solicitud</strong>
+                            </div>
+
+                            <div class="card-body">
+                                <div class="row">
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">¿Aporta A2?</label>
+
+                                        <select class="form-select"
+                                                id="contributesA2"
+                                                name="contributes_a2"
+                                                required>
+
+                                            <option value="">Seleccione</option>
+                                            <option value="1">Sí</option>
+                                            <option value="0">No</option>
+                                        </select>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- ==================================
+                             DOCUMENTOS
+                        =================================== -->
+                        <div class="card mb-4 d-none" id="documentsSection">
+
+                            <div class="card-header d-flex justify-content-between">
+                                <strong>Documentos</strong>
+
+                                <span class="badge bg-warning text-dark">
+                                    Nuevo socio
+                                </span>
+                            </div>
+
+                            <div class="card-body">
+
+                                <div class="alert alert-info">
+                                    Los documentos deben estar en PDF y no superar los 10 MB.
+                                </div>
+
+
+                                <!-- SOLICITUD -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">
+                                        Solicitud en formato físico
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <input type="file"
+                                           class="form-control"
+                                           id="physicalRequestDocument"
+                                           name="physical_request_document"
+                                           accept=".pdf,application/pdf">
+
+                                    <small class="text-muted">
+                                        Solicitud firmada y posteriormente escaneada.
+                                    </small>
+                                </div>
+
+
+                                <!-- CARNET -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">
+                                        Escáner de carnet
+                                        <span class="text-danger">*</span>
+                                    </label>
+
+                                    <input type="file"
+                                           class="form-control"
+                                           id="idCardDocument"
+                                           name="id_card_document"
+                                           accept=".pdf,application/pdf">
+
+                                    <small class="text-muted">
+                                        Documento de identificación escaneado.
+                                    </small>
+                                </div>
+
+
+                                <!-- OTROS -->
+                                <div>
+                                    <label class="form-label fw-bold">
+                                        Otros documentos
+                                    </label>
+
+                                    <input type="file"
+                                           class="form-control"
+                                           id="otherDocuments"
+                                           name="other_documents"
+                                           accept=".pdf,application/pdf"
+                                           multiple>
+
+                                    <small class="text-muted">
+                                        Opcional. Puede seleccionar varios archivos.
+                                    </small>
+                                </div>
+
+                            </div>
+                        </div>
+
+
+                        <!-- ==================================
+                             AVISO SOCIO
+                        =================================== -->
+                        <div class="alert alert-secondary d-none" id="memberMessage">
+                            <i class="fa fa-info-circle me-1"></i>
+
+                            El funcionario ya es socio.
+                            No se solicitarán documentos de ingreso.
+                        </div>
+
+                    </div>
+                </form>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button type="button"
+                        class="btn btn-success"
+                        id="btnSaveRegistration"
+                        disabled>
+
+                    <i class="fa fa-save me-1"></i>
+                    Guardar solicitud
+                </button>
+
+                <button type="button"
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+                    Cerrar
+                </button>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ==========================================================
+     MODAL DETALLE
+=========================================================== -->
+<div class="modal fade"
+     id="detailModal"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Detalle de solicitud</h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+
+            <div class="modal-body" id="detailModalContent">
+                <div class="text-center py-5">
+                    Cargando...
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ==========================================================
+     DATATABLE
+=========================================================== -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const registrationModal = new bootstrap.Modal(
+        document.getElementById("registrationModal")
+    );
+
+    const detailModal = new bootstrap.Modal(
+        document.getElementById("detailModal")
+    );
+
+    let currentIsMember = false;
+
+
+    /* ==================================================
+       DATATABLE
+    =================================================== */
+
+    const table = $("#registrationTable").DataTable({
+
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "{% url 'registrations:datatable' %}",
+            type: "GET"
+        },
+        columns: [
+            { data: "id" },
+            { data: "employee_code" },
+            { data: "rut" },
+            { data: "employee_name" },
+            { data: "registration_type" },
+            { data: "contributes_a2" },
+            { data: "date" },
+
+            {
+                data: "status",
+
+                render: function (value) {
+
+                    if (!value) { return "-"; }
+                    let className = "bg-secondary";
+                    const status = String(value).toLowerCase();
+
+                    if (status === "pending") {className = "bg-warning text-dark";}
+                    if (status === "approved") {className = "bg-success";}
+                    if (status === "rejected") {className = "bg-danger";}
+
+                    return `
+                        <span class="badge ${className}">
+                            ${escapeHtml(value)}
+                        </span>
+                    `;
+                }
+            },
+
+            {
+                data: "id",
+                orderable: false,
+                searchable: false,
+
+                render: function (id) {
+                    return `
+                        <button type="button"
+                                class="btn btn-sm btn-primary btnDetail"
+                                data-id="${id}"
+                                title="Ver detalle">
+
+                            <i class="fa fa-eye"></i>
+                        </button>
+                    `;
+                }
+            }
+        ],
+
+        order: [[0, "desc"]],
+        pageLength: 10,
+        language: {
+            url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json"
+        }
+
+    });
+
+
+    /* ==================================================
+       NUEVA SOLICITUD
+    =================================================== */
+
+    document
+        .getElementById("btnNewRegistration")
+        .addEventListener("click", function () {
+            resetForm();
+            registrationModal.show();
+        });
+
+
+    /* ==================================================
+       BUSCAR FUNCIONARIO
+    =================================================== */
+
+    document
+        .getElementById("btnSearchEmployee")
+        .addEventListener("click", searchEmployee);
+
+
+    document
+        .getElementById("employeeCodeSearch")
+        .addEventListener("keydown", function (event) {
+
+            if (event.key === "Enter") {
+                event.preventDefault();
+                searchEmployee();
+            }
+
+        });
+
+
+    async function searchEmployee() {
+
+        const code = document
+            .getElementById("employeeCodeSearch")
+            .value
+            .trim();
+
+        if (!code) {
+            showMessage("warning", "Debe ingresar un código.");
+            return;
+        }
+
+        showMessage("info", "Buscando funcionario...");
+
+        document.getElementById("btnSaveRegistration").disabled = true;
+
+        try {
+
+            const response = await fetch(
+                "{% url 'registrations:search_employee' %}",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        code: code
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message || "No se encontró el funcionario."
+                );
+            }
+
+            const employee = data.employee;
+
+            currentIsMember = Boolean(employee.is_member);
+
+            document.getElementById("personId").value =
+                employee.person_id;
+
+            document.getElementById("registrationTypeId").value =
+                data.registration_type.id;
+
+            document.getElementById("employeeCode").value =
+                employee.code || "";
+
+            document.getElementById("employeeRut").value =
+                employee.rut || "";
+
+            document.getElementById("employeeName").value =
+                employee.name || "";
+
+            document.getElementById("employeeGrade").value =
+                employee.grade || "";
+
+            document.getElementById("registrationTypeText").value =
+                data.registration_type.type;
+
+            document.getElementById("memberStatus").value =
+                currentIsMember ? "Socio" : "No socio";
+
+            document
+                .getElementById("registrationContent")
+                .classList.remove("d-none");
+
+            configureDocuments(currentIsMember);
+
+            document.getElementById("btnSaveRegistration").disabled = false;
+
+            showMessage("success", "Funcionario encontrado.");
+
+        } catch (error) {
+
+            document
+                .getElementById("registrationContent")
+                .classList.add("d-none");
+
+            showMessage("danger", error.message);
+        }
+
+    }
+
+
+    /* ==================================================
+       DOCUMENTOS SEGÚN SOCIO
+    =================================================== */
+
+    function configureDocuments(isMember) {
+
+        const documents = document.getElementById("documentsSection");
+        const memberMessage = document.getElementById("memberMessage");
+
+        const physical = document.getElementById("physicalRequestDocument");
+        const card = document.getElementById("idCardDocument");
+
+        if (isMember) {
+
+            documents.classList.add("d-none");
+            memberMessage.classList.remove("d-none");
+
+            physical.required = false;
+            card.required = false;
+
+        } else {
+
+            documents.classList.remove("d-none");
+            memberMessage.classList.add("d-none");
+
+            physical.required = true;
+            card.required = true;
+        }
+
+    }
+
+
+    /* ==================================================
+       GUARDAR SOLICITUD
+    =================================================== */
+
+    document
+        .getElementById("btnSaveRegistration")
+        .addEventListener("click", saveRegistration);
+
+
+    async function saveRegistration() {
+
+        const form = document.getElementById("registrationForm");
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+
+        if (!currentIsMember) {
+
+            const physical =
+                document.getElementById("physicalRequestDocument").files[0];
+
+            const card =
+                document.getElementById("idCardDocument").files[0];
+
+            if (!physical) {
+                alert("Debe adjuntar la solicitud física.");
+                return;
+            }
+
+            if (!card) {
+                alert("Debe adjuntar el escáner del carnet.");
+                return;
+            }
+
+        }
+
+
+        const button = document.getElementById("btnSaveRegistration");
+
+        button.disabled = true;
+
+        button.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Guardando...
+        `;
+
+
+        try {
+
+            const formData = new FormData(form);
+
+            const response = await fetch(
+                "{% url 'registrations:create' %}",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "X-CSRFToken": csrfToken
+                    },
+
+                    body: formData
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message || "No se pudo crear la solicitud."
+                );
+            }
+
+            registrationModal.hide();
+            table.ajax.reload(null, false);
+            alert(data.message);
+
+        } catch (error) {
+            alert(error.message);
+
+        } finally {
+            button.disabled = false;
+            button.innerHTML = `
+                <i class="fa fa-save me-1"></i>
+                Guardar solicitud
+            `;
+        }
+
+    }
+
+
+    /* ==================================================
+       DETALLE
+    =================================================== */
+
+    $(document).on("click", ".btnDetail", async function () {
+        const id = this.dataset.id;
+        document.getElementById("detailModalContent").innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border"></div>
+
+                <div class="mt-2">
+                    Cargando información...
+                </div>
+            </div>
+        `;
+
+        detailModal.show();
+
+        try {
+
+            const url = "{% url 'registrations:detail' 999999 %}".replace("999999", id);
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message);
+            }
+
+            renderDetail(data);
+
+        } catch (error) {
+
+            document.getElementById("detailModalContent").innerHTML = `
+                <div class="alert alert-danger">
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
+        }
+
+    });
+
+
+    function renderDetail(data) {
+
+        const registration = data.registration;
+        let documentsHtml = "";
+
+        if (data.documents.length) {
+            documentsHtml = `
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead>
+                            <tr>
+                                <th>Documento</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+
+                            ${data.documents.map(document => `
+                                <tr>
+
+                                    <td>${escapeHtml(document.name)}</td>
+                                    <td>${escapeHtml(document.type)}</td>
+                                    <td>${escapeHtml(document.status)}</td>
+                                    <td>${escapeHtml(document.date)}</td>
+                                    <td class="text-center">
+
+                                        ${
+                                            document.url
+                                                ? `
+                                                    <a href="${document.url}"
+                                                       target="_blank"
+                                                       class="btn btn-sm btn-primary">
+                                                        Ver
+                                                    </a>
+                                                `
+                                                : "-"
+                                        }
+
+                                    </td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+        } else {
+
+            documentsHtml = `
+                <div class="alert alert-secondary">
+                    Esta solicitud no posee documentos.
+                </div>
+            `;
+
+        }
+
+
+        let observationsHtml = "";
+
+
+        if (data.observations.length) {
+
+            observationsHtml = `
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Comentario</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            ${data.observations.map(observation => `
+                                <tr>
+                                    <td>${escapeHtml(observation.comment)}</td>
+                                    <td>${escapeHtml(observation.date)}</td>
+                                    <td>${escapeHtml(observation.time)}</td>
+                                    <td>${escapeHtml(observation.user)}</td>
+                                </tr>
+                            `).join("")}
+
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+        } else {
+
+            observationsHtml = `
+                <div class="alert alert-secondary">
+                    No existen observaciones.
+                </div>
+            `;
+
+        }
+
+
+        document.getElementById("detailModalContent").innerHTML = `
+
+            <ul class="nav nav-tabs mb-3">
+                <li class="nav-item">
+                    <button class="nav-link active"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailInfo">
+
+                        Información
+                    </button>
+                </li>
+
+                <li class="nav-item">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailDocuments">
+
+                        Documentos
+                    </button>
+                </li>
+
+                <li class="nav-item">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailObservations">
+
+                        Observaciones
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content">
+
+                <!-- INFORMACIÓN -->
+                <div class="tab-pane fade show active" id="detailInfo">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">ID</label>
+
+                            <input class="form-control"
+                                   value="${registration.id}"
+                                   readonly>
+                        </div>
+
+
+                        <div class="col-md-3">
+                            <label class="form-label">RUT</label>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.rut)}"
+                                   readonly>
+                        </div>
+
+
+                        <div class="col-md-6">
+                            <label class="form-label">Funcionario</label>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.name)}"
+                                   readonly>
+                        </div>
+
+
+                        <div class="col-md-4">
+                            <label class="form-label">Tipo</label>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.type)}"
+                                   readonly>
+                        </div>
+
+
+                        <div class="col-md-4">
+                            <label class="form-label">Aporta A2</label>
+
+                            <input class="form-control"
+                                   value="${registration.contributes_a2 ? "Sí" : "No"}"
+                                   readonly>
+                        </div>
+
+
+                        <div class="col-md-4">
+                            <label class="form-label">Estado</label>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.status)}"
+                                   readonly>
+                        </div>
+
+
+                        <div class="col-md-4">
+                            <label class="form-label">Fecha solicitud</label>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.date)}"
+                                   readonly>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- DOCUMENTOS -->
+                <div class="tab-pane fade" id="detailDocuments">
+                    ${documentsHtml}
+                </div>
+
+
+                <!-- OBSERVACIONES -->
+                <div class="tab-pane fade" id="detailObservations">
+                    ${observationsHtml}
+                </div>
+
+            </div>
+        `;
+    }
+
+
+    /* ==================================================
+       UTILIDADES
+    =================================================== */
+
+    function showMessage(type, text) {
+
+        document.getElementById("searchMessage").innerHTML = `
+            <div class="alert alert-${type} mb-0">
+                ${escapeHtml(text)}
+            </div>
+        `;
+
+    }
+
+    function resetForm() {
+        document.getElementById("registrationForm").reset();
+        document.getElementById("employeeCodeSearch").value = "";
+        document.getElementById("personId").value = "";
+        document.getElementById("registrationTypeId").value = "";
+
+        document
+            .getElementById("registrationContent")
+            .classList.add("d-none");
+
+        document
+            .getElementById("documentsSection")
+            .classList.add("d-none");
+
+        document
+            .getElementById("memberMessage")
+            .classList.add("d-none");
+
+        document.getElementById("searchMessage").innerHTML = "";
+
+        document.getElementById("btnSaveRegistration").disabled = true;
+
+        currentIsMember = false;
+    }
+
+    function escapeHtml(value) {
+
+        return String(value ?? "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+});
+
+</script>
+
+{% endblock %}

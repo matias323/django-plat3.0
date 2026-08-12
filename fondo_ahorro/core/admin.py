@@ -8,6 +8,14 @@ from .models import Document, DocumentType
 from .models import Observation
 from .models import Request
 
+from .models import (
+    Employee,
+    EmployeeGrade,
+    EmployeeContractType,
+    EmployeeSalaryType,
+    EmployeeQualificationType,
+)
+
 # USER
 admin.site.register(Person)
 admin.site.register(PersonType)
@@ -23,7 +31,12 @@ admin.site.register(Observation)
 # REQUESTS
 admin.site.register(Request)
 
-
+# EMPLOYEE
+admin.site.register(Employee)
+admin.site.register(EmployeeGrade)
+admin.site.register(EmployeeContractType)
+admin.site.register(EmployeeSalaryType)
+admin.site.register(EmployeeQualificationType)
 
 # @admin.register(Person)
 # class PersonAdmin(admin.ModelAdmin):
