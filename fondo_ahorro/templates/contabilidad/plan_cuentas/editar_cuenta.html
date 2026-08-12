@@ -1,0 +1,51 @@
+<!-- modal editar cuenta -->
+
+<div class="modal fade" id="modalEditarCuenta" tabindex="-1" aria-labelledby="modalEditarCuentaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEditarCuentaLabel">Editar cuenta</h5>
+                <small class="text-body-secondary" id="editar-codigo"></small>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="frmEditarCuenta">
+                <div class="modal-body">
+                    <!-- numero cuenta -->
+                    <div class="mb-3">
+                        <label for="txtEditarNumero" class="form-label">Número de cuenta</label>
+                        <input type="text" class="form-control" id="txtEditarNumero" name="txtEditarNumero" readonly>
+                    </div>
+                    <!-- nombre -->
+                    <div class="mb-3">
+                        <label for="txtEditarNombre" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="txtEditarNombre" name="txtEditarNombre" maxlength="100" required>
+                    </div>
+                    <div class="invalid-feedback">Por favor ingrese un nombre.</div>
+                    <!-- descripcion -->
+                    <div class="mb-3">
+                        <label for="txtEditarDescripcion" class="form-label">Descripción</label>
+                        <textarea type="text" class="form-control" id="txtEditarDescripcion" name="txtEditarDescripcion" maxlength="100"></textarea>
+                    </div>
+                    <!-- auxiliar -->
+                    <div class="form-check form-switch mb-3">
+                        <input type="checkbox" id="chkEditarAuxiliar" class="form-check-input">
+                        <label for="chkEditarAuxiliar" class="form-check-label">Es cuenta auxiliar</label>
+                    </div>
+                    <!-- tratamiento especial -->
+                    <div class="form-check form-switch">
+                        <input type="checkbox" id="chkEditarTratamientoEspecial" class="fotm-check-input">
+                        <label for="chkEditarTratamientoEspecial" class="form-check-label">Tratamiento especial</label>
+                    </div>
+                    <!-- error -->
+                    <div class="alert alert-danger d-none mt-3" role="alert" id="error-editar-cuenta"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-primary" id="btnGuardarCuenta" type="submit">Guardar
+                        <span class="spinner-border spinner-border-sm d-none me-1" aria-hidden="true" id="spinner-editar-cuenta"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
