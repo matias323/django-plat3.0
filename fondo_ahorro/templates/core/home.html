@@ -12,7 +12,7 @@
           <h5 class="card-title">Estado</h5>
           <p class="card-text mb-0">
             {% if user.is_authenticated %}
-              {{session}} 
+              {{request.user_session}} 
       
             {% else %}
               Estás navegando como <strong>invitado</strong>.

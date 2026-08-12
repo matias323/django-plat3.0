@@ -1,0 +1,67 @@
+
+<!-- #solo mostrar cuentas activas -->
+{% if nodo.cuenta.is_active %} 
+    <div class="cuenta-nodo" 
+        data-cuenta-id="{{ nodo.cuenta.id }}" 
+        data-numero="{{ nodo.cuenta.num_cuenta|lower }}"
+        data-nombre="{{ nodo.cuenta.nombre|lower }}"
+        data-descripcion="{{ nodo.cuenta.descripcion|default:'' }}" 
+        data-nivel="{{ nodo.cuenta.nivel }}"
+        data-auxiliar="{{ nodo.cuenta.is_auxiliar|yesno:'Si, No' }}"
+        data-tratamiento-especial="{{ nodo.cuenta.tratamiento_especial|yesno:'Si, No' }}"
+        data-tipo="{{ nodo.cuenta.cuenta_tipo.descripcion }}"
+        {% if nodo.cuenta.cuenta_padre %}
+            data-padre-id="{{ nodo.cuenta.cuenta_padre.id }}"
+            data-padre-numero="{{ nodo.cuenta.cuenta_padre.num_cuenta }}"
+            data-padre-nombre="{{ nodo.cuenta.cuenta_padre.nombre|lower }}"
+        {% endif %}
+        >
+        <div class="cuenta-header d-flex align-items-center py-2 px-2 border-bottom cuenta-selectable">
+
+            <!-- Botón expandir -->
+            {% if nodo.subcuentas %}
+                <button type="button" class="btn btn-sm btn-outline-secondary me-2 btn-expandir" data-target="subcuentas-{{ nodo.cuenta.id }}"
+                    aria-expanded="true" title="Expandir / contraer">
+                    −
+                </button>
+            {% else %}
+                <span class="me-2" style="width: 31px;"></span>
+            {% endif %}
+
+            <!-- Número de cuenta -->
+            <span class="fw-semibold me-3" style="min-width: 100px;">
+                {{ nodo.cuenta.num_cuenta }}
+            </span>
+
+            <!-- Nombre -->
+            <span class="flex-grow-1 nombre-cuenta">
+                {{ nodo.cuenta.nombre }}
+            </span>
+
+            <!-- Nivel -->
+            <span class="badge text-bg-light me-2" title="Nivel">
+                Nivel {{ nodo.cuenta.nivel }}
+            </span>
+
+            <!-- Tipo -->
+            <span class="badge text-bg-secondary me-2">
+                {{ nodo.cuenta.cuenta_tipo.descripcion }}
+            </span>
+
+            <!-- Auxiliar -->
+            {% if nodo.cuenta.is_auxiliar %}
+                <span class="badge text-bg-primary">
+                    Auxiliar
+                </span>
+            {% endif %}
+        </div>
+
+        {% if nodo.subcuentas %}
+            <div id="subcuentas-{{ nodo.cuenta.id }}" class="subcuentas ms-4">
+                {% for nodo in nodo.subcuentas %}
+                    {% include "contabilidad/plan_cuentas/plan_cuenta_tree.html" %}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+{% endif %}

@@ -1,30 +1,428 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="py-4 py-md-5">
-  <div class="row align-items-center g-4">
-    <div class="col-12 col-lg-6">
-      <h1 class="display-5 fw-bold mb-3">Plan cuenta</h1>
-    </div>
-    <div class="col-12 col-lg-6">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="card-title">Estado</h5>
-          <p class="card-text mb-0">
-            {% if user.is_authenticated %}
-              {{request.user_session}} 
-      
-            {% else %}
-              Estás navegando como <strong>invitado</strong>.
-            {% endif %}
-          </p>
-          
-          <br>
-          
+{% if user.is_authenticated %}
+<div class="container-fluid py-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">
+                        Plan de Cuentas
+                    </h4>
 
-          {% comment %} {% if session %} {% endif %} {% endcomment %}
+                    <small class="text-body-secondary">
+                        Estructura jerárquica de cuentas contables
+                    </small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-expandir-todo">
+                        <i class="bi bi-arrows-expand"></i>
+                        Expandir todo
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-contraer-todo">
+                        <i class="bi bi-arrows-collapse"></i>
+                        Contraer todo
+                    </button>
+                </div>
+            </div>
         </div>
-      </div>
+        <div class="card-body">
+            <!-- Búsqueda -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="search" class="form-control" id="buscar-cuenta" placeholder="Buscar por número o nombre..."
+                            autocomplete="off">
+                    </div>
+                </div>
+            </div>
+            <!-- Árbol -->
+            <div id="plan-cuentas" class="list-group list-group-flush">
+                {% for nodo in arbol %}
+                    {% include "contabilidad/plan_cuentas/plan_cuenta_tree.html" %}
+                {% empty %}
+                    <div class="alert alert-info">
+                        No existen cuentas registradas.
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- detalle cuenta -->
+             <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasCuenta" aria-labelledby="offcanvasCuentaLabel" 
+              style="width: 400px;">
+                <div class="offcanvas-header">
+                  <div>
+                      <h5 class="offcanvas-title" id="offcanvasCuentaLabel">Detalle de cuenta</h5>
+                      <small class="text-body-secondary" id="detalle-codigo"></small>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                </div>
+                <div class="offcanvas-body">
+                  <div class="mb-4">
+                    <h4 id="detalle-nombre">-</h4>
+                    <span class="badge text-bg-secondary" id="detalle-tipo">-</span>
+                  </div>
+                  <dl class="row">
+                      <dt class="col-sm-6">Número de cuenta</dt>
+                      <dd class="col-sm-6" id="detalle-numero">-</dd>
+
+                      <dt class="col-sm-6">Descripción</dt>
+                      <dd class="col-sm-6" id="detalle-descripcion">-</dd>
+
+                      <dt class="col-sm-6">Nivel</dt>
+                      <dd class="col-sm-6" id="detalle-nivel">-</dd>
+
+                      <dt class="col-sm-6">Cuenta padre</dt>
+                      <dd class="col-sm-6" id="detalle-padre">-</dd>
+
+                      <dt class="col-sm-6">Es auxiliar</dt>
+                      <dd class="col-sm-6" id="detalle-auxiliar">-</dd>
+
+                      <dt class="col-sm-6">Tratamiento especial</dt>
+                      <dd class="col-sm-6" id="detalle-tratamiento">-</dd>
+                  </dl>
+                  <hr>
+                  <div class="d-grid gap-2">
+                      <button type="button" class="btn btn-primary" id="btn-editar-cuenta">Editar cuenta</button>
+                      <button type="button" class="btn btn-outline-primary" id="btn-nueva-subcuenta">Nueva subcuenta</button>
+                  </div>
+                </div>
+             </div>
+        </div>
     </div>
-  </div>
-</section>
+</div>
+{% endif %}
+<!-- modal editar cuenta -->
+{% include "contabilidad/plan_cuentas/editar_cuenta.html" %}
+
+<!-- Token CSRF para las peticiones -->
+{% csrf_token %}
+
 {% endblock %}
+{% block extra_js %}
+<script>
+
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+document.addEventListener("DOMContentLoaded", () => {
+  //offcanvas
+  const offcanvasElemento = document.getElementById("offcanvasCuenta");
+  const offcanvasCuenta = bootstrap.Offcanvas.getOrCreateInstance(offcanvasElemento);
+
+  //modal
+  const modalEditarElemento = document.getElementById("modalEditarCuenta");
+  const modalEditar = bootstrap.Modal.getOrCreateInstance(modalEditarElemento);
+
+  const planCuentas = document.getElementById("plan-cuentas");
+  if (!planCuentas) {
+      return;
+  }
+
+  //expandir/contraer una cuenta
+  planCuentas.addEventListener("click", (event) => {
+    const boton = event.target.closest(".btn-expandir");
+    if (!boton) {
+        return;
+    }
+    const targetId = boton.dataset.target;
+    const elemento = document.getElementById(targetId);
+    if (!elemento) {
+        return;
+    }
+    const estaVisible = !elemento.classList.contains("d-none");
+    if (estaVisible) {
+        elemento.classList.add("d-none");
+        boton.textContent = "+";
+    } else {
+        elemento.classList.remove("d-none");
+        boton.textContent = "−";
+    }
+  });
+
+  //expandir todo
+  document.getElementById("btn-expandir-todo")?.addEventListener("click", () => {
+      document.querySelectorAll(".subcuentas").forEach((elemento) => {
+          elemento.classList.remove("d-none");
+      });
+      document.querySelectorAll(".btn-expandir").forEach((boton) => {
+          boton.textContent = "−";
+      });
+  });
+
+  //contraer todo
+  document.getElementById("btn-contraer-todo")?.addEventListener("click", () => {
+      document.querySelectorAll(".subcuentas").forEach((elemento) => {
+          elemento.classList.add("d-none");
+      });
+      document.querySelectorAll(".btn-expandir").forEach((boton) => {
+          boton.textContent = "+";
+      });
+  });
+
+  //seleccionar cuenta
+  document.getElementById("plan-cuentas")?.addEventListener("click", (event) => {
+      if (event.target.closest(".btn-expandir")) {
+          return;
+      } 
+      const fila = event.target.closest(".cuenta-header");
+      if (!fila) {
+          return;
+      }
+      const nodo = fila.closest(".cuenta-nodo");
+      if (!nodo) {
+          return;
+      }
+      seleccionarCuenta(nodo);
+  });
+
+  //seleccionar cuenta y mostrar info
+  const seleccionarCuenta = (nodo) => {
+    document.querySelectorAll(".cuenta-selectable").forEach((elemento) => {
+        elemento.classList.remove(
+            "table-active",
+            "bg-primary-subtle"
+        );
+    });
+
+    const fila = nodo.querySelector(":scope > .cuenta-header");
+    fila.classList.add("bg-primary-subtle");
+
+    const numero = nodo.dataset.numero;
+    const nombre = nodo.dataset.nombre;
+    const descripcion = nodo.dataset.descripcion;
+    const nivel = nodo.dataset.nivel;
+    const auxiliar = nodo.dataset.auxiliar;
+    const tratamiento = nodo.dataset.tratamientoEspecial;
+    const tipo = nodo.dataset.tipo;
+
+    let padre = "Sin cuenta padre";
+
+    if (nodo.dataset.padreId) {
+        padre = `${nodo.dataset.padreNumero} - ` +  `${nodo.dataset.padreNombre}`;
+    }
+
+    document.getElementById("detalle-codigo").textContent = numero;
+    document.getElementById("detalle-nombre").textContent = nombre;
+    document.getElementById("detalle-tipo").textContent = tipo;
+    document.getElementById("detalle-numero").textContent = numero;
+    document.getElementById("detalle-descripcion").textContent = descripcion || "Sin descripción";
+    document.getElementById("detalle-nivel").textContent = nivel;
+    document.getElementById("detalle-padre").textContent = padre;
+    document.getElementById("detalle-auxiliar").textContent = auxiliar;
+    document.getElementById("detalle-tratamiento").textContent = tratamiento;
+    document.getElementById("btn-editar-cuenta").dataset.cuentaId = nodo.dataset.cuentaId;
+    document.getElementById("btn-nueva-subcuenta").dataset.cuentaId = nodo.dataset.cuentaId;
+
+    //agregar el id de la cuenta seleccionada al btn editar
+    document.getElementById("btn-editar-cuenta").dataset.cuentaId = nodo.dataset.cuentaId;
+
+    offcanvasCuenta.show();
+  }
+    
+  //Buscador de cuentas
+  const inputBuscar = document.getElementById("buscar-cuenta");
+  inputBuscar?.addEventListener("input", () => {
+      const texto = inputBuscar.value.trim().toLowerCase();
+      const nodos = document.querySelectorAll(".cuenta-nodo");
+      if (texto === "") {
+          nodos.forEach((nodo) => {
+              nodo.classList.remove("d-none");
+          });
+          return;
+      }
+
+      nodos.forEach((nodo) => {
+          nodo.classList.add("d-none");
+      });
+
+      nodos.forEach((nodo) => {
+        const numero = nodo.dataset.numero;
+        const nombre = nodo.dataset.nombre;
+
+        const coincide = numero.includes(texto) || nombre.includes(texto);
+        if (!coincide) {
+            return;
+        }
+
+        /*
+        | Mostrar la cuenta encontrada
+        */
+        nodo.classList.remove("d-none");
+
+        /*
+        | Mostrar todos sus padres
+        */
+
+        let padre = nodo.parentElement.closest(".cuenta-nodo");
+        while (padre) {
+          padre.classList.remove("d-none");
+          expandirNodo(padre);
+          padre = padre.parentElement.closest(".cuenta-nodo");
+        }
+      }); 
+  });
+
+  const expandirNodo=(nodo) => {
+    const subcuentas = nodo.querySelector(":scope > .subcuentas");
+    const boton = nodo.querySelector(":scope > .cuenta-header .btn-expandir");
+
+    if (!subcuentas || !boton) {
+        return;
+    }
+
+    subcuentas.classList.remove("d-none");
+    boton.textContent = "−";
+    boton.setAttribute("aria-expanded","true");
+  }
+
+  //btn abrir modal
+  document.addEventListener("click", (event) => {
+      const boton = event.target.closest("#btn-editar-cuenta");
+      if (!boton) {
+          return;
+      }
+
+      //obtener el id de la cuenta seleccionada
+      const cuentaId = boton.dataset.cuentaId;
+      if(!cuentaId){
+        return;
+      }
+
+      //obtener info de la cuenta
+      const nodo = document.querySelector(`.cuenta-nodo[data-cuenta-id="${cuentaId}"]`);
+      if (!nodo) {
+          return;
+      }
+
+      //cargar info de la cuenta en el modal
+      cargarFormularioEdit(nodo)
+
+      //abrir modal
+      modalEditar.show();
+      
+  })
+
+  //cargar info de la cuenta en el modal
+  const cargarFormularioEdit = (nodo) => {
+    console.log(nodo.dataset.numero);
+    document.getElementById("modalEditarCuentaLabel").textContent = `Cuenta ${nodo.dataset.numero} - ${nodo.dataset.nombre}`;
+    document.getElementById("txtEditarNumero").value = nodo.dataset.numero;
+    document.getElementById("txtEditarNombre").value = nodo.dataset.nombre;
+    document.getElementById("txtEditarDescripcion").value = nodo.dataset.descripcion;
+    document.getElementById("chkEditarAuxiliar").checked = nodo.dataset.auxiliar === "Si";
+    document.getElementById("chkEditarTratamientoEspecial").checked = nodo.dataset.tratamientoEspecial === "Si";
+
+    //limpiar errores anteriors
+    document.getElementById("error-editar-cuenta").classList.add("d-none");
+    document.getElementById("txtEditarNombre").classList.remove("is-invalid");
+  }
+
+    //capturar el envio del formulario
+    document.getElementById("frmEditarCuenta")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const btnEdit = document.getElementById("btn-editar-cuenta");
+        const cuentaId = btnEdit?.dataset?.cuentaId;
+
+        if (!btnEdit || !cuentaId) {
+            return;
+        }
+
+        // Obtener y limpiar valores de los inputs
+        const txtNombre = document.getElementById("txtEditarNombre");
+        const nombre = txtNombre?.value.trim() || "";
+        const descripcion = document.getElementById("txtEditarDescripcion")?.value.trim() || "";
+        const auxiliar = document.getElementById("chkEditarAuxiliar")?.checked || false;
+        const tratamiento = document.getElementById("chkEditarTratamientoEspecial")?.checked || false;
+
+        // Validar nombre
+        if (!nombre || nombre.length < 5) {
+            txtNombre?.classList.add("is-invalid");
+            Swal.fire({
+                icon: "warning",
+                title: "Atención",
+                text: "El nombre debe tener al menos 5 caracteres",
+            });
+            return;
+        }
+
+        // Quitar la clase de error si pasó la validación
+        txtNombre?.classList.remove("is-invalid");
+
+        try {
+            const formData = new FormData();
+            formData.append("nombre", nombre);
+            formData.append("descripcion", descripcion);
+            formData.append("is_auxiliar", auxiliar ? "true" : "false");
+            formData.append("tratamiento_especial", tratamiento ? "true" : "false");
+
+            // Spinner de carga
+            Swal.fire({
+                title: "Espere",
+                text: "Guardando cambios...",
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                willOpen: () => {
+                    Swal.showLoading();
+                },
+            });
+
+            const response = await fetch(`/contabilidad/plan_cuentas/editar/${cuentaId}/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrftoken,
+                    "X-App-Request": "true",
+                },
+                body: formData,
+            });
+
+            // Parsear JSON antes de validar response.ok
+            const data = await response.json().catch(() => ({
+                success: false,
+                message: "Respuesta inválida del servidor"
+            }));
+
+            // Si el middleware (403, 401, etc.) o la vista retornan error
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Error al editar la cuenta");
+            }
+
+            // Cerrar modal si la instancia existe
+            if (typeof modalEditar !== "undefined" && modalEditar?.hide) {
+                modalEditar.hide();
+            }
+
+            // Notificación de éxito
+            await Swal.fire({
+                icon: "success",
+                title: "¡Éxito!",
+                text: data.message || "Cuenta actualizada correctamente",
+            });
+
+        } catch (error) {
+            // Muestra el mensaje enviado desde el middleware o vista (p. ej., "No tienes permisos...")
+            Swal.fire({
+                icon: "error",
+                title: "No se pudo guardar",
+                text: error.message || "Ocurrió un error inesperado al editar la cuenta",
+            });
+            console.error("Error en la solicitud:", error.message);
+        }
+    });
+
+});
+</script>
+{% endblock %}
+
+<!-- sweetAlert.fire({
+      title: "Espere",
+      text: "Guardando cuenta",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+      willOpen: () => {
+        Swal.showLoading();
+      },
+    }) -->
