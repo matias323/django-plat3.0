@@ -17,8 +17,17 @@ class ActiveAppSessionMiddleware:
         return response
 
     def process_view(self, request, view_func, view_args, view_kwargs):
+        # 1. Si no está autenticado, dejamos que Django lo maneje
         if not request.user.is_authenticated:
-            return None  # Dejar que el login_required de Django gestione la no autenticación
+            return None
+
+        # 2. BYPASS DE SUPERUSUARIO: Si es superusuario, tiene acceso libre a todo
+        if request.user.is_superuser:
+            return None
+
+        # 3. BYPASS DEL PANEL DE ADMIN: Si la petición es hacia el /admin/ de Django, se ignora el middleware
+        if request.resolver_match and request.resolver_match.app_name == 'admin':
+            return None
 
         session = User.get_active_session(request.user)
 
@@ -37,7 +46,6 @@ class ActiveAppSessionMiddleware:
             messages.error(request, "No tienes permisos para acceder.")
             return redirect('core:home')
 
-        # Si la app actual es una instancia de App (no un booleano como True en admin/logout)
         app_target = current_app if isinstance(current_app, App) else session.app
 
         # VALIDACIÓN DE ESCRITURA / MODIFICACIÓN (POST, PUT, PATCH, DELETE)
@@ -49,7 +57,7 @@ class ActiveAppSessionMiddleware:
                 is_active=True
             ).select_related('permission').first()
 
-            # Si no tiene permiso asignado o su nivel es únicamente 1 (Ver)
+            # Si no tiene permiso o no es de modificación (ID != 2)
             if not user_permission or user_permission.permission_id != 2:
                 if request.headers.get('X-App-Request') == "true":
                     return JsonResponse({
@@ -60,7 +68,7 @@ class ActiveAppSessionMiddleware:
                 messages.error(request, "No tienes permisos para realizar cambios.")
                 return redirect('core:home')
 
-        # Actualizar la app en la sesión si la navegación es normal (GET) y current_app es una App real
+        # Actualizar la app en la sesión en navegaciones GET normales
         if request.method == 'GET' and isinstance(current_app, App) and session:
             if session.app != current_app:
                 session.app = current_app
