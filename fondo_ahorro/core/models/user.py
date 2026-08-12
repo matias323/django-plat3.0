@@ -5,6 +5,8 @@ from .base import BaseModel
 
 from django.contrib.auth.models import AbstractUser
 
+from core.models.session import Session
+
 from django.utils import timezone
 
 from applications.apps.models import App
@@ -35,6 +37,14 @@ class User(AbstractUser):
 
     def validate_password(self, password):
         return self.get_password() == str(password).lower().strip()
+
+    @classmethod
+    def get_active_session(cls,user):
+        """Función auxiliar para obtener la sesión activa del usuario."""
+        if not user.is_authenticated:
+            return None
+        return Session.objects.filter(user=user, closed_at=None).first()
+
 
     
 

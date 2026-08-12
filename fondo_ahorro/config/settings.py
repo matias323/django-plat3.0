@@ -68,7 +68,7 @@ MIDDLEWARE = [
 
     #custom
     # 'core.middleware.CustomSessionMiddleware',
-    # 'core.middleware.ActiveAppSessionMiddleware',
+    'core.middleware.ActiveAppSessionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

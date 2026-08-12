@@ -320,94 +320,98 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("txtEditarNombre").classList.remove("is-invalid");
   }
 
-  //capturar el envio del formulario
-  document.getElementById("frmEditarCuenta")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+    //capturar el envio del formulario
+    document.getElementById("frmEditarCuenta")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-    const btnEdit = document.getElementById("btn-editar-cuenta");
-    if (!btnEdit) {
-        return;
-    }
+        const btnEdit = document.getElementById("btn-editar-cuenta");
+        const cuentaId = btnEdit?.dataset?.cuentaId;
 
-    //obtener el id de la cuenta
-    const cuentaId = btnEdit.dataset.cuentaId;
-    if(!cuentaId){
-      return;
-    }
+        if (!btnEdit || !cuentaId) {
+            return;
+        }
 
-        
+        // Obtener y limpiar valores de los inputs
+        const txtNombre = document.getElementById("txtEditarNombre");
+        const nombre = txtNombre?.value.trim() || "";
+        const descripcion = document.getElementById("txtEditarDescripcion")?.value.trim() || "";
+        const auxiliar = document.getElementById("chkEditarAuxiliar")?.checked || false;
+        const tratamiento = document.getElementById("chkEditarTratamientoEspecial")?.checked || false;
 
-    //obtener inputs
-    const nombre = document.getElementById("txtEditarNombre").value.trim();
-    const descripcion = document.getElementById("txtEditarDescripcion").value.trim();
-    const auxiliar = document.getElementById("chkEditarAuxiliar").checked;
-    const tratamiento = document.getElementById("chkEditarTratamientoEspecial").checked;
+        // Validar nombre
+        if (!nombre || nombre.length < 5) {
+            txtNombre?.classList.add("is-invalid");
+            Swal.fire({
+                icon: "warning",
+                title: "Atención",
+                text: "El nombre debe tener al menos 5 caracteres",
+            });
+            return;
+        }
 
-    //validar nombre
-    if (!nombre || nombre === "" || nombre.length < 5) {
-      document.getElementById("txtEditarNombre").classList.add("is-invalid");
-      Swal.fire({
-        icon: "warning",
-        title: "",
-        text: "El nombre debe tener al menos 5 caracteres",
-      })
-      return;
-    }
-    //quitamos la clase error
-    document.getElementById("txtEditarNombre").classList.remove("is-invalid");
+        // Quitar la clase de error si pasó la validación
+        txtNombre?.classList.remove("is-invalid");
 
-    //realizar el envio
-    try{
-      const formData = new FormData();
-      formData.append("nombre", nombre);
-      formData.append("descripcion", descripcion);
-      formData.append("is_auxiliar", auxiliar ? "true" : "false");
-      formData.append("tratamiento_especial", tratamiento ? "true" : "false");
+        try {
+            const formData = new FormData();
+            formData.append("nombre", nombre);
+            formData.append("descripcion", descripcion);
+            formData.append("is_auxiliar", auxiliar ? "true" : "false");
+            formData.append("tratamiento_especial", tratamiento ? "true" : "false");
 
-      //spinner
-      Swal.fire({
-        title: "Espere",
-        text: "Guardando cambios",
-        allowOutsideClick: false,
-        showConfirmButton: false,
-        willOpen: () => {
-          Swal.showLoading();
-          
-        },
-      });
+            // Spinner de carga
+            Swal.fire({
+                title: "Espere",
+                text: "Guardando cambios...",
+                allowOutsideClick: false,
+                showConfirmButton: false,
+                willOpen: () => {
+                    Swal.showLoading();
+                },
+            });
 
-      const response = await fetch(`/contabilidad/plan_cuentas/editar/${cuentaId}/`, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": csrftoken,
-        },
-        body: formData,
-      });
+            const response = await fetch(`/contabilidad/plan_cuentas/editar/${cuentaId}/`, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrftoken,
+                    "X-App-Request": "true",
+                },
+                body: formData,
+            });
 
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || "Error al editar la cuenta");
-      }
-      console.log(data);
+            // Parsear JSON antes de validar response.ok
+            const data = await response.json().catch(() => ({
+                success: false,
+                message: "Respuesta inválida del servidor"
+            }));
 
-      //cerrar modal
-      modalEditar.hide();
+            // Si el middleware (403, 401, etc.) o la vista retornan error
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Error al editar la cuenta");
+            }
 
-      Swal.fire({
-        icon: "success",
-        title: "",
-        text: data.message,
-      })
+            // Cerrar modal si la instancia existe
+            if (typeof modalEditar !== "undefined" && modalEditar?.hide) {
+                modalEditar.hide();
+            }
 
-    }catch(error){
-      Swal.fire({
-        icon: "error",
-        title: error.message,
-        text: "Error al editar la cuenta",
-      })
-      console.log(error.message);
-    }
-  });
+            // Notificación de éxito
+            await Swal.fire({
+                icon: "success",
+                title: "¡Éxito!",
+                text: data.message || "Cuenta actualizada correctamente",
+            });
+
+        } catch (error) {
+            // Muestra el mensaje enviado desde el middleware o vista (p. ej., "No tienes permisos...")
+            Swal.fire({
+                icon: "error",
+                title: "No se pudo guardar",
+                text: error.message || "Ocurrió un error inesperado al editar la cuenta",
+            });
+            console.error("Error en la solicitud:", error.message);
+        }
+    });
 
 });
 </script>

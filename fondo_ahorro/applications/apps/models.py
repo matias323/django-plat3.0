@@ -56,8 +56,8 @@ class App(BaseModel):
     @classmethod
     def get_navbar_menu(cls, user, session_role):
         """
-        Retorna las aplicaciones padre permitidas para el usuario y rol activos,
-        pre-cargando de manera eficiente sus respectivas aplicaciones hijas y nietas.
+        Retorna las aplicaciones padre permitidas para el usuario y rol activos.
+        Oculta los padres cuyos submódulos (hijas/nietas) queden vacíos por falta de permisos.
         """
         # 1. Filtramos las aplicaciones que el usuario tiene permitidas
         allowed_apps_queryset = cls.objects.filter(
@@ -81,15 +81,50 @@ class App(BaseModel):
             to_attr='allowed_daughters'
         )
 
-        # 4. Obtenemos las apps PADRE ejecutando el prefetch ordenado
-        return cls.objects.filter(
+        # 4. Traemos todas las aplicaciones PADRE permitidas
+        parents = cls.objects.filter(
             id__in=allowed_apps_queryset.values_list('id', flat=True),
             father_app__isnull=True,
             userpermission__is_active=True
         ).prefetch_related(
             prefetch_daughters
         ).distinct().order_by('order')
-    
+
+        # 5. Filtrado jerárquico en memoria
+        visible_parents = []
+
+        for father in parents:
+            visible_daughters = []
+            for daughter in getattr(father, 'allowed_daughters', []):
+                # Verificamos si esta hija en la BDD tiene definidas nietas estructuradas
+                has_db_granddaughters = daughter.sub_apps.exists()
+
+                if has_db_granddaughters:
+                    # Si en BDD tiene nietas, sólo mantenemos la hija si conserva al menos una nieta con permiso
+                    if getattr(daughter, 'allowed_daughters', []):
+                        visible_daughters.append(daughter)
+                else:
+                    # Si en BDD la hija NO tiene nietas por estructura, se mantiene directamente
+                    visible_daughters.append(daughter)
+
+            # Actualizamos la lista de hijas permitidas en el padre
+            father.allowed_daughters = visible_daughters
+
+            # Evaluamos el Padre:
+            # Verificamos si el padre en la BDD tiene definidas hijas estructuradas
+            has_db_daughters = father.sub_apps.exists()
+
+            if has_db_daughters:
+                # Si el padre tiene estructura de hijas, sólo se muestra si le quedó al menos una hija visible
+                if visible_daughters:
+                    visible_parents.append(father)
+            else:
+                # Si el padre es un módulo directo sin hijas, se muestra siempre que tenga permiso
+                visible_parents.append(father)
+
+        return visible_parents
+
+
     @classmethod
     def get_app_by_request(cls, request):
         """
@@ -97,13 +132,20 @@ class App(BaseModel):
         """
         if request.resolver_match.app_name == 'admin' or request.resolver_match.url_name == 'logout':
             return True
-        #Buscar por el nombre completo de la URL/vista (ej. 'core:home' o 'devolucion:solicitud')
+        
+        # Resolver la App por el view_name (ej: 'contabilidad:editar_cuenta')
         view_name = request.resolver_match.view_name
         app = cls.objects.filter(
-                            url=view_name,
-                            userpermission__app__url=view_name,
-                            userpermission__is_active=True,
-                            ).first()
+            url=view_name,
+            userpermission__is_active=True,
+        ).first()
+
         if app:
             return app
 
+        # Si es una petición AJAX/API y no está mapeada como App independiente, 
+        # permitimos que pase o retornamos True según tu regla de negocio
+        if request.headers.get('X-App-Request') == "true":
+            return True
+
+        return None

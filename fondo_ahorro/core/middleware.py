@@ -1,16 +1,10 @@
-# core/middleware.py
 from django.shortcuts import redirect
 from django.utils.functional import SimpleLazyObject
-from django.contrib import messages  # Opcional: para mostrar una alerta
+from django.contrib import messages
+from django.http import JsonResponse
 
 from applications.apps.models import App
-from core.models import Session 
-
-def get_active_session(user):
-    """Función auxiliar para obtener la sesión activa del usuario."""
-    if not user.is_authenticated:
-        return None
-    return Session.objects.filter(user=user, closed_at=None).first()
+from core.models.user import User, UserPermission
 
 
 class ActiveAppSessionMiddleware:
@@ -18,40 +12,58 @@ class ActiveAppSessionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Adjuntamos el objeto lazy al request para que esté disponible en views/templates
-        request.user_session = SimpleLazyObject(lambda: get_active_session(request.user))
-
-        # Continúa el flujo normal si la vista/proceso no fue redirigida por process_view
+        request.user_session = SimpleLazyObject(lambda: User.get_active_session(request.user))
         response = self.get_response(request)
         return response
 
     def process_view(self, request, view_func, view_args, view_kwargs):
-        """
-        Se ejecuta DESPUÉS de que Django resolvió la URL (request.resolver_match ya existe)
-        pero ANTES de ejecutar la vista.
-        """
-        # if not request.user.is_authenticated and request.resolver_match.url_name != 'registration' :
-        #     return redirect('core:login')
+        if not request.user.is_authenticated:
+            return None  # Dejar que el login_required de Django gestione la no autenticación
 
-        # if request.resolver_match.url_name == 'registration':
-        #     return None
+        session = User.get_active_session(request.user)
 
-        if request.user.is_authenticated:
-            current_app = App.get_app_by_request(request)
+        if not session:
+            if request.headers.get('X-App-Request') == "true":
+                return JsonResponse({'success': False, 'message': 'Sesión no válida o expirada.'}, status=401)
+            messages.error(request, "Debe iniciar sesión")
+            return redirect('core:login')
 
-            if not current_app:
-                messages.error(request, f"No tienes permisos para acceder.")
-                # REDIRIGIR A OTRA APP (Ej: Dashboard principal o App por defecto)
-                # Asegúrate de evitar un bucle infinito de redirecciones si la vista destino también usa este chequeo!
-                return redirect('core:home') 
+        current_app = App.get_app_by_request(request)
 
-            # 2. SI TIENE PERMISO: Actualizar la sesión activa
-            session = get_active_session(request.user)
+        # Si no existe la App o no tiene permisos de acceso general
+        if not current_app:
+            if request.headers.get('X-App-Request') == "true":
+                return JsonResponse({'success': False, 'message': 'No tienes permisos para acceder a este recurso.'}, status=403)
+            messages.error(request, "No tienes permisos para acceder.")
+            return redirect('core:home')
 
-            if str(type(current_app)) != "<class 'bool'>" and session  :
-                session.app = current_app 
+        # Si la app actual es una instancia de App (no un booleano como True en admin/logout)
+        app_target = current_app if isinstance(current_app, App) else session.app
+
+        # VALIDACIÓN DE ESCRITURA / MODIFICACIÓN (POST, PUT, PATCH, DELETE)
+        if request.method in ['POST', 'PUT', 'PATCH', 'DELETE']:
+            user_permission = UserPermission.objects.filter(
+                user=request.user,
+                app=app_target,
+                role=session.role,
+                is_active=True
+            ).select_related('permission').first()
+
+            # Si no tiene permiso asignado o su nivel es únicamente 1 (Ver)
+            if not user_permission or user_permission.permission_id != 2:
+                if request.headers.get('X-App-Request') == "true":
+                    return JsonResponse({
+                        'success': False, 
+                        'message': 'No tienes permisos para modificar en esta aplicación.'
+                    }, status=403)
+                
+                messages.error(request, "No tienes permisos para realizar cambios.")
+                return redirect('core:home')
+
+        # Actualizar la app en la sesión si la navegación es normal (GET) y current_app es una App real
+        if request.method == 'GET' and isinstance(current_app, App) and session:
+            if session.app != current_app:
+                session.app = current_app
                 session.save(update_fields=['app'])
 
-            
-        # Si retorna None, Django continúa ejecutando la vista normalmente
         return None
