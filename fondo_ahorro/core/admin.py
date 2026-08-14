@@ -16,6 +16,17 @@ from .models import (
     EmployeeQualificationType,
 )
 
+from .models import (
+    Partner,
+    PartnerContributionType,
+    PartnerVoluntaryDiscount,
+    PartnerBalance,
+    PartnerReentry,
+    PartnerNewContribution,
+    PartnerMovementType,
+    PartnerMovement,
+)
+
 # USER
 admin.site.register(Person)
 admin.site.register(PersonType)
@@ -37,6 +48,16 @@ admin.site.register(EmployeeGrade)
 admin.site.register(EmployeeContractType)
 admin.site.register(EmployeeSalaryType)
 admin.site.register(EmployeeQualificationType)
+
+# PARTNER
+admin.site.register(Partner)
+admin.site.register(PartnerContributionType)
+admin.site.register(PartnerVoluntaryDiscount)
+admin.site.register(PartnerBalance)
+admin.site.register(PartnerReentry)
+admin.site.register(PartnerNewContribution)
+admin.site.register(PartnerMovementType)
+admin.site.register(PartnerMovement)
 
 # @admin.register(Person)
 # class PersonAdmin(admin.ModelAdmin):
