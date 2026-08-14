@@ -1,5 +1,6 @@
 import json
 import uuid
+import traceback
 
 from pathlib import Path
 
@@ -17,6 +18,8 @@ from core.models.person import Person
 from core.models.document import Document, DocumentType
 from core.models.observation import Observation
 from core.models.request import Request, RequestType, RequestStatus
+
+from core.models import Employee, EmployeeGrade
 
 from .models import (
     Registration,
@@ -66,47 +69,19 @@ def _get_client_ip(request):
 
 
 def _find_employee_by_code(code):
-    """
-    Busca el funcionario utilizando las tablas existentes
-    funcionario y funcionario_grado.
+    employee = Employee.objects.select_related("person").filter(code=str(code)).first()
 
-    Cuando exista un modelo Django Employee/Funcionario,
-    esta función se puede reemplazar por ORM.
-    """
-
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT
-                f.id_persona,
-                f.codigo,
-                COALESCE(fg.nombre, '')
-            FROM funcionario f
-            LEFT JOIN funcionario_grado fg
-                ON fg.id = f.id_grado
-            WHERE CAST(f.codigo AS TEXT) = %s
-            LIMIT 1
-            """,
-            [str(code)],
-        )
-
-        row = cursor.fetchone()
-
-    if not row:
+    if not employee:
         return None
 
-    person_id, employee_code, grade = row
+    grade = ""
 
-    person = Person.objects.filter(
-        pk=person_id
-    ).first()
-
-    if not person:
-        return None
+    if employee.grade_id:
+        grade = EmployeeGrade.objects.filter(pk=employee.grade_id).values_list("name", flat=True).first() or ""
 
     return {
-        "person": person,
-        "code": employee_code,
+        "person": employee.person,
+        "code": employee.code,
         "grade": grade,
     }
 
@@ -134,36 +109,12 @@ def _person_is_member(person_id):
 
 
 def _employee_codes(person_ids):
-    """
-    Devuelve:
-        {
-            person_id: codigo,
-            ...
-        }
-    """
-
     if not person_ids:
         return {}
 
-    placeholders = ", ".join(
-        ["%s"] * len(person_ids)
-    )
-
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"""
-            SELECT id_persona, codigo
-            FROM funcionario
-            WHERE id_persona IN ({placeholders})
-            """,
-            list(person_ids),
-        )
-
-        rows = cursor.fetchall()
-
     return {
-        row[0]: row[1]
-        for row in rows
+        employee["person_id"]: employee["code"]
+        for employee in Employee.objects.filter(person_id__in=person_ids).values("person_id", "code")
     }
 
 
@@ -171,22 +122,9 @@ def _person_ids_by_employee_code(search):
     if not search:
         return []
 
-    with connection.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT id_persona
-            FROM funcionario
-            WHERE CAST(codigo AS TEXT) ILIKE %s
-            """,
-            [f"%{search}%"],
-        )
-
-        rows = cursor.fetchall()
-
-    return [
-        row[0]
-        for row in rows
-    ]
+    return list(
+        Employee.objects.filter(code__icontains=search).values_list("person_id", flat=True)
+    )
 
 
 def _validate_pdf(file):
@@ -411,18 +349,21 @@ def registration_datatable(request):
             "data": data,
         })
 
-
     except Exception as error:
-        return JsonResponse(
-            {
-                "draw": int(request.GET.get("draw", 1)),
-                "recordsTotal": 0,
-                "recordsFiltered": 0,
-                "data": [],
-                "error": str(error),
-            },
-            status=500,
-        )
+        print("\n" + "=" * 80)
+        print("ERROR EN registration_datatable")
+        print("=" * 80)
+        print(f"{type(error).__name__}: {error}")
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+
+        return JsonResponse({
+            "draw": int(request.GET.get("draw", 1)),
+            "recordsTotal": 0,
+            "recordsFiltered": 0,
+            "data": [],
+            "error": str(error),
+        }, status=500)
 
 # ============================================================
 # BUSCAR FUNCIONARIO
