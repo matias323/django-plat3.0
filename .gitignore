@@ -1,8 +1,10 @@
-
+#
 venv/
 env/
 .env
+.vscode
 
+#
 db.sqlite3
 *.pyc
 

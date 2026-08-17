@@ -55,6 +55,9 @@ INSTALLED_APPS = [
     #contabilidad
     "applications.contabilidad.plan_cuentas",
 
+    #inscripciones
+    "applications.inscripcion.registrations",
+
 ]
 
 MIDDLEWARE = [
