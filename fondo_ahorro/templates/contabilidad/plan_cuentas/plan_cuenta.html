@@ -152,23 +152,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //expandir todo
     document.getElementById("btn-expandir-todo")?.addEventListener("click", () => {
+        expandirTodo();
+    });
+
+    //contraer todo
+    document.getElementById("btn-contraer-todo")?.addEventListener("click", () => {
+        contraerTodo();
+    });
+
+    //expandir todo
+    const expandirTodo = () => {
         document.querySelectorAll(".subcuentas").forEach((elemento) => {
             elemento.classList.remove("d-none");
         });
         document.querySelectorAll(".btn-expandir").forEach((boton) => {
             boton.textContent = "−";
         });
-    });
+    }
 
     //contraer todo
-    document.getElementById("btn-contraer-todo")?.addEventListener("click", () => {
+    const contraerTodo = () => {
         document.querySelectorAll(".subcuentas").forEach((elemento) => {
             elemento.classList.add("d-none");
         });
         document.querySelectorAll(".btn-expandir").forEach((boton) => {
             boton.textContent = "+";
         });
-    });
+    }
 
     //seleccionar cuenta
     document.getElementById("plan-cuentas")?.addEventListener("click", (event) => {
@@ -188,6 +198,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //seleccionar cuenta y mostrar info
     const seleccionarCuenta = (nodo) => {
+        //activar cuenta inactiva
+        if(nodo.querySelector(":scope > .cuenta-activate")){
+            acttivarCuenta(nodo.dataset.cuentaId);
+        }
+
+        //cuanta inactiva
         if (!nodo.querySelector(":scope > .cuenta-selectable")) {
             return;
         }
@@ -233,6 +249,61 @@ document.addEventListener("DOMContentLoaded", () => {
 
         offcanvasCuenta.show();
     }
+
+    //activar cuenta
+    const acttivarCuenta = async (cuentaId) => {
+        try {
+            //mostrar swal de confirmacion
+            Swal.fire({
+                title: "Activar cuenta",
+                text: "Estas seguro de activar la cuenta?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#3085d6",
+                cancelButtonColor: "#d33",
+                confirmButtonText: "Si, activar",
+                cancelButtonText: "Cancelar",
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const response = await fetch(`/contabilidad/plan_cuentas/activar/${cuentaId}/`, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": csrftoken,
+                            "X-App-Request": "true",
+                        },
+                    });
+
+                    // Parsear JSON antes de validar response.ok
+                    const data = await response.json().catch(() => ({
+                        success: false,
+                        message: "Respuesta inválida del servidor"
+                    }));
+
+                    console.log(data);
+
+                    if (data.success) {
+                        //actualizar offcanvas
+                        const cuentas = data.cuentas_activadas;
+                        cuentas.forEach((cuenta) => {
+                            actualizarOffCanvas(cuenta.id, cuenta)
+                        })
+                    }
+                    Swal.fire({
+                        icon: data.success ? "success" : "error",
+                        title: data.success ? "¡Éxito!" : "No se pudo guardar",
+                        text: data.message,
+                    });
+                }
+            })
+        } catch (error) {
+            console.error(error);
+            Swal.fire({
+                icon: "error",
+                title: "No se pudo guardar",
+                text: error.message || "Ocurrio un error inesperado al editar la cuenta",
+            })
+        }
+    }
     
     //Buscador de cuentas
     const inputBuscar = document.getElementById("buscar-cuenta");
@@ -241,9 +312,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const nodos = document.querySelectorAll(".cuenta-nodo");
         const view = document.getElementById("cboCuentasView").value;
         if (texto === "") {
+            //contraer todo
             nodos.forEach((nodo) => {
                 nodo.classList.remove("d-none");
             });
+            contraerTodo();
             return;
         }
 
@@ -258,6 +331,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const coincide = numero.includes(texto) || nombre.includes(texto);
             if (!coincide) {
                 return;
+            }
+
+            if (view === "activas") {
+                const activa = nodo.dataset.active === "true";
+                if (!activa) {
+                    return;
+                }
             }
 
             /*
@@ -413,8 +493,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 modalEditar.hide();
             }
 
-            console.log(data)
-
             //actualizar el nodo en el DOM
             actualizarOffCanvas(cuentaId, data.cuenta);
             offcanvasCuenta.hide();
@@ -437,6 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    //actualiza el nodo en el DOM
     const actualizarOffCanvas = (cuentaId, cuenta) => {
         //actualizar el nodo modificado en el DOM
         const nodo = document.querySelector(`.cuenta-nodo[data-cuenta-id="${cuentaId}"]`);
@@ -445,10 +524,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (cuenta.is_active) {
+            nodo.classList.add("cuenta-activa");
+            nodo.classList.remove("cuenta-inactiva");
+
+            nodo.querySelector(":scope > .cuenta-header").classList.add("cuenta-selectable");
+            nodo.querySelector(":scope > .cuenta-header").classList.remove("cuenta-activate");
+        }
+
         nodo.dataset.nombre = cuenta.nombre;
         nodo.dataset.descripcion = cuenta.descripcion;
         nodo.dataset.auxiliar = cuenta.is_auxiliar ? "Si" : "No";
         nodo.dataset.tratamientoEspecial = cuenta.tratamiento_especial ? "Si" : "No";
+        nodo.dataset.active = cuenta.is_active ? "true" : "false";
 
         const cuentaElement = document.querySelector(`.cuenta-nodo[data-cuenta-id="${cuentaId}"]`);
 

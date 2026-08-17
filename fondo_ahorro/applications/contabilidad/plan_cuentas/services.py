@@ -43,7 +43,7 @@ def activar_cuenta(cuenta_id):
     except Cuentas.DoesNotExist:
         raise ValueError("Cuenta no encontrada")
     
-    if cuenta.is_activate:
+    if cuenta.is_active:
         raise ValueError("La cuenta ya esta activada")
     
     cuentas_activadas = []
@@ -53,9 +53,9 @@ def activar_cuenta(cuenta_id):
     while cuenta_actual is not None:
         cuenta_actual.is_active = True
         
-        cuenta_actual.save(update_fields=["is_activate"])
+        cuenta_actual.save(update_fields=["is_active"])
         
-        cuentas_activadas.appernd(cuenta_actual)
+        cuentas_activadas.append(cuenta_actual)
         
         cuenta_actual = cuenta_actual.cuenta_padre
     

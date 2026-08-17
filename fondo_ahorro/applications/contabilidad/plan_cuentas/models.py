@@ -46,7 +46,8 @@ class Cuentas(BaseModel):
             "cuenta_padre_num_cuenta": self.cuenta_padre.num_cuenta if self.cuenta_padre else None,
             "cuenta_padre_nombre": self.cuenta_padre.nombre if self.cuenta_padre else None,
             "cuenta_tipo": self.cuenta_tipo.id,
-            "cuenta_tipo_descripcion": self.cuenta_tipo.descripcion
+            "cuenta_tipo_descripcion": self.cuenta_tipo.descripcion,
+            "is_active": self.is_active
         }
     
     

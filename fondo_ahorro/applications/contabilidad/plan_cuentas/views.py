@@ -167,9 +167,9 @@ class ExportarPlanCuentasView(View):
 #activacion de cuentas
 @method_decorator(require_POST, name='dispatch')
 class ActivarCuentaView(View):
-    def post(self, request, cuenta_id): 
+    def post(self, request, pk): 
         try:
-            cuentas_activadas = activar_cuenta(cuenta_id)
+            cuentas_activadas = activar_cuenta(pk)
         except ValueError as e:
             return JsonResponse(
                 {

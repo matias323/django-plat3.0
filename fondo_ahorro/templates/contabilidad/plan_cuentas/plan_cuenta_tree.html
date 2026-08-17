@@ -30,7 +30,7 @@
             {% if nodo.subcuentas %}
                 <button type="button" class="btn btn-sm btn-outline-secondary me-2 btn-expandir" data-target="subcuentas-{{ nodo.cuenta.id }}"
                     aria-expanded="true" title="Expandir / contraer">
-                    −
+                    +
                 </button>
             {% else %}
                 <span class="me-2" style="width: 31px;"></span>
@@ -65,7 +65,7 @@
         </div>
 
         {% if nodo.subcuentas %}
-            <div id="subcuentas-{{ nodo.cuenta.id }}" class="subcuentas ms-4">
+            <div id="subcuentas-{{ nodo.cuenta.id }}" class="subcuentas ms-4 d-none">
                 {% for nodo in nodo.subcuentas %}
                     {% include "contabilidad/plan_cuentas/plan_cuenta_tree.html" %}
                 {% endfor %}
