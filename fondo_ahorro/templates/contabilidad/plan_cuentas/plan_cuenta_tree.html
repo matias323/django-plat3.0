@@ -1,7 +1,14 @@
 
-<!-- #solo mostrar cuentas activas -->
-{% if nodo.cuenta.is_active %} 
-    <div class="cuenta-nodo" 
+    <style>
+        .cuenta-inactiva {
+            color: var(--bs-secondary-color);
+            opacity: 0.65;
+        }
+        .cuenta-inactiva .nombre-cuenta {
+            color: var(--bs-secondary-color);
+        }
+    </style>
+    <div class="cuenta-nodo {% if nodo.cuenta.is_active %}cuenta-activa{% else %}cuenta-inactiva{% endif %}"
         data-cuenta-id="{{ nodo.cuenta.id }}" 
         data-numero="{{ nodo.cuenta.num_cuenta|lower }}"
         data-nombre="{{ nodo.cuenta.nombre|lower }}"
@@ -10,13 +17,14 @@
         data-auxiliar="{{ nodo.cuenta.is_auxiliar|yesno:'Si, No' }}"
         data-tratamiento-especial="{{ nodo.cuenta.tratamiento_especial|yesno:'Si, No' }}"
         data-tipo="{{ nodo.cuenta.cuenta_tipo.descripcion }}"
+        data-active="{{ nodo.cuenta.is_active|yesno:'true,false' }}"
         {% if nodo.cuenta.cuenta_padre %}
             data-padre-id="{{ nodo.cuenta.cuenta_padre.id }}"
             data-padre-numero="{{ nodo.cuenta.cuenta_padre.num_cuenta }}"
             data-padre-nombre="{{ nodo.cuenta.cuenta_padre.nombre|lower }}"
         {% endif %}
         >
-        <div class="cuenta-header d-flex align-items-center py-2 px-2 border-bottom cuenta-selectable">
+        <div class="cuenta-header d-flex align-items-center py-2 px-2 border-bottom {% if nodo.cuenta.is_active %}cuenta-selectable{% else %}cuenta-activate{% endif %}">
 
             <!-- Botón expandir -->
             {% if nodo.subcuentas %}
@@ -50,7 +58,7 @@
 
             <!-- Auxiliar -->
             {% if nodo.cuenta.is_auxiliar %}
-                <span class="badge text-bg-primary">
+                <span class="badge text-bg-primary badge-auxiliar">
                     Auxiliar
                 </span>
             {% endif %}
@@ -64,4 +72,3 @@
             </div>
         {% endif %}
     </div>
-{% endif %}
