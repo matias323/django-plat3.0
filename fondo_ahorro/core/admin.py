@@ -6,6 +6,26 @@ from .models.session import Session
 
 from .models import Document, DocumentType
 from .models import Observation
+from .models import Request
+
+from .models import (
+    Employee,
+    EmployeeGrade,
+    EmployeeContractType,
+    EmployeeSalaryType,
+    EmployeeQualificationType,
+)
+
+from .models import (
+    Partner,
+    PartnerContributionType,
+    PartnerVoluntaryDiscount,
+    PartnerBalance,
+    PartnerReentry,
+    PartnerNewContribution,
+    PartnerMovementType,
+    PartnerMovement,
+)
 
 # USER
 admin.site.register(Person)
@@ -19,7 +39,25 @@ admin.site.register(Document)
 admin.site.register(DocumentType)
 admin.site.register(Observation)
 
+# REQUESTS
+admin.site.register(Request)
 
+# EMPLOYEE
+admin.site.register(Employee)
+admin.site.register(EmployeeGrade)
+admin.site.register(EmployeeContractType)
+admin.site.register(EmployeeSalaryType)
+admin.site.register(EmployeeQualificationType)
+
+# PARTNER
+admin.site.register(Partner)
+admin.site.register(PartnerContributionType)
+admin.site.register(PartnerVoluntaryDiscount)
+admin.site.register(PartnerBalance)
+admin.site.register(PartnerReentry)
+admin.site.register(PartnerNewContribution)
+admin.site.register(PartnerMovementType)
+admin.site.register(PartnerMovement)
 
 # @admin.register(Person)
 # class PersonAdmin(admin.ModelAdmin):
