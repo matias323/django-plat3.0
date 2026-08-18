@@ -3,6 +3,9 @@ from django.conf import settings
 from django.utils import timezone
 
 
+
+
+
 class BaseModel(models.Model):
     created_at = models.DateTimeField(
         verbose_name="Fecha Creación",
@@ -36,4 +39,20 @@ class BaseModel(models.Model):
         abstract = True
         ordering = ["-created_at"]
 
+    def save(self, *args, **kwargs):
+        # 1. Extraemos el usuario si lo pasaron en los kwargs
+        # Usamos pop() para quitarlo de kwargs, ya que super().save() no acepta el argumento 'user'
+        user = kwargs.pop('user', None)
+
+        if user and user.is_authenticated:
+            # self.pk es None cuando el objeto es nuevo (aún no se guarda en BD)
+            if not self.pk:
+                self.user_create = user
+            
+            # Siempre actualizamos el usuario modificador
+            self.user_update = user
+            self.updated_at = timezone.now()
+
+        # 2. Llamamos al método save() original de models.Model
+        super().save(*args, **kwargs)
 

@@ -3,12 +3,45 @@
 
 {% block content %}
 
+<style>
+    /* MODAL DETALLE - TAMAÑO FIJO ENTRE PESTAÑAS */
+    #detailModal .modal-dialog {
+        height: calc(100vh - 60px);
+        max-height: 820px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+
+    #detailModal .modal-content {
+        height: 100%;
+        max-height: 820px;
+    }
+
+    #detailModal .modal-body {
+        overflow-y: auto;
+    }
+
+    #detailModal .tab-content {
+        min-height: 560px;
+    }
+
+    @media (max-height: 750px) {
+        #detailModal .modal-dialog {
+            height: calc(100vh - 30px);
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+
+        #detailModal .tab-content {
+            min-height: 480px;
+        }
+    }
+    /* ========================================== */
+</style>
+
 <div class="container-fluid py-4">
 
-    <!-- ======================================================
-         TÍTULO
-    ======================================================= -->
-
+    <!-- TÍTULO -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
@@ -25,10 +58,7 @@
     </div>
 
 
-    <!-- ======================================================
-         TABLA
-    ======================================================= -->
-
+    <!-- TABLA -->
     <div class="card shadow-sm">
         <div class="card-header bg-body">
             <strong>Solicitudes registradas</strong>
@@ -50,20 +80,15 @@
                             <th>Acciones</th>
                         </tr>
                     </thead>
-
                     <tbody></tbody>
                 </table>
             </div>
         </div>
     </div>
-
 </div>
 
 
-<!-- ==========================================================
-     MODAL NUEVA SOLICITUD
-=========================================================== -->
-
+<!-- MODAL NUEVA SOLICITUD -->
 <div class="modal fade" id="registrationModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -73,13 +98,8 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
-
             <div class="modal-body">
-
-                <!-- ==========================================
-                     BUSCAR FUNCIONARIO
-                =========================================== -->
-
+                <!-- BUSCAR FUNCIONARIO -->
                 <div class="card mb-4">
                     <div class="card-header">
                         <strong>Buscar funcionario</strong>
@@ -90,7 +110,6 @@
 
                             <div class="col-lg-4">
                                 <label class="form-label">Código funcionario</label>
-
                                 <input type="text" class="form-control" id="employeeCodeSearch"
                                        placeholder="Ingrese código" autocomplete="off">
                             </div>
@@ -110,23 +129,15 @@
                 </div>
 
 
-                <!-- ==========================================
-                     FORMULARIO
-                =========================================== -->
-
+                <!-- FORMULARIO -->
                 <form id="registrationForm" enctype="multipart/form-data">
                     {% csrf_token %}
-
                     <input type="hidden" id="personId" name="person_id">
                     <input type="hidden" id="registrationTypeId" name="registration_type">
 
-
                     <div id="registrationContent" class="d-none">
 
-                        <!-- ==================================
-                             DATOS FUNCIONARIO
-                        =================================== -->
-
+                        <!-- DATOS FUNCIONARIO -->
                         <div class="card mb-4">
                             <div class="card-header">
                                 <strong>Datos del funcionario</strong>
@@ -165,30 +176,77 @@
                                         <input type="text" id="memberStatus" class="form-control" readonly>
                                     </div>
 
-                                    <div class="col-md-3">
+                                    <!-- <div class="col-md-3">
                                         <label class="form-label">Reingresos utilizados</label>
                                         <input type="text" id="reentryStatus" class="form-control" readonly>
-                                    </div>
+                                    </div> -->
 
                                 </div>
                             </div>
                         </div>
 
 
-                        <!-- ==================================
-                             AVISO REINGRESO
-                        =================================== -->
-
+                        <!-- AVISO REINGRESO -->
                         <div class="alert alert-warning d-none" id="reentryMessage">
                             <i class="bi bi-info-circle me-1"></i>
                             El funcionario fue socio anteriormente. Esta solicitud corresponde a un reingreso.
                         </div>
 
 
-                        <!-- ==================================
-                             DATOS SOLICITUD
-                        =================================== -->
+                        <!-- CONTACTO Y DOMICILIO -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <strong>Contacto y domicilio</strong>
+                            </div>
 
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Teléfono <span class="text-danger">*</span></label>
+                                        <input type="tel" class="form-control" id="phone" name="phone" maxlength="20"
+                                               placeholder="Ej.: 912345678" autocomplete="tel" required>
+                                    </div>
+
+                                    <div class="col-md-8">
+                                        <label class="form-label">Correo <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="email" name="email"
+                                               placeholder="correo@ejemplo.cl" autocomplete="email" required>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Región <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="regionId" name="region_id" required>
+                                            <option value="">Seleccione una región</option>
+                                            {% for region in regions %}
+                                                <option value="{{ region.id }}">{{ region.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label class="form-label">Comuna <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="communeId" name="commune_id" disabled required>
+                                            <option value="">Seleccione primero una región</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Dirección <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="address" name="address" maxlength="255"
+                                               placeholder="Ej.: Los Aromos" required>
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <label class="form-label">Número <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="addressNumber" name="address_number"
+                                               maxlength="30" placeholder="125" required>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- DATOS SOLICITUD -->
                         <div class="card mb-4">
                             <div class="card-header">
                                 <strong>Datos de la solicitud</strong>
@@ -199,38 +257,27 @@
 
                                     <div class="col-md-4">
                                         <label class="form-label">Monto aporte A2</label>
-
                                         <div class="input-group">
                                             <span class="input-group-text">$</span>
 
-                                            <input type="number" class="form-control" id="contributesA2"
-                                                   name="contributes_a2" min="0" step="1" value="0"
-                                                   placeholder="Ingrese monto" required>
+                                            <input type="text" class="form-control" id="contributesA2"
+                                                name="contributes_a2" value="0" inputmode="numeric"
+                                                placeholder="Ingrese monto" autocomplete="off" required>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-
-                        <!-- ==================================
-                             DOCUMENTOS
-                        =================================== -->
-
-                        <div class="card mb-4" id="documentsSection">
+                        <!-- DOCUMENTOS -->
+                        <div class="card mb-4">
                             <div class="card-header">
                                 <strong>Documentos</strong>
                             </div>
-
                             <div class="card-body">
-
                                 <div class="alert alert-info">
                                     Los documentos deben estar en formato PDF y no superar los 10 MB.
                                 </div>
-
-
-                                <!-- SOLICITUD FIRMADA -->
-
                                 <div class="mb-4">
                                     <label class="form-label fw-bold">
                                         Solicitud firmada en físico
@@ -240,14 +287,7 @@
                                     <input type="file" class="form-control" id="physicalRequestDocument"
                                            name="physical_request_document"
                                            accept=".pdf,application/pdf" required>
-
-                                    <small class="text-muted">
-                                        Solicitud firmada físicamente y posteriormente escaneada.
-                                    </small>
                                 </div>
-
-
-                                <!-- IDENTIFICACIÓN -->
 
                                 <div class="mb-4">
                                     <label class="form-label fw-bold">
@@ -264,14 +304,8 @@
                                     </small>
                                 </div>
 
-
-                                <!-- OTROS -->
-
                                 <div>
-                                    <label class="form-label fw-bold">
-                                        Otros documentos
-                                    </label>
-
+                                    <label class="form-label fw-bold">Otros documentos</label>
                                     <input type="file" class="form-control" id="otherDocuments"
                                            name="other_documents"
                                            accept=".pdf,application/pdf" multiple>
@@ -280,63 +314,45 @@
                                         Opcional. Puede seleccionar uno o varios documentos adicionales.
                                     </small>
                                 </div>
-
                             </div>
                         </div>
-
                     </div>
                 </form>
-
             </div>
 
-
             <div class="modal-footer">
-
                 <button type="button" class="btn btn-success" id="btnSaveRegistration" disabled>
                     <i class="bi bi-floppy me-1"></i> Guardar solicitud
                 </button>
-
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     Cerrar
                 </button>
-
             </div>
-
         </div>
     </div>
 </div>
 
 
-<!-- ==========================================================
-     MODAL DETALLE
-=========================================================== -->
-
+<!-- MODAL DETALLE -->
 <div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-
             <div class="modal-header">
                 <h5 class="modal-title">Detalle de solicitud</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
             <div class="modal-body" id="detailModalContent">
-                <div class="text-center py-5">
-                    Cargando...
-                </div>
+                <div class="text-center py-5">Cargando...</div>
             </div>
-
         </div>
     </div>
 </div>
 
 
-<!-- ==========================================================
-     DATATABLE
-=========================================================== -->
-
+<!-- DATATABLE -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 
+<!-- SCRIPT -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
@@ -347,55 +363,45 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]").value;
     const registrationModal = new bootstrap.Modal(document.getElementById("registrationModal"));
-    const detailModal = new bootstrap.Modal(document.getElementById("detailModal"));
+    const detailModal = new bootstrap.Modal(document.getElementById("detailModal"),{ focus: false });
 
-
-    /* ========================================================
-       DATATABLE
-    ======================================================== */
-
+    /* DATATABLE */
     const table = $("#registrationTable").DataTable({
         processing: true,
         serverSide: true,
-
         ajax: {
             url: "{% url 'registrations:datatable' %}",
             type: "GET"
         },
-
         columns: [
             { data: "id" },
             { data: "employee_code" },
             { data: "rut" },
             { data: "employee_name" },
             { data: "registration_type" },
-
             {
                 data: "contributes_a2",
                 render: function (value) {
                     return formatCLP(value);
                 }
             },
-
             { data: "date" },
-
             {
                 data: "status",
-
-                render: function (value) {
+                render: function (value, type, row) {
                     if (!value) return "-";
-
-                    const status = String(value).toLowerCase();
+                    const statusCode = String(row.status_code || "").toLowerCase();
                     let className = "bg-secondary";
-
-                    if (status === "pending") className = "bg-warning text-dark";
-                    if (status === "approved") className = "bg-success";
-                    if (status === "rejected") className = "bg-danger";
-
-                    return `<span class="badge ${className}">${escapeHtml(value)}</span>`;
+                    if (statusCode === "pending") className = "bg-warning text-dark";
+                    if (statusCode === "approved") className = "bg-success";
+                    if (statusCode === "rejected") className = "bg-danger";
+                    return `
+                        <span class="badge ${className}">
+                            ${escapeHtml(value)}
+                        </span>
+                    `;
                 }
             },
-
             {
                 data: "id",
                 orderable: false,
@@ -411,32 +417,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
         ],
-
         order: [[0, "desc"]],
         pageLength: 10,
-
         language: {
             url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json"
         }
     });
 
-
-    /* ========================================================
-       NUEVA SOLICITUD
-    ======================================================== */
-
+    /*  NUEVA SOLICITUD */
     document.getElementById("btnNewRegistration").addEventListener("click", function () {
         resetForm();
         registrationModal.show();
     });
 
-
-    /* ========================================================
-       BUSCAR FUNCIONARIO
-    ======================================================== */
-
+    /* BUSCAR FUNCIONARIO */
     document.getElementById("btnSearchEmployee").addEventListener("click", searchEmployee);
-
     document.getElementById("employeeCodeSearch").addEventListener("keydown", function (event) {
         if (event.key === "Enter") {
             event.preventDefault();
@@ -444,195 +439,24 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-
-    async function searchEmployee() {
-        const code = document.getElementById("employeeCodeSearch").value.trim();
-
-        if (!code) {
-            showMessage("warning", "Debe ingresar un código.");
-            return;
-        }
-
-        showMessage("info", "Buscando funcionario...");
-        document.getElementById("btnSaveRegistration").disabled = true;
-
-        try {
-            const response = await fetch("{% url 'registrations:search_employee' %}", {
-                method: "POST",
-
-                headers: {
-                    "X-CSRFToken": csrfToken,
-                    "X-App-Request": "true",
-                    "Content-Type": "application/json"
-                },
-
-                body: JSON.stringify({
-                    code: code
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || data.status !== "ok") {
-                throw new Error(data.message || "No se encontró el funcionario.");
-            }
-
-            const employee = data.employee;
-
-            document.getElementById("personId").value = employee.person_id;
-            document.getElementById("registrationTypeId").value = data.registration_type.id;
-
-            document.getElementById("employeeCode").value = employee.code || "";
-            document.getElementById("employeeRut").value = employee.rut || "";
-            document.getElementById("employeeName").value = employee.name || "";
-            document.getElementById("employeeGrade").value = employee.grade || "";
-            document.getElementById("memberStatus").value = employee.member_status || "";
-
-            document.getElementById("registrationTypeText").value =
-                data.registration_type.display_name || data.registration_type.type || "";
-
-            document.getElementById("reentryStatus").value =
-                `${data.reentries.used} de ${data.reentries.maximum}`;
-
-            document.getElementById("contributesA2").value = 0;
-
-            document.getElementById("registrationContent").classList.remove("d-none");
-
-            if (data.registration_type.is_reentry) {
-                document.getElementById("reentryMessage").classList.remove("d-none");
-            } else {
-                document.getElementById("reentryMessage").classList.add("d-none");
-            }
-
-            document.getElementById("btnSaveRegistration").disabled = false;
-
-            showMessage("success", "Funcionario encontrado.");
-
-        } catch (error) {
-            document.getElementById("registrationContent").classList.add("d-none");
-            document.getElementById("btnSaveRegistration").disabled = true;
-
-            showMessage("danger", error.message);
-        }
-    }
-
-
-    /* ========================================================
-       VALIDACIÓN APORTE A2
-    ======================================================== */
-
-    document.getElementById("contributesA2").addEventListener("input", function () {
-        if (this.value === "") return;
-
-        let value = parseInt(this.value, 10);
-
-        if (isNaN(value) || value < 0) {
-            this.value = 0;
-        }
+    document.getElementById("regionId").addEventListener("change", function () {
+        loadCommunes(this.value);
     });
 
+    async function loadCommunes(regionId, selectedCommuneId = "") {
+        const communeSelect = document.getElementById("communeId");
+        communeSelect.disabled = true;
 
-    /* ========================================================
-       GUARDAR SOLICITUD
-    ======================================================== */
-
-    document.getElementById("btnSaveRegistration").addEventListener("click", saveRegistration);
-
-
-    async function saveRegistration() {
-        const form = document.getElementById("registrationForm");
-
-        if (!form.checkValidity()) {
-            form.reportValidity();
+        if (!regionId) {
+            communeSelect.innerHTML = '<option value="">Seleccione primero una región</option>';
             return;
         }
 
-        const contribution = Number(document.getElementById("contributesA2").value);
-
-        if (!Number.isInteger(contribution) || contribution < 0) {
-            alert("El aporte A2 debe ser un número igual o mayor a $0.");
-            return;
-        }
-
-        const physical = document.getElementById("physicalRequestDocument").files[0];
-        const identification = document.getElementById("identificationDocument").files[0];
-
-        if (!physical) {
-            alert("Debe adjuntar la solicitud firmada.");
-            return;
-        }
-
-        if (!identification) {
-            alert("Debe adjuntar el documento de identificación.");
-            return;
-        }
-
-        const button = document.getElementById("btnSaveRegistration");
-
-        button.disabled = true;
-
-        button.innerHTML = `
-            <span class="spinner-border spinner-border-sm me-2"></span>
-            Guardando...
-        `;
+        communeSelect.innerHTML = '<option value="">Cargando comunas...</option>';
 
         try {
-            const formData = new FormData(form);
-
-            const response = await fetch("{% url 'registrations:create' %}", {
-                method: "POST",
-
-                headers: {
-                    "X-CSRFToken": csrfToken,
-                    "X-App-Request": "true"
-                },
-
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || data.status !== "ok") {
-                throw new Error(data.message || "No se pudo crear la solicitud.");
-            }
-
-            registrationModal.hide();
-            table.ajax.reload(null, false);
-
-            alert(data.message);
-
-        } catch (error) {
-            alert(error.message);
-
-        } finally {
-            button.disabled = false;
-            button.innerHTML = `<i class="bi bi-floppy me-1"></i> Guardar solicitud`;
-        }
-    }
-
-
-    /* ========================================================
-       DETALLE
-    ======================================================== */
-
-    $(document).on("click", ".btnDetail", function () {
-        const id = this.dataset.id;
-
-        detailModal.show();
-        loadDetail(id);
-    });
-
-
-    async function loadDetail(id) {
-        document.getElementById("detailModalContent").innerHTML = `
-            <div class="text-center py-5">
-                <div class="spinner-border"></div>
-                <div class="mt-2">Cargando información...</div>
-            </div>
-        `;
-
-        try {
-            const url = "{% url 'registrations:detail' 999999 %}".replace("999999", id);
+            const url = "{% url 'registrations:communes_by_region' 999999 %}"
+                .replace("999999", regionId);
 
             const response = await fetch(url, {
                 headers: {
@@ -643,29 +467,272 @@ document.addEventListener("DOMContentLoaded", function () {
             const data = await response.json();
 
             if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se pudieron cargar las comunas.");
+            }
+
+            communeSelect.innerHTML = '<option value="">Seleccione una comuna</option>';
+
+            data.communes.forEach(commune => {
+                const option = document.createElement("option");
+                option.value = commune.id;
+                option.textContent = commune.name;
+
+                if (String(commune.id) === String(selectedCommuneId || "")) {
+                    option.selected = true;
+                }
+
+                communeSelect.appendChild(option);
+            });
+
+            communeSelect.disabled = false;
+
+        } catch (error) {
+            communeSelect.innerHTML = '<option value="">No se pudieron cargar las comunas</option>';
+            await showSwalError("Error al cargar comunas", error.message);
+        }
+    }
+
+    async function searchEmployee() {
+        const code = document.getElementById("employeeCodeSearch").value.trim();
+        if (!code) {
+            showMessage("warning", "Debe ingresar un código.");
+            return;
+        }
+        showMessage("info", "Buscando funcionario...");
+        document.getElementById("btnSaveRegistration").disabled = true;
+        try {
+            const response = await fetch(
+                "{% url 'registrations:search_employee' %}",
+                {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "X-App-Request": "true",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        code: code
+                    })
+                }
+            );
+
+            const data = await response.json();
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se encontró el funcionario.");
+            }
+
+            const employee = data.employee;
+            document.getElementById("personId").value = employee.person_id;
+            document.getElementById("registrationTypeId").value = data.registration_type.id;
+            document.getElementById("employeeCode").value = employee.code || "";
+            document.getElementById("employeeRut").value = employee.rut || "";
+            document.getElementById("employeeName").value = employee.name || "";
+            document.getElementById("employeeGrade").value = employee.grade || "";
+            document.getElementById("memberStatus").value = employee.member_status || "";
+            document.getElementById("registrationTypeText").value =
+                data.registration_type.display_name || data.registration_type.type || "";
+
+            document.getElementById("phone").value = employee.phone || "";
+            document.getElementById("email").value = employee.email || "";
+            document.getElementById("address").value = employee.address || "";
+            document.getElementById("addressNumber").value = employee.address_number || "";
+
+            const regionId = employee.region_id ? String(employee.region_id) : "";
+            document.getElementById("regionId").value = regionId;
+            await loadCommunes(regionId, employee.commune_id || "");
+
+            // document.getElementById("reentryStatus").value =
+            //    `${data.reentries.used} de ${data.reentries.maximum}`;
+            document.getElementById("contributesA2").value = 0;
+            document.getElementById("registrationContent").classList.remove("d-none");
+
+            if (data.registration_type.is_reentry) {
+                document.getElementById("reentryMessage").classList.remove("d-none");
+            } else {
+                document.getElementById("reentryMessage").classList.add("d-none");
+            }
+
+            document.getElementById("btnSaveRegistration").disabled = false;
+            showMessage("success", "Funcionario encontrado.");
+
+        } catch (error) {
+            document.getElementById("registrationContent").classList.add("d-none");
+            document.getElementById("btnSaveRegistration").disabled = true;
+            showMessage("danger", error.message);
+        }
+
+    }
+
+    /* APORTE A2 */
+    document.getElementById("contributesA2").addEventListener("input", function () {
+        const digits = this.value.replace(/\D/g, "");
+
+        if (!digits) {
+            this.value = "";
+            return;
+        }
+
+        this.value = new Intl.NumberFormat("es-CL").format(Number(digits));
+    });
+
+    /* GUARDAR SOLICITUD */
+    document.getElementById("btnSaveRegistration").addEventListener("click", saveRegistration);
+    async function saveRegistration() {
+        const form = document.getElementById("registrationForm");
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+        
+        const contributionText = document.getElementById("contributesA2").value;
+        const contribution = Number(contributionText.replace(/\D/g, ""));
+        if (!Number.isInteger(contribution) || contribution < 0) {
+            await showSwalError(
+                "Aporte A2 inválido",
+                "El aporte A2 debe ser un número igual o mayor a $0."
+            );
+            return;
+        }
+
+        const physical = document.getElementById("physicalRequestDocument").files[0];
+        const identification = document.getElementById("identificationDocument").files[0];
+        if (!physical) {
+            await showSwalError(
+                "Documento requerido",
+                "Debe adjuntar la solicitud firmada."
+            );
+            return;
+        }
+
+        if (!identification) {
+            await showSwalError(
+                "Documento requerido",
+                "Debe adjuntar el documento de identificación."
+            );
+            return;
+        }
+
+        const button = document.getElementById("btnSaveRegistration");
+        button.disabled = true;
+        button.innerHTML = `
+            <span class="spinner-border spinner-border-sm me-2"></span>
+            Guardando...
+        `;
+
+        try {
+            const formData = new FormData(form);
+            formData.set("contributes_a2", contribution);
+
+            const response = await fetch(
+                "{% url 'registrations:create' %}",
+                {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "X-App-Request": "true"
+                    },
+                    body: formData
+                }
+            );
+
+            const data = await response.json();
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se pudo crear la solicitud.");
+            }
+
+            registrationModal.hide();
+            table.ajax.reload(null, false);
+            await Swal.fire({
+                title: "Solicitud creada",
+                text: data.message,
+                icon: "success",
+                confirmButtonText: "Aceptar",
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+
+        } catch (error) {
+            await showSwalError(
+                "No se pudo crear la solicitud",
+                error.message
+            );
+
+        } finally {
+            button.disabled = false;
+            button.innerHTML = `
+                <i class="bi bi-floppy me-1"></i>
+                Guardar solicitud
+            `;
+
+        }
+
+    }
+
+
+    /* DETALLE */
+    $(document).on("click", ".btnDetail", function () {
+
+        const id = this.dataset.id;
+
+        detailModal.show();
+        loadDetail(id);
+
+    });
+
+
+    async function loadDetail(id) {
+
+        document.getElementById("detailModalContent").innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border"></div>
+
+                <div class="mt-2">
+                    Cargando información...
+                </div>
+            </div>
+        `;
+
+        try {
+
+            const url =
+                "{% url 'registrations:detail' 999999 %}"
+                .replace("999999", id);
+
+            const response = await fetch(
+                url,
+                {
+                    headers: {
+                        "X-App-Request": "true"
+                    }
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
                 throw new Error(data.message || "No se pudo cargar la solicitud.");
             }
 
             renderDetail(data);
 
         } catch (error) {
+
             document.getElementById("detailModalContent").innerHTML = `
                 <div class="alert alert-danger">
                     ${escapeHtml(error.message)}
                 </div>
             `;
+
         }
+
     }
 
 
+    /* RENDER DETALLE */
     function renderDetail(data) {
         const registration = data.registration;
 
-
-        /* ====================================================
-           DOCUMENTOS
-        ==================================================== */
-
+        /* DOCUMENTOS */
         let documentsHtml = `
             <div class="alert alert-secondary">
                 Esta solicitud no posee documentos.
@@ -674,51 +741,217 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (data.documents.length) {
             documentsHtml = `
-                <div class="table-responsive">
-                    <table class="table table-bordered align-middle">
+                <div class="table-responsive mb-4">
+                    <table class="table table-bordered table-hover align-middle">
                         <thead>
                             <tr>
                                 <th>Documento</th>
                                 <th>Tipo</th>
                                 <th>Estado</th>
                                 <th>Fecha</th>
-                                <th>Acción</th>
+                                <th class="text-center">Acciones</th>
                             </tr>
                         </thead>
 
                         <tbody>
-                            ${data.documents.map(document => `
-                                <tr>
-                                    <td>${escapeHtml(document.name)}</td>
-                                    <td>${escapeHtml(document.type)}</td>
-                                    <td>${escapeHtml(document.status)}</td>
-                                    <td>${escapeHtml(document.date)}</td>
+                            ${data.documents.map(document => {
+                                const statusCode = String(document.status_code || "").toLowerCase();
+                                let badgeClass = "bg-secondary";
 
-                                    <td class="text-center">
-                                        ${
-                                            document.url
-                                                ? `
-                                                    <a href="${escapeHtml(document.url)}"
-                                                       target="_blank"
-                                                       class="btn btn-sm btn-primary">
-                                                        <i class="bi bi-eye me-1"></i> Ver
-                                                    </a>
-                                                `
-                                                : "-"
-                                        }
-                                    </td>
-                                </tr>
-                            `).join("")}
+                                if (statusCode === "pending") badgeClass = "bg-warning text-dark";
+                                if (statusCode === "approved") badgeClass = "bg-success";
+                                if (statusCode === "rejected") badgeClass = "bg-danger";
+
+                                const managementButtons = statusCode === "pending"
+                                    ? `
+                                        <button type="button" class="btn btn-sm btn-success btnApproveDocument"
+                                                data-registration="${registration.id}"
+                                                data-relation="${document.relation_id}"
+                                                data-name="${escapeHtml(document.type)}"
+                                                title="Aprobar documento">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-sm btn-danger btnRejectDocument"
+                                                data-registration="${registration.id}"
+                                                data-relation="${document.relation_id}"
+                                                data-name="${escapeHtml(document.type)}"
+                                                title="Rechazar documento">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    `
+                                    : "";
+
+                                return `
+                                    <tr>
+                                        <td>${escapeHtml(document.name)}</td>
+                                        <td>${escapeHtml(document.type)}</td>
+
+                                        <td>
+                                            <span class="badge ${badgeClass}">
+                                                ${escapeHtml(document.status)}
+                                            </span>
+                                        </td>
+
+                                        <td>${escapeHtml(document.date)}</td>
+
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center gap-2">
+                                                ${
+                                                    document.url
+                                                        ? `
+                                                            <a href="${escapeHtml(document.url)}" target="_blank"
+                                                            class="btn btn-sm btn-primary" title="Ver documento">
+                                                                <i class="bi bi-eye"></i>
+                                                            </a>
+                                                        `
+                                                        : ""
+                                                }
+                                                ${managementButtons}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join("")}
                         </tbody>
                     </table>
                 </div>
             `;
         }
 
+        /* ========================================================
+        FORMULARIO PARA NUEVO DOCUMENTO
+        ======================================================== */
 
-        /* ====================================================
-           OBSERVACIONES
-        ==================================================== */
+        const physicalRule = data.document_upload.physical_request;
+        const identificationRule = data.document_upload.identification;
+        const canAddDocuments = data.document_upload.can_add === true;
+
+        if (canAddDocuments) {
+            documentsHtml += `
+                <div class="card">
+                    <div class="card-header">
+                        <strong>Adjuntar documento</strong>
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="alert alert-info">
+                            Si un documento fue rechazado, puede adjuntar una nueva versión.
+                            No puede existir más de uno pendiente del mismo tipo.
+                            Los documentos de tipo <strong>Otro documento</strong> pueden agregarse siempre.
+                        </div>
+
+                        <div class="row g-3 align-items-end">
+
+                            <div class="col-md-4">
+                                <label class="form-label">Tipo de documento</label>
+
+                                <select class="form-select" id="newDocumentType">
+                                    <option value="">Seleccione</option>
+
+                                    <option value="physical_request"
+                                            ${physicalRule.allowed ? "" : "disabled"}>
+                                        Solicitud firmada
+                                        ${physicalRule.allowed ? "" : " - No disponible"}
+                                    </option>
+
+                                    <option value="identification"
+                                            ${identificationRule.allowed ? "" : "disabled"}>
+                                        Documento de identificación
+                                        ${identificationRule.allowed ? "" : " - No disponible"}
+                                    </option>
+
+                                    <option value="other">
+                                        Otro documento
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-5">
+                                <label class="form-label">Archivo PDF</label>
+
+                                <input type="file"
+                                    class="form-control"
+                                    id="newDocumentFile"
+                                    accept=".pdf,application/pdf">
+                            </div>
+
+                            <div class="col-md-3">
+                                <button type="button"
+                                        class="btn btn-primary w-100 btnAddDocument"
+                                        data-registration="${registration.id}">
+                                    <i class="bi bi-paperclip me-1"></i>
+                                    Adjuntar
+                                </button>
+                            </div>
+
+                        </div>
+                        ${
+                            !physicalRule.allowed
+                                ? `
+                                    <small class="d-block text-muted mt-3">
+                                        Solicitud firmada:
+                                        ${escapeHtml(physicalRule.reason)}
+                                    </small>
+                                `
+                                : ""
+                        }
+                        ${
+                            !identificationRule.allowed
+                                ? `
+                                    <small class="d-block text-muted mt-1">
+                                        Documento de identificación:
+                                        ${escapeHtml(identificationRule.reason)}
+                                    </small>
+                                `
+                                : ""
+                        }
+                    </div>
+                </div>
+            `;
+        } else {
+            documentsHtml += `
+                <div class="card">
+                    <div class="card-header">
+                        <strong>Adjuntar documento</strong>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="alert alert-secondary mb-0">
+                            <i class="bi bi-lock-fill me-1"></i>
+
+                            No se pueden adjuntar nuevos documentos porque la solicitud
+                            se encuentra <strong>${escapeHtml(registration.status)}</strong>.
+                        </div>
+
+                        <div class="row g-3 align-items-end mt-1">
+
+                            <div class="col-md-4">
+                                <label class="form-label">Tipo de documento</label>
+                                <select class="form-select" disabled>
+                                    <option>Solicitud finalizada</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-5">
+                                <label class="form-label">Archivo PDF</label>
+                                <input type="file" class="form-control" disabled>
+                            </div>
+
+                            <div class="col-md-3">
+                                <button type="button"
+                                        class="btn btn-primary w-100"
+                                        disabled>
+                                    <i class="bi bi-lock-fill me-1"></i>
+                                    Adjuntar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
 
         let observationsHtml = `
             <div class="alert alert-secondary">
@@ -733,9 +966,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         <thead>
                             <tr>
                                 <th>Comentario</th>
-                                <th>Fecha</th>
-                                <th>Hora</th>
-                                <th>Usuario</th>
+                                <th style="width: 190px;">Fecha</th>
+                                <th style="width: 180px;">Usuario</th>
                             </tr>
                         </thead>
 
@@ -743,8 +975,7 @@ document.addEventListener("DOMContentLoaded", function () {
                             ${data.observations.map(observation => `
                                 <tr>
                                     <td>${escapeHtml(observation.comment)}</td>
-                                    <td>${escapeHtml(observation.date)}</td>
-                                    <td>${escapeHtml(observation.time)}</td>
+                                    <td>${escapeHtml(observation.datetime)}</td>
                                     <td>${escapeHtml(observation.user)}</td>
                                 </tr>
                             `).join("")}
@@ -754,86 +985,119 @@ document.addEventListener("DOMContentLoaded", function () {
             `;
         }
 
-
-        /* ====================================================
-           GESTIÓN
-        ==================================================== */
-
+        /* GESTIÓN SOLICITUD */
         let managementHtml = "";
-
         if (data.management.can_change_status) {
-            managementHtml = `
-                <div class="card">
-                    <div class="card-header">
-                        <strong>Gestión de solicitud</strong>
-                    </div>
+        managementHtml = `
+            <div class="card">
+                <div class="card-header">
+                    <strong>Gestión de solicitud</strong>
+                </div>
 
-                    <div class="card-body">
+                <div class="card-body">
+                    ${
+                        data.management.can_approve
+                            ? `
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Todos los documentos requeridos fueron validados.
+                                    La solicitud puede ser aprobada.
+                                </div>
+                            `
+                            : `
+                                <div class="alert alert-warning">
+                                    <div class="fw-bold mb-2">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        La solicitud aún no puede aprobarse
+                                    </div>
 
-                        <div class="alert alert-info">
-                            Al aprobar esta solicitud se registrará automáticamente el ingreso
-                            o reingreso del funcionario como socio.
-                        </div>
+                                    <ul class="mb-0">
+                                        ${data.management.document_validation.reasons
+                                            .map(reason => `<li>${escapeHtml(reason)}</li>`)
+                                            .join("")}
+                                    </ul>
+                                </div>
+                            `
+                    }
 
-                        <div class="d-flex gap-2">
+                    <div class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-success btnApproveRegistration"
+                                data-id="${registration.id}"
+                                ${data.management.can_approve ? "" : "disabled"}>
 
-                            <button type="button" class="btn btn-success btnApproveRegistration"
-                                    data-id="${registration.id}">
-                                <i class="bi bi-check-lg me-1"></i>
-                                Aprobar
-                            </button>
+                            <i class="bi bi-check-lg me-1"></i>
+                            Aprobar
+                        </button>
 
-                            <button type="button" class="btn btn-danger btnRejectRegistration"
-                                    data-id="${registration.id}">
-                                <i class="bi bi-x-lg me-1"></i>
-                                Rechazar
-                            </button>
+                        <button type="button"
+                                class="btn btn-danger btnRejectRegistration"
+                                data-id="${registration.id}">
 
-                        </div>
+                            <i class="bi bi-x-lg me-1"></i>
+                            Rechazar
+                        </button>
                     </div>
                 </div>
-            `;
-
-        } else {
+            </div>
+        `;
+    } else {
             managementHtml = `
                 <div class="alert alert-secondary mb-0">
                     Esta solicitud se encuentra en estado
-                    <strong>${escapeHtml(registration.status || "-")}</strong>
+                    <strong>
+                        ${escapeHtml(registration.status || "-")}
+                    </strong>
                     y ya no puede modificarse.
                 </div>
             `;
         }
 
-
-        /* ====================================================
-           CONTENIDO MODAL
-        ==================================================== */
-
+        /* CONTENIDO */
         document.getElementById("detailModalContent").innerHTML = `
 
             <ul class="nav nav-tabs mb-3">
 
                 <li class="nav-item">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#detailInfo">
+                    <button class="nav-link active"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailInfo">
+
                         Información
+
                     </button>
                 </li>
 
+
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#detailDocuments">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailDocuments">
+
                         Documentos
+
                     </button>
                 </li>
 
+
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#detailObservations">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailObservations">
+
                         Observaciones
+
                     </button>
                 </li>
 
+
                 <li class="nav-item">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#detailManagement">
+                    <button class="nav-link"
+                            data-bs-toggle="tab"
+                            data-bs-target="#detailManagement">
+
                         Gestión
+
                     </button>
                 </li>
 
@@ -842,9 +1106,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
             <div class="tab-content">
 
-                <!-- ==========================================
-                     INFORMACIÓN
-                =========================================== -->
+
+                <!-- INFORMACIÓN -->
 
                 <div class="tab-pane fade show active" id="detailInfo">
 
@@ -852,42 +1115,107 @@ document.addEventListener("DOMContentLoaded", function () {
 
                         <div class="col-md-2">
                             <label class="form-label">ID</label>
-                            <input class="form-control" value="${registration.id}" readonly>
+
+                            <input class="form-control"
+                                   value="${registration.id}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-2">
                             <label class="form-label">Código</label>
-                            <input class="form-control" value="${escapeHtml(registration.employee_code)}" readonly>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.employee_code)}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-3">
                             <label class="form-label">RUT</label>
-                            <input class="form-control" value="${escapeHtml(registration.rut)}" readonly>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.rut)}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-5">
                             <label class="form-label">Funcionario</label>
-                            <input class="form-control" value="${escapeHtml(registration.name)}" readonly>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.name)}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-3">
                             <label class="form-label">Tipo</label>
-                            <input class="form-control" value="${escapeHtml(registration.type)}" readonly>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.type)}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-3">
                             <label class="form-label">Aporte A2</label>
-                            <input class="form-control" value="${formatCLP(registration.contributes_a2)}" readonly>
+
+                            <input class="form-control"
+                                   value="${formatCLP(registration.contributes_a2)}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-3">
                             <label class="form-label">Estado</label>
-                            <input class="form-control" value="${escapeHtml(registration.status)}" readonly>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.status)}"
+                                   readonly>
                         </div>
+
 
                         <div class="col-md-3">
                             <label class="form-label">Fecha solicitud</label>
-                            <input class="form-control" value="${escapeHtml(registration.date)}" readonly>
+
+                            <input class="form-control"
+                                   value="${escapeHtml(registration.date)}"
+                                   readonly>
+                        </div>
+
+                        <div class="col-12 mt-4">
+                            <hr class="my-1">
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Teléfono</label>
+                            <input class="form-control" value="${escapeHtml(registration.phone)}" readonly>
+                        </div>
+
+                        <div class="col-md-5">
+                            <label class="form-label">Correo</label>
+                            <input class="form-control" value="${escapeHtml(registration.email)}" readonly>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Región</label>
+                            <input class="form-control" value="${escapeHtml(registration.region)}" readonly>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Comuna</label>
+                            <input class="form-control" value="${escapeHtml(registration.commune)}" readonly>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label">Dirección</label>
+                            <input class="form-control" value="${escapeHtml(registration.address)}" readonly>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Número</label>
+                            <input class="form-control" value="${escapeHtml(registration.address_number)}" readonly>
                         </div>
 
                     </div>
@@ -895,142 +1223,484 @@ document.addEventListener("DOMContentLoaded", function () {
                 </div>
 
 
-                <!-- ==========================================
-                     DOCUMENTOS
-                =========================================== -->
+                <!-- DOCUMENTOS -->
 
                 <div class="tab-pane fade" id="detailDocuments">
                     ${documentsHtml}
                 </div>
 
 
-                <!-- ==========================================
-                     OBSERVACIONES
-                =========================================== -->
+                <!-- OBSERVACIONES -->
 
                 <div class="tab-pane fade" id="detailObservations">
                     ${observationsHtml}
                 </div>
 
 
-                <!-- ==========================================
-                     GESTIÓN
-                =========================================== -->
+                <!-- GESTIÓN -->
 
                 <div class="tab-pane fade" id="detailManagement">
                     ${managementHtml}
                 </div>
-
             </div>
         `;
     }
 
-
     /* ========================================================
-       APROBAR SOLICITUD
+    AGREGAR DOCUMENTO
     ======================================================== */
 
-    $(document).on("click", ".btnApproveRegistration", function () {
-        changeRegistrationStatus(this.dataset.id, "Approved");
-    });
+    $(document).on("click", ".btnAddDocument", async function () {
+        const registrationId = this.dataset.registration;
+        const documentType = document.getElementById("newDocumentType").value;
+        const fileInput = document.getElementById("newDocumentFile");
+        const file = fileInput.files[0] || null;
 
+        if (!documentType) {
+            await showSwalError(
+                "Tipo requerido",
+                "Debe seleccionar el tipo de documento."
+            );
 
-    /* ========================================================
-       RECHAZAR SOLICITUD
-    ======================================================== */
+            return;
+        }
 
-    $(document).on("click", ".btnRejectRegistration", function () {
-        changeRegistrationStatus(this.dataset.id, "Rejected");
-    });
+        if (!file) {
+            await showSwalError(
+                "Documento requerido",
+                "Debe seleccionar un archivo PDF."
+            );
 
+            return;
+        }
 
-    /* ========================================================
-       CAMBIAR ESTADO
-    ======================================================== */
+        if (!file.name.toLowerCase().endsWith(".pdf")) {
+            await showSwalError(
+                "Archivo inválido",
+                "El documento debe estar en formato PDF."
+            );
 
-    async function changeRegistrationStatus(id, status) {
-        const isApproved = status === "Approved";
+            return;
+        }
 
-        const message = isApproved
-            ? "¿Seguro que deseas aprobar esta solicitud? El funcionario será registrado como socio."
-            : "¿Seguro que deseas rechazar esta solicitud?";
+        const result = await Swal.fire({
+            title: "Adjuntar documento",
+            text: `¿Confirmas que deseas adjuntar "${file.name}"?`,
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-paperclip me-1"></i> Adjuntar',
+            cancelButtonText: "Cancelar",
+            confirmButtonColor: "#0d6efd",
+            reverseButtons: true,
+            background: "var(--bs-body-bg)",
+            color: "var(--bs-body-color)"
+        });
 
-        if (!confirm(message)) return;
+        if (!result.isConfirmed) return;
+
+        const formData = new FormData();
+
+        formData.append("document_type", documentType);
+        formData.append("document", file);
 
         try {
-            const url = "{% url 'registrations:update_status' 999999 %}".replace("999999", id);
+            const url = "{% url 'registrations:add_document' 999999 %}"
+                .replace("999999", registrationId);
 
             const response = await fetch(url, {
                 method: "POST",
 
                 headers: {
                     "X-CSRFToken": csrfToken,
-                    "X-App-Request": "true",
-                    "Content-Type": "application/json"
+                    "X-App-Request": "true"
                 },
 
-                body: JSON.stringify({
-                    status: status
-                })
+                body: formData
             });
 
             const data = await response.json();
 
             if (!response.ok || data.status !== "ok") {
-                throw new Error(data.message || "No se pudo actualizar la solicitud.");
+                throw new Error(
+                    data.message ||
+                    "No se pudo adjuntar el documento."
+                );
             }
 
-            alert(data.message);
+            await Swal.fire({
+                title: "Documento adjuntado",
+                text: data.message,
+                icon: "success",
+                confirmButtonText: "Aceptar",
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+
+            await loadDetail(registrationId);
+
+        } catch (error) {
+            await showSwalError(
+                "No se pudo adjuntar el documento",
+                error.message
+            );
+        }
+    });
+
+
+    /* APROBAR DOCUMENTO */
+    $(document).on("click", ".btnApproveDocument", async function () {
+
+        const registrationId = this.dataset.registration;
+        const relationId = this.dataset.relation;
+        const documentName = this.dataset.name;
+
+
+        const result = await Swal.fire({
+
+            title: "Aprobar documento",
+
+            html: `
+                <div class="text-center">
+
+                    <p class="mb-2">
+                        ¿Confirmas que revisaste este documento
+                        y que su información es válida?
+                    </p>
+
+                    <strong>
+                        ${escapeHtml(documentName)}
+                    </strong>
+
+                </div>
+            `,
+
+            icon: "question",
+
+            showCancelButton: true,
+
+            confirmButtonText:
+                '<i class="bi bi-check-lg me-1"></i> Aprobar',
+
+            cancelButtonText:
+                "Cancelar",
+
+            confirmButtonColor:
+                "#198754",
+
+            reverseButtons: true,
+
+            background:
+                "var(--bs-body-bg)",
+
+            color:
+                "var(--bs-body-color)"
+
+        });
+
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+
+        await changeDocumentStatus(
+            registrationId,
+            relationId,
+            "Approved",
+            ""
+        );
+
+    });
+
+
+    /* RECHAZAR DOCUMENTO */
+    $(document).on("click", ".btnRejectDocument", async function () {
+        const registrationId = this.dataset.registration;
+        const relationId = this.dataset.relation;
+        const documentName = this.dataset.name;
+
+        const result = await Swal.fire({
+            title: "Rechazar documento",
+            html: `
+                <div class="mb-2">
+                    Indica el motivo por el que será rechazado:
+                    <div class="mt-2"><strong>${escapeHtml(documentName)}</strong></div>
+                </div>
+            `,
+            input: "textarea",
+            inputPlaceholder: "Ej.: El documento no posee firma, está ilegible o no corresponde al funcionario.",
+            inputAttributes: {
+                maxlength: "500",
+                autocomplete: "off"
+            },
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: '<i class="bi bi-x-lg me-1"></i> Rechazar documento',
+            cancelButtonText: "Cancelar",
+            confirmButtonColor: "#dc3545",
+            reverseButtons: true,
+            focusCancel: false,
+            focusConfirm: false,
+            background: "var(--bs-body-bg)",
+            color: "var(--bs-body-color)",
+
+            didOpen: () => {
+                const textarea = Swal.getInput();
+                if (textarea) textarea.focus();
+            },
+
+            inputValidator: value => {
+                const reason = String(value || "").trim();
+
+                if (!reason) return "Debe indicar el motivo del rechazo.";
+                if (reason.length < 5) return "El motivo del rechazo es demasiado corto.";
+
+                return null;
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
+        await changeDocumentStatus(
+            registrationId,
+            relationId,
+            "Rejected",
+            String(result.value || "").trim()
+        );
+    });
+
+
+    /* CAMBIAR ESTADO DOCUMENTO */
+    async function changeDocumentStatus(registrationId, relationId, status, reason) {
+
+        try {
+            const urlTemplate = "{% url 'registrations:update_document_status' 999999 888888 %}";
+            const url = urlTemplate.replace("999999", registrationId).replace("888888", relationId);
+            const response = await fetch(
+                url,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "X-App-Request": "true",
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        status: status,
+                        reason: reason
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message ||
+                    "No se pudo actualizar el documento."
+                );
+            }
+
+            await Swal.fire({
+                title: "Documento actualizado",
+                text: data.message,
+                icon: "success",
+                confirmButtonText: "Aceptar",
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+
+            await loadDetail(registrationId);
+
+
+        } catch (error) {
+            await showSwalError(
+                "No se pudo actualizar el documento",
+                error.message
+            );
+        }
+    }
+
+
+    /* APROBAR SOLICITUD */
+    $(document).on("click", ".btnApproveRegistration", function () {
+        changeRegistrationStatus(
+            this.dataset.id,
+            "Approved"
+        );
+    });
+
+
+    /* RECHAZAR SOLICITUD */
+    $(document).on("click", ".btnRejectRegistration", function () {
+        changeRegistrationStatus(
+            this.dataset.id,
+            "Rejected"
+        );
+    });
+
+
+    /* CAMBIAR ESTADO SOLICITUD */
+    async function changeRegistrationStatus(id, status) {
+        const isApproved = status === "Approved";
+        const result = await Swal.fire({
+            title: isApproved
+                ? "Aprobar solicitud"
+                : "Rechazar solicitud",
+
+            text: isApproved
+                ? "¿Confirmas que deseas aprobar esta solicitud? El funcionario será registrado como socio."
+                : "¿Confirmas que deseas rechazar esta solicitud?",
+
+            icon: isApproved
+                ? "question"
+                : "warning",
+
+            showCancelButton: true,
+
+            confirmButtonText: isApproved
+                ? '<i class="bi bi-check-lg me-1"></i> Aprobar'
+                : '<i class="bi bi-x-lg me-1"></i> Rechazar',
+
+            cancelButtonText:
+                "Cancelar",
+
+            confirmButtonColor: isApproved
+                ? "#198754"
+                : "#dc3545",
+
+            reverseButtons: true,
+
+            background:
+                "var(--bs-body-bg)",
+
+            color:
+                "var(--bs-body-color)"
+
+        });
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        try {
+            const url = "{% url 'registrations:update_status' 999999 %}".replace("999999", id);
+            const response = await fetch(
+                url,
+                {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                        "X-App-Request": "true",
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        status: status
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message ||
+                    "No se pudo actualizar la solicitud."
+                );
+            }
+
+            await Swal.fire({
+                title: isApproved
+                    ? "Solicitud aprobada"
+                    : "Solicitud rechazada",
+
+                text: data.message,
+
+                icon: "success",
+
+                confirmButtonText:
+                    "Aceptar",
+
+                background:
+                    "var(--bs-body-bg)",
+
+                color:
+                    "var(--bs-body-color)"
+            });
 
             table.ajax.reload(null, false);
             await loadDetail(id);
 
         } catch (error) {
-            alert(error.message);
+
+            await showSwalError(
+                "No se pudo actualizar la solicitud",
+                error.message
+            );
         }
     }
 
 
-    /* ========================================================
-       UTILIDADES
-    ======================================================== */
-
+    /* UTILIDADES */
     function showMessage(type, text) {
+
         document.getElementById("searchMessage").innerHTML = `
             <div class="alert alert-${type} mb-0">
                 ${escapeHtml(text)}
             </div>
         `;
+
+    }
+
+
+    async function showSwalError(title, message) {
+
+        await Swal.fire({
+            title: title,
+            text: message,
+            icon: "error",
+            confirmButtonText: "Aceptar",
+            background: "var(--bs-body-bg)",
+            color: "var(--bs-body-color)"
+        });
+
     }
 
 
     function formatCLP(value) {
-        const amount = Number(value || 0);
 
-        if (isNaN(amount)) return "$ 0";
+        const amount =
+            Number(value || 0);
 
-        return "$ " + new Intl.NumberFormat("es-CL", {
-            maximumFractionDigits: 0
-        }).format(amount);
+        if (isNaN(amount)) {
+            return "$ 0";
+        }
+
+        return "$ " + new Intl.NumberFormat(
+            "es-CL",
+            {
+                maximumFractionDigits: 0
+            }
+        ).format(amount);
+
     }
-
 
     function resetForm() {
         document.getElementById("registrationForm").reset();
-
         document.getElementById("employeeCodeSearch").value = "";
         document.getElementById("personId").value = "";
         document.getElementById("registrationTypeId").value = "";
-
         document.getElementById("contributesA2").value = 0;
-
+        document.getElementById("regionId").value = "";
+        document.getElementById("communeId").innerHTML = '<option value="">Seleccione primero una región</option>';
+        document.getElementById("communeId").disabled = true;
         document.getElementById("registrationContent").classList.add("d-none");
         document.getElementById("reentryMessage").classList.add("d-none");
-
         document.getElementById("searchMessage").innerHTML = "";
         document.getElementById("btnSaveRegistration").disabled = true;
     }
-
 
     function escapeHtml(value) {
         return String(value ?? "")

@@ -1,12 +1,19 @@
 from django.contrib import admin
 
-from .models.person import Person, PersonType
+from .models.person import (
+    Person, 
+    PersonType, 
+    PersonContactType, 
+    PersonContact, 
+    PersonAddress,
+)
 from .models.user import  User, UserPermission
 from .models.session import Session
 
 from .models import Document, DocumentType
 from .models import Observation
 from .models import Request
+from .models.location import Region, Commune
 
 from .models import (
     Employee,
@@ -30,6 +37,9 @@ from .models import (
 # USER
 admin.site.register(Person)
 admin.site.register(PersonType)
+admin.site.register(PersonContactType)
+admin.site.register(PersonContact)
+admin.site.register(PersonAddress)
 admin.site.register(User)
 admin.site.register(UserPermission)
 admin.site.register(Session)
@@ -58,6 +68,10 @@ admin.site.register(PartnerReentry)
 admin.site.register(PartnerNewContribution)
 admin.site.register(PartnerMovementType)
 admin.site.register(PartnerMovement)
+
+# LOCATION
+admin.site.register(Region)
+admin.site.register(Commune)
 
 # @admin.register(Person)
 # class PersonAdmin(admin.ModelAdmin):
