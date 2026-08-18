@@ -1,8 +1,9 @@
 from django.db import models
 from django.conf import settings
+from .base import BaseModel
 
 
-class DocumentType(models.Model):
+class DocumentType(BaseModel):
     type = models.CharField(
         max_length=100
     )
@@ -18,7 +19,7 @@ class DocumentType(models.Model):
         return self.type
 
 
-class Document(models.Model):
+class Document(BaseModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
