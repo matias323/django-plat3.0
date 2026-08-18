@@ -257,13 +257,12 @@
 
                                     <div class="col-md-4">
                                         <label class="form-label">Monto aporte A2</label>
-
                                         <div class="input-group">
                                             <span class="input-group-text">$</span>
 
-                                            <input type="number" class="form-control" id="contributesA2"
-                                                   name="contributes_a2" min="0" step="1" value="0"
-                                                   placeholder="Ingrese monto" required>
+                                            <input type="text" class="form-control" id="contributesA2"
+                                                name="contributes_a2" value="0" inputmode="numeric"
+                                                placeholder="Ingrese monto" autocomplete="off" required>
                                         </div>
                                     </div>
                                 </div>
@@ -566,11 +565,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /* APORTE A2 */
     document.getElementById("contributesA2").addEventListener("input", function () {
-        if (this.value === "") return;
-        const value = parseInt(this.value, 10);
-        if (isNaN(value) || value < 0) {
-            this.value = 0;
+        const digits = this.value.replace(/\D/g, "");
+
+        if (!digits) {
+            this.value = "";
+            return;
         }
+
+        this.value = new Intl.NumberFormat("es-CL").format(Number(digits));
     });
 
     /* GUARDAR SOLICITUD */
@@ -582,7 +584,8 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
         
-        const contribution = Number(document.getElementById("contributesA2").value);
+        const contributionText = document.getElementById("contributesA2").value;
+        const contribution = Number(contributionText.replace(/\D/g, ""));
         if (!Number.isInteger(contribution) || contribution < 0) {
             await showSwalError(
                 "Aporte A2 inválido",
@@ -618,6 +621,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         try {
             const formData = new FormData(form);
+            formData.set("contributes_a2", contribution);
+
             const response = await fetch(
                 "{% url 'registrations:create' %}",
                 {
@@ -820,88 +825,133 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const physicalRule = data.document_upload.physical_request;
         const identificationRule = data.document_upload.identification;
+        const canAddDocuments = data.document_upload.can_add === true;
 
-        documentsHtml += `
-            <div class="card">
-                <div class="card-header">
-                    <strong>Adjuntar documento</strong>
-                </div>
-
-                <div class="card-body">
-
-                    <div class="alert alert-info">
-                        Si un documento fue rechazado, puede adjuntar una nueva versión.
-                        No puede existir más de uno pendiente del mismo tipo.
-                        Los documentos de tipo <strong>Otro documento</strong> pueden agregarse siempre.
+        if (canAddDocuments) {
+            documentsHtml += `
+                <div class="card">
+                    <div class="card-header">
+                        <strong>Adjuntar documento</strong>
                     </div>
 
-                    <div class="row g-3 align-items-end">
+                    <div class="card-body">
 
-                        <div class="col-md-4">
-                            <label class="form-label">Tipo de documento</label>
-
-                            <select class="form-select" id="newDocumentType">
-                                <option value="">Seleccione</option>
-
-                                <option value="physical_request"
-                                        ${physicalRule.allowed ? "" : "disabled"}>
-                                    Solicitud firmada
-                                    ${physicalRule.allowed ? "" : " - No disponible"}
-                                </option>
-
-                                <option value="identification"
-                                        ${identificationRule.allowed ? "" : "disabled"}>
-                                    Documento de identificación
-                                    ${identificationRule.allowed ? "" : " - No disponible"}
-                                </option>
-
-                                <option value="other">
-                                    Otro documento
-                                </option>
-                            </select>
+                        <div class="alert alert-info">
+                            Si un documento fue rechazado, puede adjuntar una nueva versión.
+                            No puede existir más de uno pendiente del mismo tipo.
+                            Los documentos de tipo <strong>Otro documento</strong> pueden agregarse siempre.
                         </div>
 
+                        <div class="row g-3 align-items-end">
 
-                        <div class="col-md-5">
-                            <label class="form-label">Archivo PDF</label>
+                            <div class="col-md-4">
+                                <label class="form-label">Tipo de documento</label>
 
-                            <input type="file" class="form-control" id="newDocumentFile"
-                                accept=".pdf,application/pdf">
+                                <select class="form-select" id="newDocumentType">
+                                    <option value="">Seleccione</option>
+
+                                    <option value="physical_request"
+                                            ${physicalRule.allowed ? "" : "disabled"}>
+                                        Solicitud firmada
+                                        ${physicalRule.allowed ? "" : " - No disponible"}
+                                    </option>
+
+                                    <option value="identification"
+                                            ${identificationRule.allowed ? "" : "disabled"}>
+                                        Documento de identificación
+                                        ${identificationRule.allowed ? "" : " - No disponible"}
+                                    </option>
+
+                                    <option value="other">
+                                        Otro documento
+                                    </option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-5">
+                                <label class="form-label">Archivo PDF</label>
+
+                                <input type="file"
+                                    class="form-control"
+                                    id="newDocumentFile"
+                                    accept=".pdf,application/pdf">
+                            </div>
+
+                            <div class="col-md-3">
+                                <button type="button"
+                                        class="btn btn-primary w-100 btnAddDocument"
+                                        data-registration="${registration.id}">
+                                    <i class="bi bi-paperclip me-1"></i>
+                                    Adjuntar
+                                </button>
+                            </div>
+
                         </div>
-
-
-                        <div class="col-md-3">
-                            <button type="button" class="btn btn-primary w-100 btnAddDocument"
-                                    data-registration="${registration.id}">
-                                <i class="bi bi-paperclip me-1"></i>
-                                Adjuntar
-                            </button>
-                        </div>
+                        ${
+                            !physicalRule.allowed
+                                ? `
+                                    <small class="d-block text-muted mt-3">
+                                        Solicitud firmada:
+                                        ${escapeHtml(physicalRule.reason)}
+                                    </small>
+                                `
+                                : ""
+                        }
+                        ${
+                            !identificationRule.allowed
+                                ? `
+                                    <small class="d-block text-muted mt-1">
+                                        Documento de identificación:
+                                        ${escapeHtml(identificationRule.reason)}
+                                    </small>
+                                `
+                                : ""
+                        }
+                    </div>
+                </div>
+            `;
+        } else {
+            documentsHtml += `
+                <div class="card">
+                    <div class="card-header">
+                        <strong>Adjuntar documento</strong>
                     </div>
 
-                    ${
-                        !physicalRule.allowed
-                            ? `
-                                <small class="d-block text-muted mt-3">
-                                    Solicitud firmada: ${escapeHtml(physicalRule.reason)}
-                                </small>
-                            `
-                            : ""
-                    }
+                    <div class="card-body">
+                        <div class="alert alert-secondary mb-0">
+                            <i class="bi bi-lock-fill me-1"></i>
 
-                    ${
-                        !identificationRule.allowed
-                            ? `
-                                <small class="d-block text-muted mt-1">
-                                    Documento de identificación: ${escapeHtml(identificationRule.reason)}
-                                </small>
-                            `
-                            : ""
-                    }
+                            No se pueden adjuntar nuevos documentos porque la solicitud
+                            se encuentra <strong>${escapeHtml(registration.status)}</strong>.
+                        </div>
 
+                        <div class="row g-3 align-items-end mt-1">
+
+                            <div class="col-md-4">
+                                <label class="form-label">Tipo de documento</label>
+                                <select class="form-select" disabled>
+                                    <option>Solicitud finalizada</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-5">
+                                <label class="form-label">Archivo PDF</label>
+                                <input type="file" class="form-control" disabled>
+                            </div>
+
+                            <div class="col-md-3">
+                                <button type="button"
+                                        class="btn btn-primary w-100"
+                                        disabled>
+                                    <i class="bi bi-lock-fill me-1"></i>
+                                    Adjuntar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
 
         let observationsHtml = `
             <div class="alert alert-secondary">
@@ -938,35 +988,60 @@ document.addEventListener("DOMContentLoaded", function () {
         /* GESTIÓN SOLICITUD */
         let managementHtml = "";
         if (data.management.can_change_status) {
-            managementHtml = `
-                <div class="card">
-                    <div class="card-header">
-                        <strong>Gestión de solicitud</strong>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-info">
-                            Al aprobar esta solicitud se registrará automáticamente
-                            el ingreso o reingreso del funcionario como socio.
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button"
-                                    class="btn btn-success btnApproveRegistration"
-                                    data-id="${registration.id}">
-                                <i class="bi bi-check-lg me-1"></i>
-                                Aprobar
-                            </button>
-                            <button type="button"
-                                    class="btn btn-danger btnRejectRegistration"
-                                    data-id="${registration.id}">
+        managementHtml = `
+            <div class="card">
+                <div class="card-header">
+                    <strong>Gestión de solicitud</strong>
+                </div>
 
-                                <i class="bi bi-x-lg me-1"></i>
-                                Rechazar
-                            </button>
-                        </div>
+                <div class="card-body">
+                    ${
+                        data.management.can_approve
+                            ? `
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    Todos los documentos requeridos fueron validados.
+                                    La solicitud puede ser aprobada.
+                                </div>
+                            `
+                            : `
+                                <div class="alert alert-warning">
+                                    <div class="fw-bold mb-2">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                        La solicitud aún no puede aprobarse
+                                    </div>
+
+                                    <ul class="mb-0">
+                                        ${data.management.document_validation.reasons
+                                            .map(reason => `<li>${escapeHtml(reason)}</li>`)
+                                            .join("")}
+                                    </ul>
+                                </div>
+                            `
+                    }
+
+                    <div class="d-flex gap-2">
+                        <button type="button"
+                                class="btn btn-success btnApproveRegistration"
+                                data-id="${registration.id}"
+                                ${data.management.can_approve ? "" : "disabled"}>
+
+                            <i class="bi bi-check-lg me-1"></i>
+                            Aprobar
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-danger btnRejectRegistration"
+                                data-id="${registration.id}">
+
+                            <i class="bi bi-x-lg me-1"></i>
+                            Rechazar
+                        </button>
                     </div>
                 </div>
-            `;
-        } else {
+            </div>
+        `;
+    } else {
             managementHtml = `
                 <div class="alert alert-secondary mb-0">
                     Esta solicitud se encuentra en estado

@@ -1,8 +1,9 @@
 from django.db import models
 from django.conf import settings
+from .base import BaseModel
 
 
-class Observation(models.Model):
+class Observation(BaseModel):
     comment = models.TextField(
         null=True,
         blank=True
