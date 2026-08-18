@@ -1,6 +1,7 @@
 from django.db import models
 
 from .base import BaseModel
+from .location import Commune
 
 
 class PersonType(BaseModel):
@@ -83,3 +84,142 @@ class Person(BaseModel):
 
     class Meta:
         db_table="core_person"
+
+
+# ============================================================
+# PERSONA CONTACTO TIPO
+class PersonContactType(BaseModel):
+    name = models.CharField(
+        verbose_name="Nombre",
+        max_length=100,
+        unique=True,
+        null=False,
+        blank=False,
+    )
+
+    state = models.IntegerField(
+        verbose_name="Estado",
+        default=1,
+    )
+
+    class Meta:
+        db_table = "core_person_contact_type"
+        verbose_name = "Tipo de Contacto"
+        verbose_name_plural = "Tipos de Contacto"
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.name
+
+
+# ============================================================
+# PERSONA CONTACTO
+class PersonContact(BaseModel):
+    person = models.ForeignKey(
+        Person,
+        verbose_name="Persona",
+        db_column="id_person",
+        on_delete=models.PROTECT,
+        related_name="contacts",
+        null=False,
+        blank=False,
+    )
+
+    contact_type = models.ForeignKey(
+        PersonContactType,
+        verbose_name="Tipo de Contacto",
+        db_column="id_contact_type",
+        on_delete=models.PROTECT,
+        related_name="contacts",
+        null=False,
+        blank=False,
+    )
+
+    value = models.CharField(
+        verbose_name="Valor",
+        max_length=255,
+        null=False,
+        blank=False,
+    )
+
+    state = models.IntegerField(
+        verbose_name="Estado",
+        default=1,
+    )
+
+    class Meta:
+        db_table = "core_person_contact"
+        verbose_name = "Contacto de Persona"
+        verbose_name_plural = "Contactos de Personas"
+        ordering = ["id"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["person", "contact_type"],
+                condition=models.Q(state=1),
+                name="unique_active_person_contact_type",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.person} - {self.contact_type}: {self.value}"
+
+
+# ============================================================
+# PERSONA DIRECCIÓN
+class PersonAddress(BaseModel):
+    person = models.ForeignKey(
+        Person,
+        verbose_name="Persona",
+        db_column="id_person",
+        on_delete=models.PROTECT,
+        related_name="addresses",
+        null=False,
+        blank=False,
+    )
+
+    commune = models.ForeignKey(
+        Commune,
+        verbose_name="Comuna",
+        db_column="id_commune",
+        on_delete=models.PROTECT,
+        related_name="person_addresses",
+        null=False,
+        blank=False,
+    )
+
+    address = models.CharField(
+        verbose_name="Dirección",
+        max_length=255,
+        null=False,
+        blank=False,
+    )
+
+    number = models.CharField(
+        verbose_name="Número",
+        max_length=30,
+        null=False,
+        blank=False,
+    )
+
+    state = models.IntegerField(
+        verbose_name="Estado",
+        default=1,
+    )
+
+    class Meta:
+        db_table = "core_person_address"
+        verbose_name = "Dirección de Persona"
+        verbose_name_plural = "Direcciones de Personas"
+        ordering = ["id"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["person"],
+                condition=models.Q(state=1),
+                name="unique_active_person_address",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.address} {self.number}, {self.commune.name}"

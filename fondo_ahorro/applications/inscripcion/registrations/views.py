@@ -4,9 +4,11 @@ import uuid
 from pathlib import Path
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
+from django.core.validators import validate_email
 from django.db import transaction
-from django.db.models import Q, OuterRef, Subquery
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -23,7 +25,11 @@ from core.models import (
     Employee,
     Partner,
     PartnerReentry,
+    PartnerVoluntaryDiscount,
 )
+
+from core.models.location import Region, Commune
+from core.models.person import PersonContactType, PersonContact, PersonAddress
 
 from .models import (
     Registration,
@@ -39,13 +45,6 @@ from .models import (
 # ============================================================
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
-
-# Número máximo de REINGRESOS después del ingreso inicial.
-#
-# Ejemplo:
-#   1 = primer ingreso + máximo 1 reincorporación.
-#   2 = primer ingreso + máximo 2 reincorporaciones.
-#
 MAX_PARTNER_REENTRIES = 1
 
 REGISTRATION_TYPE_INITIAL = "Registration"
@@ -58,10 +57,27 @@ REQUEST_STATUS_APPROVED = "Approved"
 REQUEST_STATUS_REJECTED = "Rejected"
 
 DOCUMENT_STATUS_PENDING = "Pending"
+DOCUMENT_STATUS_APPROVED = "Approved"
+DOCUMENT_STATUS_REJECTED = "Rejected"
+
+DOCUMENT_TYPE_PHYSICAL = "Physical Registration Request"
+DOCUMENT_TYPE_IDENTIFICATION = "Identification Document"
+DOCUMENT_TYPE_OTHER = "Other Document"
+
+CONTACT_TYPE_PHONE = "Phone"
+CONTACT_TYPE_EMAIL = "Email"
+
+DOCUMENT_TYPES = {
+    "physical_request": DOCUMENT_TYPE_PHYSICAL,
+    "identification": DOCUMENT_TYPE_IDENTIFICATION,
+    "other": DOCUMENT_TYPE_OTHER,
+}
 
 
 # ============================================================
-# FUNCIONES AUXILIARES
+# PERSONA
+# ============================================================
+
 def _person_full_name(person):
     parts = [person.first_name, person.second_name, person.last_name_1, person.last_name_2]
     return " ".join(str(value).strip() for value in parts if value)
@@ -70,6 +86,235 @@ def _person_full_name(person):
 def _person_rut(person):
     return f"{person.rut}-{person.dv}"
 
+
+def _user_display_name(user):
+    if not user:
+        return ""
+
+    person = getattr(user, "person", None)
+
+    if person:
+        name = " ".join(
+            value.strip()
+            for value in [
+                getattr(person, "first_name", "") or "",
+                getattr(person, "last_name_1", "") or "",
+            ]
+            if value and value.strip()
+        )
+
+        if name:
+            return name
+
+    if hasattr(user, "get_full_name"):
+        name = str(user.get_full_name() or "").strip()
+
+        if name:
+            return name
+
+    first_name = str(getattr(user, "first_name", "") or "").strip()
+    last_name = str(getattr(user, "last_name", "") or "").strip()
+
+    return " ".join(value for value in [first_name, last_name] if value) or str(
+        getattr(user, "username", "") or ""
+    )
+
+
+# ============================================================
+# CONTACTOS
+# ============================================================
+
+def _get_active_person_contact(person, contact_type_name):
+    return (
+        PersonContact.objects
+        .select_related("contact_type")
+        .filter(
+            person=person,
+            contact_type__name__iexact=contact_type_name,
+            state=1,
+            is_active=True,
+        )
+        .order_by("-id")
+        .first()
+    )
+
+
+def _get_active_person_address(person):
+    return (
+        PersonAddress.objects
+        .select_related("commune", "commune__region")
+        .filter(
+            person=person,
+            state=1,
+            is_active=True,
+        )
+        .order_by("-id")
+        .first()
+    )
+
+
+def _normalize_phone(value):
+    digits = "".join(
+        character
+        for character in str(value or "")
+        if character.isdigit()
+    )
+
+    # +56 9 1234 5678 -> 912345678
+    if len(digits) == 11 and digits.startswith("56"):
+        digits = digits[2:]
+
+    # 12345678 -> 912345678
+    if len(digits) == 8:
+        digits = f"9{digits}"
+
+    if len(digits) != 9:
+        raise ValueError("El teléfono debe contener 8 o 9 dígitos.")
+
+    return digits
+
+
+def _normalize_email(value):
+    email = str(value or "").strip().lower()
+
+    if not email:
+        raise ValueError("Debe ingresar el correo de la persona.")
+
+    try:
+        validate_email(email)
+
+    except ValidationError:
+        raise ValueError("El correo ingresado no tiene un formato válido.")
+
+    return email
+
+
+def _get_or_create_contact_type(name, user):
+    contact_type = PersonContactType.objects.filter(name__iexact=name).first()
+    now = timezone.now()
+
+    if not contact_type:
+        return PersonContactType.objects.create(
+            name=name,
+            state=1,
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+            user_create=user,
+            user_update=user,
+        )
+
+    update_fields = []
+
+    if contact_type.state != 1:
+        contact_type.state = 1
+        update_fields.append("state")
+
+    if not contact_type.is_active:
+        contact_type.is_active = True
+        update_fields.append("is_active")
+
+    if update_fields:
+        contact_type.updated_at = now
+        contact_type.user_update = user
+
+        update_fields.extend([
+            "updated_at",
+            "user_update",
+        ])
+
+        contact_type.save(update_fields=update_fields)
+
+    return contact_type
+
+
+def _save_person_contact(person, contact_type_name, value, user):
+    contact_type = _get_or_create_contact_type(contact_type_name, user)
+
+    current = (
+        PersonContact.objects
+        .filter(
+            person=person,
+            contact_type=contact_type,
+            state=1,
+        )
+        .order_by("-id")
+        .first()
+    )
+
+    if current and str(current.value or "").strip() == value:
+        return False
+
+    now = timezone.now()
+
+    PersonContact.objects.filter(
+        person=person,
+        contact_type=contact_type,
+        state=1,
+    ).update(
+        state=0,
+        is_active=False,
+        updated_at=now,
+        user_update=user,
+    )
+
+    PersonContact.objects.create(
+        person=person,
+        contact_type=contact_type,
+        value=value,
+        state=1,
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+        user_create=user,
+        user_update=user,
+    )
+
+    return True
+
+
+def _save_person_address(person, commune, address, number, user):
+    current = _get_active_person_address(person)
+
+    if (
+        current
+        and current.commune_id == commune.id
+        and str(current.address or "").strip().casefold() == address.casefold()
+        and str(current.number or "").strip().casefold() == number.casefold()
+    ):
+        return False
+
+    now = timezone.now()
+
+    PersonAddress.objects.filter(
+        person=person,
+        state=1,
+    ).update(
+        state=0,
+        is_active=False,
+        updated_at=now,
+        user_update=user,
+    )
+
+    PersonAddress.objects.create(
+        person=person,
+        commune=commune,
+        address=address,
+        number=number,
+        state=1,
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+        user_create=user,
+        user_update=user,
+    )
+
+    return True
+
+
+# ============================================================
+# FUNCIONES GENERALES
+# ============================================================
 
 def _get_client_ip(request):
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
@@ -93,20 +338,59 @@ def _format_datetime(value):
 def _registration_type_label(value):
     value = str(value or "").strip().lower()
 
-    if value == REGISTRATION_TYPE_INITIAL.lower():
-        return "Inscripción"
+    labels = {
+        REGISTRATION_TYPE_INITIAL.lower(): "Inscripción",
+        REGISTRATION_TYPE_REENTRY.lower(): "Reingreso",
+    }
 
-    if value == REGISTRATION_TYPE_REENTRY.lower():
-        return "Reingreso"
+    return labels.get(value, value or "-")
 
-    return value or "-"
 
+def _request_status_label(value):
+    value = str(value or "").strip().lower()
+
+    labels = {
+        REQUEST_STATUS_PENDING.lower(): "Pendiente",
+        REQUEST_STATUS_APPROVED.lower(): "Aprobada",
+        REQUEST_STATUS_REJECTED.lower(): "Rechazada",
+    }
+
+    return labels.get(value, value or "-")
+
+
+def _document_status_label(value):
+    value = str(value or "").strip().lower()
+
+    labels = {
+        DOCUMENT_STATUS_PENDING.lower(): "Pendiente",
+        DOCUMENT_STATUS_APPROVED.lower(): "Aprobado",
+        DOCUMENT_STATUS_REJECTED.lower(): "Rechazado",
+    }
+
+    return labels.get(value, value or "-")
+
+
+def _document_type_label(value):
+    value = str(value or "").strip()
+
+    labels = {
+        DOCUMENT_TYPE_PHYSICAL: "Solicitud firmada",
+        DOCUMENT_TYPE_IDENTIFICATION: "Documento de identificación",
+        DOCUMENT_TYPE_OTHER: "Otro documento",
+    }
+
+    return labels.get(value, value or "-")
+
+
+# ============================================================
+# FUNCIONARIOS
+# ============================================================
 
 def _find_employee_by_code(code):
     employee = (
         Employee.objects
         .select_related("person", "grade")
-        .filter(code=str(code).strip())
+        .filter(code__iexact=str(code).strip())
         .first()
     )
 
@@ -143,49 +427,29 @@ def _person_ids_by_employee_code(search):
     )
 
 
-def _get_core_request(registration_id):
-    return (
-        Request.objects
-        .select_related("request_type", "status")
-        .filter(
-            request_id=registration_id,
-            request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
-        )
-        .order_by("-id")
-        .first()
-    )
+# ============================================================
+# REQUEST
+#
+# Registration ahora posee:
+#
+# registration.request
+#
+# Ya NO existe Request.request_id.
+# ============================================================
 
+def _get_core_request(registration):
+    if not registration:
+        return None
+
+    return registration.request
+
+
+# ============================================================
+# SITUACIÓN SOCIO
+# ============================================================
 
 def _get_partner_situation(person):
-    """
-    Determina si el funcionario puede generar una solicitud.
-
-    CASO 1:
-        No existe Partner.
-        -> Inscripción inicial.
-
-    CASO 2:
-        Existe Partner y state = 1.
-        -> Ya es socio activo.
-        -> No puede generar otra solicitud.
-
-    CASO 3:
-        Existe Partner y state = 0.
-        -> Puede corresponder a reingreso.
-
-    PartnerReentry registra todos los ingresos del socio,
-    incluido el ingreso inicial.
-
-    Por lo tanto:
-
-        reingresos utilizados = total PartnerReentry - 1
-    """
-
     partner = Partner.objects.filter(person=person).first()
-
-    # ========================================================
-    # NUNCA HA SIDO SOCIO
-    # ========================================================
 
     if not partner:
         return {
@@ -197,8 +461,6 @@ def _get_partner_situation(person):
             "reentries_used": 0,
         }
 
-    # ========================================================
-    # SOCIO ACTIVO
     if partner.state == 1:
         return {
             "allowed": False,
@@ -206,8 +468,6 @@ def _get_partner_situation(person):
             "message": "El funcionario ya es socio activo.",
         }
 
-    # ========================================================
-    # SOCIO INACTIVO
     total_entries = PartnerReentry.objects.filter(partner=partner).count()
     reentries_used = max(total_entries - 1, 0)
 
@@ -246,20 +506,35 @@ def _get_registration_type(situation):
     return registration_type
 
 
+# ============================================================
+# DOCUMENTOS
+# ============================================================
+
 def _validate_pdf(uploaded_file):
     if not uploaded_file:
-        return
+        raise ValueError("Debe adjuntar un documento.")
 
     extension = Path(uploaded_file.name).suffix.lower()
 
     if extension != ".pdf":
-        raise ValueError(f'El archivo "{uploaded_file.name}" debe estar en formato PDF.')
+        raise ValueError(
+            f'El archivo "{uploaded_file.name}" debe estar en formato PDF.'
+        )
 
     if uploaded_file.size > MAX_FILE_SIZE:
-        raise ValueError(f'El archivo "{uploaded_file.name}" supera el máximo de 10 MB.')
+        raise ValueError(
+            f'El archivo "{uploaded_file.name}" supera el máximo de 10 MB.'
+        )
 
 
-def _save_document(*, uploaded_file, registration, document_type_name, document_status, request):
+def _save_document(
+    *,
+    uploaded_file,
+    registration,
+    document_type_name,
+    document_status,
+    request,
+):
     _validate_pdf(uploaded_file)
 
     document_type, _ = DocumentType.objects.get_or_create(
@@ -270,9 +545,15 @@ def _save_document(*, uploaded_file, registration, document_type_name, document_
     internal_name = uuid.uuid4().hex
     extension = Path(uploaded_file.name).suffix.lower()
 
-    relative_path = f"registrations/{registration.id}/{internal_name}{extension}"
+    relative_path = (
+        f"registrations/{registration.id}/"
+        f"{internal_name}{extension}"
+    )
 
-    saved_path = default_storage.save(relative_path, uploaded_file)
+    saved_path = default_storage.save(
+        relative_path,
+        uploaded_file,
+    )
 
     document = Document.objects.create(
         user=request.user,
@@ -285,14 +566,161 @@ def _save_document(*, uploaded_file, registration, document_type_name, document_
         route=saved_path,
     )
 
-    RegistrationDocument.objects.create(
+    relation = RegistrationDocument.objects.create(
         registration=registration,
         document=document,
         status=document_status,
     )
 
-    return document, saved_path
+    return relation, saved_path
 
+
+def _document_relations_by_type(registration, document_type_name):
+    return (
+        RegistrationDocument.objects
+        .filter(
+            registration=registration,
+            document__type_document__type__iexact=document_type_name,
+        )
+        .select_related(
+            "status",
+            "document",
+            "document__type_document",
+        )
+    )
+
+
+def _document_upload_rule(registration, document_type_name):
+    if document_type_name == DOCUMENT_TYPE_OTHER:
+        return {
+            "allowed": True,
+            "reason": "",
+        }
+
+    relations = _document_relations_by_type(
+        registration,
+        document_type_name,
+    )
+
+    if relations.filter(
+        status__status_type__iexact=DOCUMENT_STATUS_PENDING
+    ).exists():
+        return {
+            "allowed": False,
+            "reason": (
+                f"Ya existe un documento de tipo "
+                f"{_document_type_label(document_type_name)} "
+                f"pendiente de revisión."
+            ),
+        }
+
+    if relations.filter(
+        status__status_type__iexact=DOCUMENT_STATUS_APPROVED
+    ).exists():
+        return {
+            "allowed": False,
+            "reason": (
+                f"Ya existe un documento de tipo "
+                f"{_document_type_label(document_type_name)} aprobado."
+            ),
+        }
+
+    return {
+        "allowed": True,
+        "reason": "",
+    }
+
+
+def _document_upload_rules(registration):
+    return {
+        "physical_request": _document_upload_rule(
+            registration,
+            DOCUMENT_TYPE_PHYSICAL,
+        ),
+
+        "identification": _document_upload_rule(
+            registration,
+            DOCUMENT_TYPE_IDENTIFICATION,
+        ),
+
+        "other": {
+            "allowed": True,
+            "reason": "",
+        },
+    }
+
+
+def _registration_document_approval_state(registration):
+    relations = (
+        RegistrationDocument.objects
+        .filter(registration=registration)
+        .select_related(
+            "status",
+            "document",
+            "document__type_document",
+        )
+    )
+
+    # ========================================================
+    # NO PUEDE EXISTIR NINGÚN DOCUMENTO PENDIENTE
+    # ========================================================
+
+    has_pending = relations.filter(
+        status__status_type__iexact=DOCUMENT_STATUS_PENDING
+    ).exists()
+
+    # ========================================================
+    # DOCUMENTOS OBLIGATORIOS APROBADOS
+    # ========================================================
+
+    physical_approved = relations.filter(
+        document__type_document__type__iexact=DOCUMENT_TYPE_PHYSICAL,
+        status__status_type__iexact=DOCUMENT_STATUS_APPROVED,
+    ).exists()
+
+    identification_approved = relations.filter(
+        document__type_document__type__iexact=DOCUMENT_TYPE_IDENTIFICATION,
+        status__status_type__iexact=DOCUMENT_STATUS_APPROVED,
+    ).exists()
+
+    # ========================================================
+    # MOTIVOS POR LOS QUE NO SE PUEDE APROBAR
+    # ========================================================
+
+    reasons = []
+
+    if has_pending:
+        reasons.append(
+            "Existen documentos pendientes de revisión."
+        )
+
+    if not physical_approved:
+        reasons.append(
+            "La solicitud firmada debe estar aprobada."
+        )
+
+    if not identification_approved:
+        reasons.append(
+            "El documento de identificación debe estar aprobado."
+        )
+
+    return {
+        "can_approve": (
+            not has_pending
+            and physical_approved
+            and identification_approved
+        ),
+
+        "has_pending": has_pending,
+        "physical_approved": physical_approved,
+        "identification_approved": identification_approved,
+        "reasons": reasons,
+    }
+
+
+# ============================================================
+# OBSERVACIONES
+# ============================================================
 
 def _create_observation(request, registration, comment):
     observation = Observation.objects.create(
@@ -312,32 +740,28 @@ def _create_observation(request, registration, comment):
     return observation
 
 
+# ============================================================
+# APROBAR INGRESO / REINGRESO SOCIO
+# ============================================================
+
 def _process_approved_partner_registration(registration, core_request, user):
-    """
-    Procesa el ingreso como socio solamente cuando una solicitud
-    es APROBADA.
+    existing_entry = (
+        PartnerReentry.objects
+        .filter(request=core_request)
+        .first()
+    )
 
-    INSCRIPCIÓN INICIAL:
-        Partner no existe.
-        -> Crear Partner state = 1.
-        -> Crear PartnerReentry state = 1.
-
-    REINGRESO:
-        Partner existe con state = 0.
-        -> Validar cantidad máxima de reingresos.
-        -> Desactivar cualquier PartnerReentry anterior activo.
-        -> Reactivar Partner.
-        -> Crear nuevo PartnerReentry state = 1.
-    """
-
-    existing_entry = PartnerReentry.objects.filter(request=core_request).first()
-
-    # Evita procesar dos veces la misma solicitud.
     if existing_entry:
         return existing_entry.partner
 
-    registration_type = str(registration.registration_type.type or "").strip()
-    is_reentry = registration_type.lower() == REGISTRATION_TYPE_REENTRY.lower()
+    registration_type = str(
+        registration.registration_type.type or ""
+    ).strip()
+
+    is_reentry = (
+        registration_type.lower()
+        == REGISTRATION_TYPE_REENTRY.lower()
+    )
 
     partner = (
         Partner.objects
@@ -350,12 +774,18 @@ def _process_approved_partner_registration(registration, core_request, user):
     today = timezone.localdate()
 
     # ========================================================
-    # INSCRIPCIÓN INICIAL
+    # INGRESO INICIAL
+    # ========================================================
+
     if not is_reentry:
 
         if partner:
+
             if partner.state == 1:
-                raise ValueError("El funcionario ya se encuentra registrado como socio activo.")
+                raise ValueError(
+                    "El funcionario ya se encuentra registrado "
+                    "como socio activo."
+                )
 
             raise ValueError(
                 "El funcionario ya posee un registro de socio. "
@@ -373,22 +803,38 @@ def _process_approved_partner_registration(registration, core_request, user):
 
     # ========================================================
     # REINGRESO
+    # ========================================================
+
     else:
 
         if not partner:
-            raise ValueError("No existe un registro de socio para realizar el reingreso.")
+            raise ValueError(
+                "No existe un registro de socio para realizar "
+                "el reingreso."
+            )
 
         if partner.state == 1:
-            raise ValueError("El funcionario ya se encuentra como socio activo.")
+            raise ValueError(
+                "El funcionario ya se encuentra como socio activo."
+            )
 
-        total_entries = PartnerReentry.objects.filter(partner=partner).count()
-        reentries_used = max(total_entries - 1, 0)
+        total_entries = (
+            PartnerReentry.objects
+            .filter(partner=partner)
+            .count()
+        )
+
+        reentries_used = max(
+            total_entries - 1,
+            0,
+        )
 
         if reentries_used >= MAX_PARTNER_REENTRIES:
-            raise ValueError("El socio ya utilizó la cantidad máxima de reingresos permitidos.")
+            raise ValueError(
+                "El socio ya utilizó la cantidad máxima "
+                "de reingresos permitidos."
+            )
 
-        # ----------------------------------------------------
-        # DESACTIVAR INGRESO ANTERIOR
         PartnerReentry.objects.filter(
             partner=partner,
             state=1,
@@ -398,8 +844,6 @@ def _process_approved_partner_registration(registration, core_request, user):
             user_update=user,
         )
 
-        # ----------------------------------------------------
-        # REACTIVAR SOCIO
         partner.state = 1
         partner.updated_at = now
         partner.user_update = user
@@ -413,7 +857,9 @@ def _process_approved_partner_registration(registration, core_request, user):
         )
 
     # ========================================================
-    # REGISTRAR NUEVO PERÍODO COMO SOCIO
+    # PERÍODO SOCIO
+    # ========================================================
+
     PartnerReentry.objects.create(
         partner=partner,
         request=core_request,
@@ -426,18 +872,90 @@ def _process_approved_partner_registration(registration, core_request, user):
         user_update=user,
     )
 
+    # ========================================================
+    # APORTE VOLUNTARIO A2
+    # ========================================================
+
+    contribution_amount = registration.contributes_a2 or 0
+
+    PartnerVoluntaryDiscount.objects.filter(
+        person=registration.person,
+        state=1,
+    ).update(
+        state=0,
+        is_active=False,
+        updated_at=now,
+        user_update=user,
+    )
+
+    PartnerVoluntaryDiscount.objects.create(
+        person=registration.person,
+        amount=contribution_amount,
+        date=today,
+        start_date=today,
+        state=1,
+        is_active=True,
+        created_at=now,
+        updated_at=now,
+        user_create=user,
+        user_update=user,
+    )
+
     return partner
 
 
 # ============================================================
 # VISTA PRINCIPAL
+# ============================================================
+
 @login_required
 def registration_list(request):
-    return render(request, "inscripcion/registration_list.html")
+    regions = (
+        Region.objects
+        .filter(is_active=True)
+        .order_by("name")
+    )
+
+    return render(
+        request,
+        "inscripcion/registration_list.html",
+        {
+            "regions": regions,
+        },
+    )
+
+
+# ============================================================
+# COMUNAS POR REGIÓN
+# ============================================================
+
+@login_required
+@require_GET
+def communes_by_region(request, region_id):
+    communes = (
+        Commune.objects
+        .filter(
+            region_id=region_id,
+            is_active=True,
+            region__is_active=True,
+        )
+        .order_by("name")
+        .values(
+            "id",
+            "name",
+        )
+    )
+
+    return JsonResponse({
+        "status": "ok",
+        "communes": list(communes),
+    })
 
 
 # ============================================================
 # DATATABLE
+# ============================================================
+
 @login_required
 @require_GET
 def registration_datatable(request):
@@ -445,18 +963,11 @@ def registration_datatable(request):
         draw = int(request.GET.get("draw", 1))
         start = int(request.GET.get("start", 0))
         length = int(request.GET.get("length", 10))
-        search = (request.GET.get("search[value]", "") or "").strip()
 
-        # ====================================================
-        # REQUEST ASOCIADO
-        request_qs = (
-            Request.objects
-            .filter(
-                request_id=OuterRef("pk"),
-                request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
-            )
-            .order_by("-id")
-        )
+        search = (
+            request.GET.get("search[value]", "")
+            or ""
+        ).strip()
 
         queryset = (
             Registration.objects
@@ -464,10 +975,9 @@ def registration_datatable(request):
                 "person",
                 "registration_type",
                 "user",
-            )
-            .annotate(
-                request_date=Subquery(request_qs.values("date")[:1]),
-                request_status=Subquery(request_qs.values("status__status_type")[:1]),
+                "request",
+                "request__status",
+                "request__request_type",
             )
             .order_by("-id")
         )
@@ -476,7 +986,10 @@ def registration_datatable(request):
 
         # ====================================================
         # BUSCADOR
+        # ====================================================
+
         if search:
+
             search_filter = (
                 Q(person__first_name__icontains=search)
                 | Q(person__second_name__icontains=search)
@@ -489,18 +1002,22 @@ def registration_datatable(request):
                 search_filter |= Q(person__rut=int(search))
                 search_filter |= Q(contributes_a2=int(search))
 
-            employee_person_ids = _person_ids_by_employee_code(search)
+            employee_person_ids = _person_ids_by_employee_code(
+                search
+            )
 
             if employee_person_ids:
-                search_filter |= Q(person_id__in=employee_person_ids)
+                search_filter |= Q(
+                    person_id__in=employee_person_ids
+                )
 
             queryset = queryset.filter(search_filter)
 
         records_filtered = queryset.count()
 
-        # ====================================================
-        # PAGINACIÓN
-        registrations = list(queryset[start:start + length])
+        registrations = list(
+            queryset[start:start + length]
+        )
 
         person_ids = [
             registration.person_id
@@ -508,14 +1025,22 @@ def registration_datatable(request):
             if registration.person_id
         ]
 
-        employee_codes = _employee_codes(person_ids)
+        employee_codes = _employee_codes(
+            person_ids
+        )
 
-        # ====================================================
-        # RESPUESTA
         data = []
 
         for registration in registrations:
+
             person = registration.person
+
+            request_status = (
+                registration.request.status.status_type
+                if registration.request
+                and registration.request.status
+                else ""
+            )
 
             data.append({
                 "id": registration.id,
@@ -543,14 +1068,22 @@ def registration_datatable(request):
                     else ""
                 ),
 
-                # IMPORTANTE:
-                # Se devuelve como número.
-                # El JavaScript lo formatea como moneda chilena.
-                "contributes_a2": registration.contributes_a2 or 0,
+                "contributes_a2": (
+                    registration.contributes_a2
+                    or 0
+                ),
 
-                "date": _format_datetime(registration.request_date),
+                "date": _format_datetime(
+                    registration.request.date
+                    if registration.request
+                    else None
+                ),
 
-                "status": registration.request_status or "",
+                "status": _request_status_label(
+                    request_status
+                ),
+
+                "status_code": request_status,
             })
 
         return JsonResponse({
@@ -561,6 +1094,7 @@ def registration_datatable(request):
         })
 
     except Exception as error:
+
         return JsonResponse({
             "draw": int(request.GET.get("draw", 1)),
             "recordsTotal": 0,
@@ -572,12 +1106,20 @@ def registration_datatable(request):
 
 # ============================================================
 # BUSCAR FUNCIONARIO
+# ============================================================
+
 @login_required
 @require_POST
 def search_employee(request):
     try:
-        body = json.loads(request.body or "{}")
-        code = str(body.get("code", "")).strip()
+        body = json.loads(
+            request.body
+            or "{}"
+        )
+
+        code = str(
+            body.get("code", "")
+        ).strip()
 
         if not code:
             return JsonResponse({
@@ -585,7 +1127,9 @@ def search_employee(request):
                 "message": "Debe ingresar el código del funcionario.",
             }, status=400)
 
-        employee = _find_employee_by_code(code)
+        employee = _find_employee_by_code(
+            code
+        )
 
         if not employee:
             return JsonResponse({
@@ -596,19 +1140,15 @@ def search_employee(request):
         person = employee["person"]
 
         # ====================================================
-        # EVITAR OTRA SOLICITUD PENDIENTE
-        registration_ids = (
-            Registration.objects
-            .filter(person=person)
-            .values_list("id", flat=True)
-        )
+        # SOLICITUD PENDIENTE
+        # ====================================================
 
         has_pending = (
-            Request.objects
+            Registration.objects
             .filter(
-                request_id__in=registration_ids,
-                request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
-                status__status_type__iexact=REQUEST_STATUS_PENDING,
+                person=person,
+                request__request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+                request__status__status_type__iexact=REQUEST_STATUS_PENDING,
             )
             .exists()
         )
@@ -616,12 +1156,19 @@ def search_employee(request):
         if has_pending:
             return JsonResponse({
                 "status": "error",
-                "message": "El funcionario ya posee una solicitud de inscripción pendiente.",
+                "message": (
+                    "El funcionario ya posee una solicitud "
+                    "de inscripción pendiente."
+                ),
             }, status=400)
 
         # ====================================================
-        # DETERMINAR INSCRIPCIÓN / REINGRESO
-        situation = _get_partner_situation(person)
+        # SITUACIÓN SOCIO
+        # ====================================================
+
+        situation = _get_partner_situation(
+            person
+        )
 
         if not situation["allowed"]:
             return JsonResponse({
@@ -629,7 +1176,27 @@ def search_employee(request):
                 "message": situation["message"],
             }, status=400)
 
-        registration_type = _get_registration_type(situation)
+        registration_type = _get_registration_type(
+            situation
+        )
+
+        # ====================================================
+        # CONTACTO ACTUAL
+        # ====================================================
+
+        phone_contact = _get_active_person_contact(
+            person,
+            CONTACT_TYPE_PHONE,
+        )
+
+        email_contact = _get_active_person_contact(
+            person,
+            CONTACT_TYPE_EMAIL,
+        )
+
+        person_address = _get_active_person_address(
+            person
+        )
 
         return JsonResponse({
             "status": "ok",
@@ -641,12 +1208,53 @@ def search_employee(request):
                 "name": _person_full_name(person),
                 "grade": employee["grade"],
                 "member_status": situation["member_status"],
+
+                "phone": (
+                    phone_contact.value
+                    if phone_contact
+                    else ""
+                ),
+
+                "email": (
+                    email_contact.value
+                    if email_contact
+                    else ""
+                ),
+
+                "address": (
+                    person_address.address
+                    if person_address
+                    else ""
+                ),
+
+                "address_number": (
+                    person_address.number
+                    if person_address
+                    else ""
+                ),
+
+                "commune_id": (
+                    person_address.commune_id
+                    if person_address
+                    else None
+                ),
+
+                "region_id": (
+                    person_address.commune.region_id
+                    if person_address
+                    and person_address.commune
+                    else None
+                ),
             },
 
             "registration_type": {
                 "id": registration_type.id,
                 "type": registration_type.type,
-                "display_name": _registration_type_label(registration_type.type),
+
+                "display_name": _registration_type_label(
+                    registration_type.type
+                ),
+
                 "is_reentry": situation["is_reentry"],
             },
 
@@ -657,6 +1265,7 @@ def search_employee(request):
         })
 
     except Exception as error:
+
         return JsonResponse({
             "status": "error",
             "message": str(error),
@@ -665,149 +1274,346 @@ def search_employee(request):
 
 # ============================================================
 # CREAR SOLICITUD
+# ============================================================
+
 @login_required
 @require_POST
 def create_registration(request):
     saved_files = []
 
     try:
+
         # ====================================================
-        # DATOS PRINCIPALES
+        # IDS
+        # ====================================================
+
         try:
-            person_id = int(request.POST.get("person_id", 0))
+            person_id = int(
+                request.POST.get(
+                    "person_id",
+                    0,
+                )
+            )
+
         except (TypeError, ValueError):
             person_id = 0
 
         try:
-            registration_type_id = int(request.POST.get("registration_type", 0))
+            registration_type_id = int(
+                request.POST.get(
+                    "registration_type",
+                    0,
+                )
+            )
+
         except (TypeError, ValueError):
             registration_type_id = 0
 
-        # ====================================================
-        # APORTE A2
-        #
-        # Puede ser:
-        #   0
-        #   1000
-        #   25000
-        #
-        # No puede ser negativo ni texto.
+        try:
+            region_id = int(
+                request.POST.get(
+                    "region_id",
+                    0,
+                )
+            )
 
-        contributes_a2_raw = request.POST.get("contributes_a2", "0")
+        except (TypeError, ValueError):
+            region_id = 0
 
         try:
-            contributes_a2 = int(contributes_a2_raw)
-        except (TypeError, ValueError):
-            raise ValueError("El aporte A2 debe ser un valor numérico.")
+            commune_id = int(
+                request.POST.get(
+                    "commune_id",
+                    0,
+                )
+            )
 
-        if contributes_a2 < 0:
-            raise ValueError("El aporte A2 no puede ser negativo.")
+        except (TypeError, ValueError):
+            commune_id = 0
+
+        # ====================================================
+        # APORTE A2
+        # ====================================================
+
+        try:
+            contributes_a2 = int(
+                request.POST.get(
+                    "contributes_a2",
+                    "0",
+                )
+            )
+
+        except (TypeError, ValueError):
+            raise ValueError(
+                "El aporte A2 debe ser un valor numérico."
+            )
+
+        # ====================================================
+        # CONTACTO / DOMICILIO
+        # ====================================================
+
+        phone = _normalize_phone(
+            request.POST.get(
+                "phone",
+                "",
+            )
+        )
+
+        email = _normalize_email(
+            request.POST.get(
+                "email",
+                "",
+            )
+        )
+
+        address = str(
+            request.POST.get(
+                "address",
+                "",
+            )
+        ).strip()
+
+        address_number = str(
+            request.POST.get(
+                "address_number",
+                "",
+            )
+        ).strip()
 
         # ====================================================
         # VALIDACIONES
+        # ====================================================
+
+        if contributes_a2 < 0:
+            raise ValueError(
+                "El aporte A2 no puede ser negativo."
+            )
+
         if person_id <= 0:
-            raise ValueError("Debe seleccionar un funcionario.")
+            raise ValueError(
+                "Debe seleccionar un funcionario."
+            )
 
         if registration_type_id <= 0:
-            raise ValueError("No se pudo determinar el tipo de solicitud.")
+            raise ValueError(
+                "No se pudo determinar el tipo de solicitud."
+            )
 
-        person = Person.objects.filter(pk=person_id).first()
+        if region_id <= 0:
+            raise ValueError(
+                "Debe seleccionar una región."
+            )
 
-        if not person:
-            raise ValueError("La persona seleccionada no existe.")
+        if commune_id <= 0:
+            raise ValueError(
+                "Debe seleccionar una comuna."
+            )
 
-        employee_exists = Employee.objects.filter(person=person).exists()
+        if not address:
+            raise ValueError(
+                "Debe ingresar la dirección de la persona."
+            )
 
-        if not employee_exists:
-            raise ValueError("La persona seleccionada no corresponde a un funcionario.")
+        if not address_number:
+            raise ValueError(
+                "Debe ingresar el número de la dirección."
+            )
 
         # ====================================================
-        # VOLVER A VALIDAR ESTADO DEL SOCIO EN BACKEND
-        situation = _get_partner_situation(person)
+        # PERSONA
+        # ====================================================
+
+        person = (
+            Person.objects
+            .filter(pk=person_id)
+            .first()
+        )
+
+        if not person:
+            raise ValueError(
+                "La persona seleccionada no existe."
+            )
+
+        if not Employee.objects.filter(
+            person=person
+        ).exists():
+            raise ValueError(
+                "La persona seleccionada no corresponde "
+                "a un funcionario."
+            )
+
+        # ====================================================
+        # COMUNA / REGIÓN
+        # ====================================================
+
+        commune = (
+            Commune.objects
+            .select_related("region")
+            .filter(
+                pk=commune_id,
+                region_id=region_id,
+                is_active=True,
+                region__is_active=True,
+            )
+            .first()
+        )
+
+        if not commune:
+            raise ValueError(
+                "La comuna seleccionada no pertenece "
+                "a la región indicada."
+            )
+
+        # ====================================================
+        # SITUACIÓN SOCIO
+        # ====================================================
+
+        situation = _get_partner_situation(
+            person
+        )
 
         if not situation["allowed"]:
-            raise ValueError(situation["message"])
+            raise ValueError(
+                situation["message"]
+            )
 
-        expected_registration_type = _get_registration_type(situation)
+        expected_registration_type = _get_registration_type(
+            situation
+        )
 
         if registration_type_id != expected_registration_type.id:
             raise ValueError(
-                "El tipo de solicitud no corresponde al estado actual del funcionario."
+                "El tipo de solicitud no corresponde al estado "
+                "actual del funcionario."
             )
 
-        registration_ids = (
-            Registration.objects
-            .filter(person=person)
-            .values_list("id", flat=True)
-        )
+        # ====================================================
+        # SOLICITUD PENDIENTE
+        #
+        # NUEVA RELACIÓN:
+        #
+        # Registration -> Request
+        # ====================================================
 
         has_pending = (
-            Request.objects
+            Registration.objects
             .filter(
-                request_id__in=registration_ids,
-                request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
-                status__status_type__iexact=REQUEST_STATUS_PENDING,
+                person=person,
+                request__request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+                request__status__status_type__iexact=REQUEST_STATUS_PENDING,
             )
             .exists()
         )
 
         if has_pending:
             raise ValueError(
-                "El funcionario ya posee una solicitud de inscripción pendiente."
+                "El funcionario ya posee una solicitud "
+                "de inscripción pendiente."
             )
 
         # ====================================================
         # DOCUMENTOS
-        physical_request = request.FILES.get("physical_request_document")
-        identification_document = request.FILES.get("identification_document")
-        other_documents = request.FILES.getlist("other_documents")
+        # ====================================================
 
-        if not physical_request:
-            raise ValueError("Debe adjuntar la solicitud firmada.")
+        physical_request = request.FILES.get(
+            "physical_request_document"
+        )
 
-        if not identification_document:
-            raise ValueError("Debe adjuntar el documento de identificación.")
+        identification_document = request.FILES.get(
+            "identification_document"
+        )
 
-        _validate_pdf(physical_request)
-        _validate_pdf(identification_document)
+        other_documents = request.FILES.getlist(
+            "other_documents"
+        )
+
+        _validate_pdf(
+            physical_request
+        )
+
+        _validate_pdf(
+            identification_document
+        )
 
         for uploaded_file in other_documents:
-            _validate_pdf(uploaded_file)
+            _validate_pdf(
+                uploaded_file
+            )
 
         # ====================================================
-        # TIPOS Y ESTADOS
+        # TIPOS / ESTADOS
+        # ====================================================
+
         request_type, _ = RequestType.objects.get_or_create(
             type=REQUEST_TYPE_REGISTRATION,
-            defaults={"state": 1},
+            defaults={
+                "state": 1,
+            },
         )
 
         if request_type.state != 1:
             request_type.state = 1
-            request_type.save(update_fields=["state"])
+            request_type.save(
+                update_fields=[
+                    "state",
+                ]
+            )
 
         pending_status, _ = RequestStatus.objects.get_or_create(
             status_type=REQUEST_STATUS_PENDING,
-            defaults={"state": 1},
+            defaults={
+                "state": 1,
+            },
         )
 
         if pending_status.state != 1:
             pending_status.state = 1
-            pending_status.save(update_fields=["state"])
+            pending_status.save(
+                update_fields=[
+                    "state",
+                ]
+            )
 
-        document_pending_status, _ = RegistrationDocumentStatus.objects.get_or_create(
-            status_type=DOCUMENT_STATUS_PENDING,
-            defaults={"state": 1},
+        document_pending_status, _ = (
+            RegistrationDocumentStatus.objects
+            .get_or_create(
+                status_type=DOCUMENT_STATUS_PENDING,
+                defaults={
+                    "state": 1,
+                },
+            )
         )
 
         if document_pending_status.state != 1:
             document_pending_status.state = 1
-            document_pending_status.save(update_fields=["state"])
+            document_pending_status.save(
+                update_fields=[
+                    "state",
+                ]
+            )
 
         # ====================================================
         # TRANSACCIÓN
+        # ====================================================
+
         with transaction.atomic():
 
+            # ------------------------------------------------
+            # REQUEST GENERAL
+            # ------------------------------------------------
+
+            core_request = Request.objects.create(
+                request_type=request_type,
+                date=timezone.now(),
+                status=pending_status,
+            )
+
+            # ------------------------------------------------
+            # REGISTRATION ESPECÍFICA
+            # ------------------------------------------------
+
             registration = Registration.objects.create(
+                request=core_request,
                 person=person,
                 registration_type=expected_registration_type,
                 contributes_a2=contributes_a2,
@@ -815,52 +1621,130 @@ def create_registration(request):
                 user_ip=_get_client_ip(request),
             )
 
-            core_request = Request.objects.create(
-                request_id=registration.id,
-                request_type=request_type,
-                date=timezone.now(),
-                status=pending_status,
+            # ------------------------------------------------
+            # CONTACTO
+            # ------------------------------------------------
+
+            phone_changed = _save_person_contact(
+                person,
+                CONTACT_TYPE_PHONE,
+                phone,
+                request.user,
             )
 
-            # =================================================
+            email_changed = _save_person_contact(
+                person,
+                CONTACT_TYPE_EMAIL,
+                email,
+                request.user,
+            )
+
+            address_changed = _save_person_address(
+                person,
+                commune,
+                address,
+                address_number,
+                request.user,
+            )
+
+            contact_comment = (
+                "Datos de contacto y domicilio actualizados."
+                if (
+                    phone_changed
+                    or email_changed
+                    or address_changed
+                )
+                else
+                "Datos de contacto y domicilio confirmados sin cambios."
+            )
+
+            _create_observation(
+                request,
+                registration,
+                contact_comment,
+            )
+
+            # ------------------------------------------------
             # SOLICITUD FIRMADA
+            # ------------------------------------------------
+
             _, path = _save_document(
                 uploaded_file=physical_request,
                 registration=registration,
-                document_type_name="Physical Registration Request",
+                document_type_name=DOCUMENT_TYPE_PHYSICAL,
                 document_status=document_pending_status,
                 request=request,
             )
 
-            saved_files.append(path)
+            saved_files.append(
+                path
+            )
 
-            # =================================================
-            # DOCUMENTO DE IDENTIFICACIÓN
+            _create_observation(
+                request,
+                registration,
+                (
+                    "Documento adjuntado: "
+                    f"{_document_type_label(DOCUMENT_TYPE_PHYSICAL)}."
+                ),
+            )
+
+            # ------------------------------------------------
+            # IDENTIFICACIÓN
+            # ------------------------------------------------
+
             _, path = _save_document(
                 uploaded_file=identification_document,
                 registration=registration,
-                document_type_name="Identification Document",
+                document_type_name=DOCUMENT_TYPE_IDENTIFICATION,
                 document_status=document_pending_status,
                 request=request,
             )
 
-            saved_files.append(path)
+            saved_files.append(
+                path
+            )
 
-            # =================================================
+            _create_observation(
+                request,
+                registration,
+                (
+                    "Documento adjuntado: "
+                    f"{_document_type_label(DOCUMENT_TYPE_IDENTIFICATION)}."
+                ),
+            )
+
+            # ------------------------------------------------
             # OTROS DOCUMENTOS
+            # ------------------------------------------------
+
             for other_file in other_documents:
+
                 _, path = _save_document(
                     uploaded_file=other_file,
                     registration=registration,
-                    document_type_name="Other Document",
+                    document_type_name=DOCUMENT_TYPE_OTHER,
                     document_status=document_pending_status,
                     request=request,
                 )
 
-                saved_files.append(path)
+                saved_files.append(
+                    path
+                )
 
-            # =================================================
-            # OBSERVACIÓN INICIAL
+                _create_observation(
+                    request,
+                    registration,
+                    (
+                        "Documento adjuntado: Otro documento "
+                        f"({other_file.name})."
+                    ),
+                )
+
+            # ------------------------------------------------
+            # OBSERVACIÓN SOLICITUD
+            # ------------------------------------------------
+
             action_name = (
                 "reingreso"
                 if situation["is_reentry"]
@@ -881,6 +1765,7 @@ def create_registration(request):
         })
 
     except ValueError as error:
+
         for path in saved_files:
             if default_storage.exists(path):
                 default_storage.delete(path)
@@ -891,6 +1776,7 @@ def create_registration(request):
         }, status=400)
 
     except Exception as error:
+
         for path in saved_files:
             if default_storage.exists(path):
                 default_storage.delete(path)
@@ -903,6 +1789,8 @@ def create_registration(request):
 
 # ============================================================
 # DETALLE SOLICITUD
+# ============================================================
+
 @login_required
 @require_GET
 def registration_detail(request, registration_id):
@@ -912,8 +1800,13 @@ def registration_detail(request, registration_id):
             "person",
             "registration_type",
             "user",
+            "request",
+            "request__status",
+            "request__request_type",
         )
-        .filter(pk=registration_id)
+        .filter(
+            pk=registration_id
+        )
         .first()
     )
 
@@ -924,10 +1817,12 @@ def registration_detail(request, registration_id):
         }, status=404)
 
     person = registration.person
-    core_request = _get_core_request(registration.id)
+    core_request = _get_core_request(registration)
 
     # ========================================================
     # DOCUMENTOS
+    # ========================================================
+
     documents = []
 
     for relation in (
@@ -937,41 +1832,64 @@ def registration_detail(request, registration_id):
             "document__type_document",
             "status",
         )
-        .all()
+        .order_by(
+            "-document__creation_date",
+            "-id",
+        )
     ):
         document = relation.document
+
         file_url = ""
 
         if document.route:
             try:
-                file_url = default_storage.url(document.route)
+                file_url = default_storage.url(
+                    document.route
+                )
+
             except Exception:
                 file_url = document.route
 
-        documents.append({
-            "id": document.id,
+        document_status = (
+            relation.status.status_type
+            if relation.status
+            else ""
+        )
 
+        document_type = (
+            document.type_document.type
+            if document.type_document
+            else ""
+        )
+
+        documents.append({
+            "relation_id": relation.id,
+            "id": document.id,
             "name": document.document_name,
 
-            "type": (
-                document.type_document.type
-                if document.type_document
-                else ""
+            "type": _document_type_label(
+                document_type
             ),
 
-            "status": (
-                relation.status.status_type
-                if relation.status
-                else ""
+            "type_code": document_type,
+
+            "status": _document_status_label(
+                document_status
             ),
 
-            "date": _format_datetime(document.creation_date),
+            "status_code": document_status,
+
+            "date": _format_datetime(
+                document.creation_date
+            ),
 
             "url": file_url,
         })
 
     # ========================================================
     # OBSERVACIONES
+    # ========================================================
+
     observations = []
 
     for relation in (
@@ -988,51 +1906,108 @@ def registration_detail(request, registration_id):
     ):
         observation = relation.observation
 
+        date = (
+            observation.date.strftime("%d-%m-%Y")
+            if observation.date
+            else ""
+        )
+
+        time = (
+            observation.time.strftime("%H:%M")
+            if observation.time
+            else ""
+        )
+
+        date_time = " ".join(
+            value
+            for value in [date, time]
+            if value
+        )
+
         observations.append({
             "comment": observation.comment or "",
-
-            "date": (
-                observation.date.strftime("%d-%m-%Y")
-                if observation.date
-                else ""
-            ),
-
-            "time": (
-                observation.time.strftime("%H:%M")
-                if observation.time
-                else ""
-            ),
-
-            "user": (
-                observation.user.username
-                if observation.user
-                else ""
+            "datetime": date_time,
+            "user": _user_display_name(
+                observation.user
             ),
         })
 
+    # ========================================================
+    # ESTADO REQUEST
+    # ========================================================
+
     request_status = (
         core_request.status.status_type
-        if core_request and core_request.status
+        if core_request
+        and core_request.status
         else ""
     )
 
+    request_is_pending = (
+        request_status.lower()
+        == REQUEST_STATUS_PENDING.lower()
+    )
+
+    document_approval = _registration_document_approval_state(
+        registration
+    )
+
+    # ========================================================
+    # DATOS PERSONA
+    # ========================================================
+
     employee_code = ""
 
+    phone_contact = (
+        _get_active_person_contact(
+            person,
+            CONTACT_TYPE_PHONE,
+        )
+        if person
+        else None
+    )
+
+    email_contact = (
+        _get_active_person_contact(
+            person,
+            CONTACT_TYPE_EMAIL,
+        )
+        if person
+        else None
+    )
+
+    person_address = (
+        _get_active_person_address(
+            person
+        )
+        if person
+        else None
+    )
+
     if person:
+
         employee_code = (
             Employee.objects
             .filter(person=person)
-            .values_list("code", flat=True)
+            .values_list(
+                "code",
+                flat=True,
+            )
             .first()
             or ""
         )
+
+    document_upload = _document_upload_rules(
+        registration
+    )
+
+    document_upload["can_add"] = request_is_pending
 
     return JsonResponse({
         "status": "ok",
 
         "registration": {
             "id": registration.id,
-
             "employee_code": employee_code,
 
             "rut": (
@@ -1053,72 +2028,545 @@ def registration_detail(request, registration_id):
                 else ""
             ),
 
-            "contributes_a2": registration.contributes_a2 or 0,
+            "contributes_a2": (
+                registration.contributes_a2
+                or 0
+            ),
 
-            "status": request_status,
+            "status": _request_status_label(
+                request_status
+            ),
+
+            "status_code": request_status,
 
             "date": _format_datetime(
                 core_request.date
                 if core_request
                 else None
             ),
+
+            "phone": (
+                phone_contact.value
+                if phone_contact
+                else ""
+            ),
+
+            "email": (
+                email_contact.value
+                if email_contact
+                else ""
+            ),
+
+            "address": (
+                person_address.address
+                if person_address
+                else ""
+            ),
+
+            "address_number": (
+                person_address.number
+                if person_address
+                else ""
+            ),
+
+            "commune": (
+                person_address.commune.name
+                if person_address
+                else ""
+            ),
+
+            "region": (
+                person_address.commune.region.name
+                if person_address
+                and person_address.commune
+                and person_address.commune.region
+                else ""
+            ),
         },
 
         "documents": documents,
-
         "observations": observations,
 
+        "document_upload": document_upload,
+
         "management": {
-            "can_change_status": (
-                request_status.lower()
-                == REQUEST_STATUS_PENDING.lower()
+            "can_change_status": request_is_pending,
+
+            "can_approve": (
+                request_is_pending
+                and document_approval["can_approve"]
             ),
+
+            "document_validation": {
+                "has_pending": document_approval["has_pending"],
+                "physical_approved": document_approval["physical_approved"],
+                "identification_approved": document_approval["identification_approved"],
+                "reasons": document_approval["reasons"],
+            },
         },
     })
 
 
 # ============================================================
-# CAMBIAR ESTADO DE LA SOLICITUD
+# AGREGAR DOCUMENTO
+# ============================================================
+
+@login_required
+@require_POST
+def add_registration_document(request, registration_id):
+    saved_path = None
+
+    try:
+        registration = (
+            Registration.objects
+            .select_related(
+                "request",
+                "request__status",
+            )
+            .filter(
+                pk=registration_id
+            )
+            .first()
+        )
+
+        if not registration:
+            raise ValueError(
+                "No se encontró la solicitud."
+            )
+
+        # ====================================================
+        # REQUEST DEBE ESTAR PENDING
+        # ====================================================
+
+        core_request = registration.request
+
+        request_status = (
+            core_request.status.status_type
+            if core_request
+            and core_request.status
+            else ""
+        )
+
+        if request_status.lower() != REQUEST_STATUS_PENDING.lower():
+            raise ValueError(
+                "No se pueden adjuntar documentos porque "
+                "la solicitud ya fue aprobada o rechazada."
+            )
+
+        # ====================================================
+        # DOCUMENTO
+        # ====================================================
+
+        document_type_key = str(
+            request.POST.get(
+                "document_type",
+                "",
+            )
+        ).strip()
+
+        uploaded_file = request.FILES.get(
+            "document"
+        )
+
+        document_type_name = DOCUMENT_TYPES.get(
+            document_type_key
+        )
+
+        if not document_type_name:
+            raise ValueError(
+                "Debe seleccionar un tipo de documento válido."
+            )
+
+        _validate_pdf(
+            uploaded_file
+        )
+
+        # ====================================================
+        # VALIDACIÓN TIPO
+        # ====================================================
+
+        if document_type_name != DOCUMENT_TYPE_OTHER:
+
+            rule = _document_upload_rule(
+                registration,
+                document_type_name,
+            )
+
+            if not rule["allowed"]:
+                raise ValueError(
+                    rule["reason"]
+                )
+
+        had_rejected = (
+            _document_relations_by_type(
+                registration,
+                document_type_name,
+            )
+            .filter(
+                status__status_type__iexact=DOCUMENT_STATUS_REJECTED
+            )
+            .exists()
+        )
+
+        pending_status, _ = (
+            RegistrationDocumentStatus.objects
+            .get_or_create(
+                status_type=DOCUMENT_STATUS_PENDING,
+                defaults={
+                    "state": 1,
+                },
+            )
+        )
+
+        # ====================================================
+        # GUARDAR
+        # ====================================================
+
+        with transaction.atomic():
+
+            _, saved_path = _save_document(
+                uploaded_file=uploaded_file,
+                registration=registration,
+                document_type_name=document_type_name,
+                document_status=pending_status,
+                request=request,
+            )
+
+            document_label = _document_type_label(
+                document_type_name
+            )
+
+            if document_type_name == DOCUMENT_TYPE_OTHER:
+
+                comment = (
+                    "Documento adicional adjuntado: "
+                    f"{uploaded_file.name}."
+                )
+
+            elif had_rejected:
+
+                comment = (
+                    "Nuevo documento adjuntado tras rechazo: "
+                    f"{document_label}. "
+                    f"Archivo: {uploaded_file.name}."
+                )
+
+            else:
+
+                comment = (
+                    f"Documento adjuntado: {document_label}. "
+                    f"Archivo: {uploaded_file.name}."
+                )
+
+            _create_observation(
+                request,
+                registration,
+                comment,
+            )
+
+        return JsonResponse({
+            "status": "ok",
+            "message": (
+                "Documento adjuntado correctamente "
+                "y enviado a revisión."
+            ),
+        })
+
+    except ValueError as error:
+
+        if (
+            saved_path
+            and default_storage.exists(saved_path)
+        ):
+            default_storage.delete(
+                saved_path
+            )
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(error),
+        }, status=400)
+
+    except Exception as error:
+
+        if (
+            saved_path
+            and default_storage.exists(saved_path)
+        ):
+            default_storage.delete(
+                saved_path
+            )
+
+        return JsonResponse({
+            "status": "error",
+            "message": f"Error al adjuntar el documento: {error}",
+        }, status=500)
+
+
+# ============================================================
+# CAMBIAR ESTADO DOCUMENTO
+# ============================================================
+
+@login_required
+@require_POST
+def update_document_status(
+    request,
+    registration_id,
+    document_relation_id,
+):
+    try:
+        body = json.loads(
+            request.body
+            or "{}"
+        )
+
+        new_status = str(
+            body.get(
+                "status",
+                "",
+            )
+        ).strip()
+
+        reason = str(
+            body.get(
+                "reason",
+                "",
+            )
+        ).strip()
+
+        allowed_statuses = {
+            DOCUMENT_STATUS_APPROVED.lower(): DOCUMENT_STATUS_APPROVED,
+            DOCUMENT_STATUS_REJECTED.lower(): DOCUMENT_STATUS_REJECTED,
+        }
+
+        normalized_status = allowed_statuses.get(
+            new_status.lower()
+        )
+
+        if not normalized_status:
+            raise ValueError(
+                "El estado seleccionado no es válido."
+            )
+
+        if (
+            normalized_status == DOCUMENT_STATUS_REJECTED
+            and len(reason) < 5
+        ):
+            raise ValueError(
+                "Debe indicar el motivo del rechazo."
+            )
+
+        with transaction.atomic():
+
+            relation = (
+                RegistrationDocument.objects
+                .select_for_update()
+                .filter(
+                    pk=document_relation_id,
+                    registration_id=registration_id,
+                )
+                .first()
+            )
+
+            if not relation:
+                raise ValueError(
+                    "No se encontró el documento asociado "
+                    "a la solicitud."
+                )
+
+            registration = (
+                Registration.objects
+                .select_related(
+                    "request",
+                    "request__status",
+                )
+                .filter(
+                    pk=relation.registration_id
+                )
+                .first()
+            )
+
+            # =================================================
+            # REQUEST DEBE ESTAR PENDIENTE
+            # =================================================
+
+            request_status = (
+                registration.request.status.status_type
+                if registration
+                and registration.request
+                and registration.request.status
+                else ""
+            )
+
+            if request_status.lower() != REQUEST_STATUS_PENDING.lower():
+                raise ValueError(
+                    "No se puede modificar el estado de documentos "
+                    "porque la solicitud ya fue aprobada o rechazada."
+                )
+
+            # =================================================
+            # DOCUMENTO DEBE ESTAR PENDIENTE
+            # =================================================
+
+            current_status = (
+                relation.status.status_type
+                if relation.status
+                else ""
+            )
+
+            if current_status.lower() in (
+                DOCUMENT_STATUS_APPROVED.lower(),
+                DOCUMENT_STATUS_REJECTED.lower(),
+            ):
+                raise ValueError(
+                    "El documento ya fue gestionado "
+                    "y no puede volver a modificarse."
+                )
+
+            status_object, _ = (
+                RegistrationDocumentStatus.objects
+                .get_or_create(
+                    status_type=normalized_status,
+                    defaults={
+                        "state": 1,
+                    },
+                )
+            )
+
+            if status_object.state != 1:
+                status_object.state = 1
+
+                status_object.save(
+                    update_fields=[
+                        "state",
+                    ]
+                )
+
+            relation.status = status_object
+
+            relation.save(
+                update_fields=[
+                    "status",
+                ]
+            )
+
+            document = relation.document
+
+            document_type = (
+                document.type_document.type
+                if document.type_document
+                else ""
+            )
+
+            document_label = _document_type_label(
+                document_type
+            )
+
+            if normalized_status == DOCUMENT_STATUS_APPROVED:
+
+                comment = (
+                    f"Documento validado: {document_label}."
+                )
+
+            else:
+
+                comment = (
+                    f"Documento rechazado: {document_label}. "
+                    f"Motivo: {reason}"
+                )
+
+            _create_observation(
+                request,
+                registration,
+                comment,
+            )
+
+        return JsonResponse({
+            "status": "ok",
+
+            "message": (
+                "Documento aprobado correctamente."
+                if normalized_status == DOCUMENT_STATUS_APPROVED
+                else (
+                    "Documento rechazado correctamente. "
+                    "Puede adjuntar uno nuevo de este tipo."
+                )
+            ),
+        })
+
+    except ValueError as error:
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(error),
+        }, status=400)
+
+    except Exception as error:
+
+        return JsonResponse({
+            "status": "error",
+            "message": (
+                f"Error al actualizar el documento: {error}"
+            ),
+        }, status=500)
+
+
+# ============================================================
+# CAMBIAR ESTADO SOLICITUD
+# ============================================================
+
 @login_required
 @require_POST
 def update_registration_status(request, registration_id):
     try:
-        body = json.loads(request.body or "{}")
-        new_status = str(body.get("status", "")).strip()
+        body = json.loads(
+            request.body
+            or "{}"
+        )
+
+        new_status = str(
+            body.get(
+                "status",
+                "",
+            )
+        ).strip()
 
         allowed_statuses = {
             REQUEST_STATUS_APPROVED.lower(): REQUEST_STATUS_APPROVED,
             REQUEST_STATUS_REJECTED.lower(): REQUEST_STATUS_REJECTED,
         }
 
-        normalized_status = allowed_statuses.get(new_status.lower())
+        normalized_status = allowed_statuses.get(
+            new_status.lower()
+        )
 
         if not normalized_status:
-            return JsonResponse({
-                "status": "error",
-                "message": "El estado seleccionado no es válido.",
-            }, status=400)
+            raise ValueError(
+                "El estado seleccionado no es válido."
+            )
 
         with transaction.atomic():
 
-            # =================================================
-            # SOLICITUD
             registration = (
                 Registration.objects
-                .select_for_update()
                 .select_related(
-                    "person",
                     "registration_type",
                 )
-                .filter(pk=registration_id)
+                .filter(
+                    pk=registration_id
+                )
                 .first()
             )
 
             if not registration:
-                raise ValueError("No se encontró la solicitud.")
+                raise ValueError(
+                    "No se encontró la solicitud."
+                )
 
             # =================================================
-            # REQUEST
+            # LOCK DEL REQUEST REAL RELACIONADO
+            # =================================================
+
             core_request = (
                 Request.objects
                 .select_for_update()
@@ -1127,15 +2575,15 @@ def update_registration_status(request, registration_id):
                     "request_type",
                 )
                 .filter(
-                    request_id=registration.id,
-                    request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+                    pk=registration.request_id
                 )
-                .order_by("-id")
                 .first()
             )
 
             if not core_request:
-                raise ValueError("La solicitud no posee un Request asociado.")
+                raise ValueError(
+                    "La solicitud no posee un Request asociado."
+                )
 
             current_status = str(
                 core_request.status.status_type
@@ -1144,13 +2592,16 @@ def update_registration_status(request, registration_id):
             ).strip()
 
             # =================================================
-            # ESTADOS TERMINALES
+            # SOLO PENDING PUEDE CAMBIAR
+            # =================================================
+
             if current_status.lower() in (
                 REQUEST_STATUS_APPROVED.lower(),
                 REQUEST_STATUS_REJECTED.lower(),
             ):
                 raise ValueError(
-                    "La solicitud ya se encuentra en un estado final."
+                    "La solicitud ya se encuentra "
+                    "en un estado final."
                 )
 
             if current_status.lower() != REQUEST_STATUS_PENDING.lower():
@@ -1159,8 +2610,24 @@ def update_registration_status(request, registration_id):
                 )
 
             # =================================================
-            # APROBACIÓN
+            # APROBAR
+            # =================================================
+
             if normalized_status == REQUEST_STATUS_APPROVED:
+                document_approval = _registration_document_approval_state(
+                    registration
+                )
+
+                if not document_approval["can_approve"]:
+                    reasons = " ".join(
+                        document_approval["reasons"]
+                    )
+
+                    raise ValueError(
+                        "La solicitud todavía no puede ser aprobada. "
+                        + reasons
+                    )
+
                 _process_approved_partner_registration(
                     registration=registration,
                     core_request=core_request,
@@ -1168,21 +2635,37 @@ def update_registration_status(request, registration_id):
                 )
 
             # =================================================
-            # ACTUALIZAR ESTADO REQUEST
+            # ACTUALIZAR REQUEST
+            # =================================================
+
             status_object, _ = RequestStatus.objects.get_or_create(
                 status_type=normalized_status,
-                defaults={"state": 1},
+                defaults={
+                    "state": 1,
+                },
             )
 
             if status_object.state != 1:
                 status_object.state = 1
-                status_object.save(update_fields=["state"])
+
+                status_object.save(
+                    update_fields=[
+                        "state",
+                    ]
+                )
 
             core_request.status = status_object
-            core_request.save(update_fields=["status"])
+
+            core_request.save(
+                update_fields=[
+                    "status",
+                ]
+            )
 
             # =================================================
             # OBSERVACIÓN
+            # =================================================
+
             status_label = (
                 "aprobada"
                 if normalized_status == REQUEST_STATUS_APPROVED
@@ -1197,17 +2680,23 @@ def update_registration_status(request, registration_id):
 
         return JsonResponse({
             "status": "ok",
-            "message": f"Solicitud {status_label} correctamente.",
+            "message": (
+                f"Solicitud {status_label} correctamente."
+            ),
         })
 
     except ValueError as error:
+
         return JsonResponse({
             "status": "error",
             "message": str(error),
         }, status=400)
 
     except Exception as error:
+
         return JsonResponse({
             "status": "error",
-            "message": f"Error al actualizar la solicitud: {error}",
+            "message": (
+                f"Error al actualizar la solicitud: {error}"
+            ),
         }, status=500)
