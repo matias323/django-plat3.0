@@ -36,7 +36,7 @@ def obtener_plan_cuentas():
 
 # realiza la activacion de una cuenta contable y las cuentas padres si corresponde
 @transaction.atomic
-def activar_cuenta(cuenta_id):
+def activar_cuenta(cuenta_id, user):
     try:
         cuenta = Cuentas.objects.select_related("cuenta_padre").get(pk=cuenta_id)
         
@@ -53,7 +53,14 @@ def activar_cuenta(cuenta_id):
     while cuenta_actual is not None:
         cuenta_actual.is_active = True
         
-        cuenta_actual.save(update_fields=["is_active"])
+        cuenta_actual.save(
+            user = user,
+            update_fields=[
+                "is_active",
+                "user_update",
+                "updated_at",
+            ]
+        )
         
         cuentas_activadas.append(cuenta_actual)
         

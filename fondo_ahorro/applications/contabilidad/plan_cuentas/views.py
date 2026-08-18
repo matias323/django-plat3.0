@@ -71,11 +71,14 @@ class EditarCuentaApiView(View):
         
         #solo permite actualizar los campos de nombre, descripcion, is_auxiliar y tratamiento_especial
         cuenta.save(
+            user = request.user,
             update_fields=[
                 'nombre',
                 'descripcion',
                 'is_auxiliar',
-                'tratamiento_especial'
+                'tratamiento_especial',
+                'updated_at',
+                'user_update'
             ]
         )
 
@@ -169,7 +172,7 @@ class ExportarPlanCuentasView(View):
 class ActivarCuentaView(View):
     def post(self, request, pk): 
         try:
-            cuentas_activadas = activar_cuenta(pk)
+            cuentas_activadas = activar_cuenta(pk, request.user)
         except ValueError as e:
             return JsonResponse(
                 {
