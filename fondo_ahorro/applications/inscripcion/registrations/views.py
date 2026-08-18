@@ -650,6 +650,74 @@ def _document_upload_rules(registration):
     }
 
 
+def _registration_document_approval_state(registration):
+    relations = (
+        RegistrationDocument.objects
+        .filter(registration=registration)
+        .select_related(
+            "status",
+            "document",
+            "document__type_document",
+        )
+    )
+
+    # ========================================================
+    # NO PUEDE EXISTIR NINGÚN DOCUMENTO PENDIENTE
+    # ========================================================
+
+    has_pending = relations.filter(
+        status__status_type__iexact=DOCUMENT_STATUS_PENDING
+    ).exists()
+
+    # ========================================================
+    # DOCUMENTOS OBLIGATORIOS APROBADOS
+    # ========================================================
+
+    physical_approved = relations.filter(
+        document__type_document__type__iexact=DOCUMENT_TYPE_PHYSICAL,
+        status__status_type__iexact=DOCUMENT_STATUS_APPROVED,
+    ).exists()
+
+    identification_approved = relations.filter(
+        document__type_document__type__iexact=DOCUMENT_TYPE_IDENTIFICATION,
+        status__status_type__iexact=DOCUMENT_STATUS_APPROVED,
+    ).exists()
+
+    # ========================================================
+    # MOTIVOS POR LOS QUE NO SE PUEDE APROBAR
+    # ========================================================
+
+    reasons = []
+
+    if has_pending:
+        reasons.append(
+            "Existen documentos pendientes de revisión."
+        )
+
+    if not physical_approved:
+        reasons.append(
+            "La solicitud firmada debe estar aprobada."
+        )
+
+    if not identification_approved:
+        reasons.append(
+            "El documento de identificación debe estar aprobado."
+        )
+
+    return {
+        "can_approve": (
+            not has_pending
+            and physical_approved
+            and identification_approved
+        ),
+
+        "has_pending": has_pending,
+        "physical_approved": physical_approved,
+        "identification_approved": identification_approved,
+        "reasons": reasons,
+    }
+
+
 # ============================================================
 # OBSERVACIONES
 # ============================================================
@@ -1880,6 +1948,10 @@ def registration_detail(request, registration_id):
         == REQUEST_STATUS_PENDING.lower()
     )
 
+    document_approval = _registration_document_approval_state(
+        registration
+    )
+
     # ========================================================
     # DATOS PERSONA
     # ========================================================
@@ -2019,6 +2091,18 @@ def registration_detail(request, registration_id):
 
         "management": {
             "can_change_status": request_is_pending,
+
+            "can_approve": (
+                request_is_pending
+                and document_approval["can_approve"]
+            ),
+
+            "document_validation": {
+                "has_pending": document_approval["has_pending"],
+                "physical_approved": document_approval["physical_approved"],
+                "identification_approved": document_approval["identification_approved"],
+                "reasons": document_approval["reasons"],
+            },
         },
     })
 
@@ -2530,6 +2614,19 @@ def update_registration_status(request, registration_id):
             # =================================================
 
             if normalized_status == REQUEST_STATUS_APPROVED:
+                document_approval = _registration_document_approval_state(
+                    registration
+                )
+
+                if not document_approval["can_approve"]:
+                    reasons = " ".join(
+                        document_approval["reasons"]
+                    )
+
+                    raise ValueError(
+                        "La solicitud todavía no puede ser aprobada. "
+                        + reasons
+                    )
 
                 _process_approved_partner_registration(
                     registration=registration,

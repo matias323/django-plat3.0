@@ -1,7 +1,8 @@
 from django.db import models
+from .base import BaseModel
 
 
-class RequestType(models.Model):
+class RequestType(BaseModel):
     type = models.CharField(max_length=100)
     state = models.IntegerField(default=1)
 
@@ -12,7 +13,7 @@ class RequestType(models.Model):
         return self.type
 
 
-class RequestStatus(models.Model):
+class RequestStatus(BaseModel):
     status_type = models.CharField(max_length=100)
     state = models.IntegerField(default=1)
 
@@ -23,7 +24,7 @@ class RequestStatus(models.Model):
         return self.status_type
 
 
-class Request(models.Model):
+class Request(BaseModel):
     request_type = models.ForeignKey(
         RequestType,
         on_delete=models.PROTECT,
