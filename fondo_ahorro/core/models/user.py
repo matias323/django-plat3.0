@@ -23,10 +23,10 @@ class User(AbstractUser):
                             # db_column="id"
                             )
     created_at = models.DateTimeField(
-        default=timezone.now(), verbose_name="Fecha Creación"
+        default=timezone.now, verbose_name="Fecha Creación"
     )
     updated_at = models.DateTimeField(
-        default=timezone.now(), verbose_name="Fecha Modificación"
+        default=timezone.now, verbose_name="Fecha Modificación"
     )
 
     def __str__(self):

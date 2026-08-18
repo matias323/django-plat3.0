@@ -9,11 +9,11 @@ from django.utils import timezone
 class BaseModel(models.Model):
     created_at = models.DateTimeField(
         verbose_name="Fecha Creación",
-        default=timezone.now(),
+        default=timezone.now,
     )
     updated_at = models.DateTimeField(
         verbose_name="Fecha Modificación",
-        default=timezone.now(),
+        default=timezone.now,
     )
     user_create = models.ForeignKey(
         settings.AUTH_USER_MODEL,
