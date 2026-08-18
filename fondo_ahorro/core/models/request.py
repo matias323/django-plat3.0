@@ -4,7 +4,6 @@ from .base import BaseModel
 
 class RequestType(BaseModel):
     type = models.CharField(max_length=100)
-    state = models.IntegerField(default=1)
 
     class Meta:
         db_table = "core_request_type"
@@ -15,7 +14,6 @@ class RequestType(BaseModel):
 
 class RequestStatus(BaseModel):
     status_type = models.CharField(max_length=100)
-    state = models.IntegerField(default=1)
 
     class Meta:
         db_table = "core_request_status"
@@ -29,11 +27,6 @@ class Request(BaseModel):
         RequestType,
         on_delete=models.PROTECT,
         db_column="id_request_type",
-    )
-
-    date = models.DateTimeField(
-        null=True,
-        blank=True,
     )
 
     status = models.ForeignKey(

@@ -663,17 +663,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 <i class="bi bi-floppy me-1"></i>
                 Guardar solicitud
             `;
-
         }
-
     }
 
 
     /* DETALLE */
     $(document).on("click", ".btnDetail", function () {
-
         const id = this.dataset.id;
-
         detailModal.show();
         loadDetail(id);
 
@@ -681,7 +677,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     async function loadDetail(id) {
-
         document.getElementById("detailModalContent").innerHTML = `
             <div class="text-center py-5">
                 <div class="spinner-border"></div>
@@ -712,21 +707,16 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!response.ok || data.status !== "ok") {
                 throw new Error(data.message || "No se pudo cargar la solicitud.");
             }
-
             renderDetail(data);
 
         } catch (error) {
-
             document.getElementById("detailModalContent").innerHTML = `
                 <div class="alert alert-danger">
                     ${escapeHtml(error.message)}
                 </div>
             `;
-
         }
-
     }
-
 
     /* RENDER DETALLE */
     function renderDetail(data) {
@@ -1068,7 +1058,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     </button>
                 </li>
 
-
                 <li class="nav-item">
                     <button class="nav-link"
                             data-bs-toggle="tab"
@@ -1078,7 +1067,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     </button>
                 </li>
-
 
                 <li class="nav-item">
                     <button class="nav-link"
@@ -1090,7 +1078,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     </button>
                 </li>
 
-
                 <li class="nav-item">
                     <button class="nav-link"
                             data-bs-toggle="tab"
@@ -1100,76 +1087,59 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     </button>
                 </li>
-
             </ul>
-
 
             <div class="tab-content">
 
-
                 <!-- INFORMACIÓN -->
-
                 <div class="tab-pane fade show active" id="detailInfo">
-
                     <div class="row g-3">
-
+                        {% comment %} 
                         <div class="col-md-2">
                             <label class="form-label">ID</label>
-
                             <input class="form-control"
                                    value="${registration.id}"
                                    readonly>
-                        </div>
-
+                        </div> 
+                        {% endcomment %}
 
                         <div class="col-md-2">
                             <label class="form-label">Código</label>
-
                             <input class="form-control"
                                    value="${escapeHtml(registration.employee_code)}"
                                    readonly>
                         </div>
 
-
                         <div class="col-md-3">
                             <label class="form-label">RUT</label>
-
                             <input class="form-control"
                                    value="${escapeHtml(registration.rut)}"
                                    readonly>
                         </div>
 
-
-                        <div class="col-md-5">
+                        <div class="col-md-7">
                             <label class="form-label">Funcionario</label>
-
                             <input class="form-control"
                                    value="${escapeHtml(registration.name)}"
                                    readonly>
                         </div>
 
-
                         <div class="col-md-3">
                             <label class="form-label">Tipo</label>
-
                             <input class="form-control"
                                    value="${escapeHtml(registration.type)}"
                                    readonly>
                         </div>
 
-
                         <div class="col-md-3">
                             <label class="form-label">Aporte A2</label>
-
                             <input class="form-control"
                                    value="${formatCLP(registration.contributes_a2)}"
                                    readonly>
                         </div>
 
-
                         <div class="col-md-3">
                             <label class="form-label">Estado</label>
-
                             <input class="form-control"
                                    value="${escapeHtml(registration.status)}"
                                    readonly>
@@ -1178,7 +1148,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
                         <div class="col-md-3">
                             <label class="form-label">Fecha solicitud</label>
-
                             <input class="form-control"
                                    value="${escapeHtml(registration.date)}"
                                    readonly>
