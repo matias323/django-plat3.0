@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 {% if user.is_authenticated %}
+{{request.user_session}}
 <div class="container-fluid py-4">
     <div class="card shadow-sm">
         <div class="card-header">

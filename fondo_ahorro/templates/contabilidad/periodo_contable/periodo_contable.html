@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+{% if user.is_authenticated %}
+<div class="container-fluid py-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1">
+                        Periodo Contable
+                    </h4>
+
+                    <small class="text-body-secondary">
+                        Estructura jerárquica de cuentas contables
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+

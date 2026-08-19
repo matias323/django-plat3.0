@@ -19,6 +19,7 @@ from .views import PeriodoContableView
 
 
 app_name = "periodo_contable" 
+
 urlpatterns = [
     path("", PeriodoContableView.as_view(), name="periodo"),
     # path("editar/<int:pk>/", EditarCuentaApiView.as_view(), name="editar_cuenta"),
