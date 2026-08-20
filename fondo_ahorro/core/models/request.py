@@ -3,7 +3,7 @@ from .base import BaseModel
 
 
 class RequestType(BaseModel):
-    type = models.CharField(max_length=100)
+    name = models.CharField(max_length=100)
 
     class Meta:
         db_table = "core_request_type"

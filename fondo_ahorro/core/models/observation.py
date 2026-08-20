@@ -15,11 +15,6 @@ class Observation(BaseModel):
         db_column="id_user"
     )
 
-    date = models.DateField(
-        null=True,
-        blank=True
-    )
-
     time = models.TimeField(
         null=True,
         blank=True
