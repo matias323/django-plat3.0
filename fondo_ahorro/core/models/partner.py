@@ -71,7 +71,7 @@ class PartnerVoluntaryDiscount(BaseModel):
         ordering = ["id"]
 
     def __str__(self):
-        return f"{self.person} - {self.amount}"
+        return f"{self.partner} - {self.amount}"
 
 
 # ============================================================
@@ -155,7 +155,7 @@ class PartnerReentry(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["partner"],
-                condition=models.Q(state=1),
+                condition=models.Q(is_active=True),
                 name="unique_active_partner_reentry",
             ),
         ]

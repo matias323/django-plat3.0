@@ -17,7 +17,6 @@ from .partner import (
     PartnerVoluntaryDiscount,
     PartnerBalance,
     PartnerReentry,
-    PartnerNewContribution,
     PartnerMovementType,
     PartnerMovement,
 )

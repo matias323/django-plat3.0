@@ -134,7 +134,6 @@ class RegistrationObservationAdmin(BaseAuditAdmin):
 
     list_filter = (
         "is_active",
-        "observation__date",
         "created_at",
     )
 
