@@ -6,12 +6,18 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from http import HTTPStatus
 
+from io import BytesIO
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+
 from .models import Cuentas
 
 # Create your views here.
 from django.views.generic import TemplateView
 
-from .services import obtener_plan_cuentas
+from .services import obtener_plan_cuentas, activar_cuenta
 
 class CuentaView(TemplateView):
     template_name = 'contabilidad/plan_cuentas/plan_cuenta.html'
@@ -27,7 +33,7 @@ class CuentaView(TemplateView):
     
 
 # editar cuenta activa
-# @method_decorator(require_POST, name='dispatch')
+@method_decorator(require_POST, name='dispatch')
 class EditarCuentaApiView(View):
     
     def post(self, request, pk):
@@ -58,18 +64,21 @@ class EditarCuentaApiView(View):
         tratamiento_especial = request.POST.get('tratamiento_especial') == 'true'
         
         #actualizar
-        cuenta.nombre = nombre
-        cuenta.descripcion = descripcion
+        cuenta.nombre = nombre.upper()
+        cuenta.descripcion = descripcion.upper()
         cuenta.is_auxiliar = is_auxiliar
         cuenta.tratamiento_especial = tratamiento_especial
         
         #solo permite actualizar los campos de nombre, descripcion, is_auxiliar y tratamiento_especial
         cuenta.save(
+            user = request.user,
             update_fields=[
                 'nombre',
                 'descripcion',
                 'is_auxiliar',
-                'tratamiento_especial'
+                'tratamiento_especial',
+                'updated_at',
+                'user_update'
             ]
         )
 
@@ -81,3 +90,101 @@ class EditarCuentaApiView(View):
             }, status=HTTPStatus.OK)
 
 
+class ExportarPlanCuentasView(View):
+    
+    def get(self, request):
+        cuentas = Cuentas.objects.filter(is_active=True).select_related("cuenta_tipo", "cuenta_padre").order_by('num_cuenta')
+        
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Plan de Cuentas"
+        
+        #titulo
+        sheet["A1"] = "PLAN DE CUENTAS"
+        sheet["A1"].font = Font(bold=True, size=16)
+        
+        sheet.merge_cells("A1:H1")
+        sheet["A1"].alignment = Alignment(horizontal="center")
+        
+        #encabezado
+        headers = [
+            "N° Cuenta",
+            "Nombre",
+            "Descripcion",
+            "Nivel",
+            "Cuenta Padre",
+            "Tipo de Cuenta",
+            "Auxiliar",
+            "Tratamiento Especial"
+        ]
+        
+        for columna, header in enumerate(headers, start=1):
+            celda = sheet.cell(row=3, column=columna)
+            
+            celda.value = header
+            celda.font = Font(bold=True)
+            celda.alignment = Alignment(horizontal="center", vertical="center")
+            
+        #datos
+        fila = 4
+        
+        for cuenta in cuentas:
+            sheet.cell(row=fila, column=1, value=cuenta.num_cuenta)
+            sheet.cell(row=fila, column=2, value=cuenta.nombre)
+            sheet.cell(row=fila, column=3, value=cuenta.descripcion or "")
+            sheet.cell(row=fila, column=4, value=cuenta.nivel)
+            sheet.cell(row=fila, column=5, value=(cuenta.cuenta_padre.num_cuenta if cuenta.cuenta_padre else ""))
+            sheet.cell(row=fila, column=6, value=cuenta.cuenta_tipo.descripcion)
+            sheet.cell(row=fila, column=7, value="Si" if cuenta.is_auxiliar else "No")
+            sheet.cell(row=fila, column=8, value="Si" if cuenta.tratamiento_especial else "No")
+            
+            fila += 1
+        
+        anchos = {
+            "A": 15,
+            "B": 120,
+            "C": 30,
+            "D": 10,
+            "E": 15,
+            "F": 20,
+            "G": 15,
+            "H": 20
+        }
+        
+        for columna, ancho in anchos.items():
+            sheet.column_dimensions[columna].width = ancho
+        
+        sheet.freeze_panes = "A4"
+        
+        output = BytesIO()
+        workbook.save(output)
+        
+        output.seek(0)
+        
+        response = HttpResponse(output.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        
+        response["Content-Disposition"] = ('attachment; filename="plan_cuentas.xlsx"')
+        
+        return response
+        
+#activacion de cuentas
+@method_decorator(require_POST, name='dispatch')
+class ActivarCuentaView(View):
+    def post(self, request, pk): 
+        try:
+            cuentas_activadas = activar_cuenta(pk, request.user)
+        except ValueError as e:
+            return JsonResponse(
+                {
+                    "success":False, 
+                    "message":str(e) or "Ocurrio un error inesperado al activar la cuenta"
+                }, status=HTTPStatus.BAD_REQUEST)
+        
+        return JsonResponse(
+            {
+                "success":True, 
+                "message":"Cuentas activadas correctamente", 
+                "cuentas_activadas":[cuenta.cuenta_to_dict() for cuenta in cuentas_activadas]
+            }, status=HTTPStatus.OK)
+        
+        

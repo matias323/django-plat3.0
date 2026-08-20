@@ -54,6 +54,7 @@ INSTALLED_APPS = [
 
     #contabilidad
     "applications.contabilidad.plan_cuentas",
+    "applications.contabilidad.periodo_contable",
 
     #inscripciones
     "applications.inscripcion.registrations",
