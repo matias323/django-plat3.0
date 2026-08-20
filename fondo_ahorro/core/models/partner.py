@@ -224,3 +224,44 @@ class PartnerMovement(BaseModel):
 
     def __str__(self):
         return f"{self.movement_number} - {self.partner} - {self.amount}"
+
+
+# ============================================================
+# APORTE SOCIO
+class PartnerContribution(BaseModel):
+    contribution_type = models.ForeignKey(
+        PartnerContributionType,
+        verbose_name="Tipo de Aporte",
+        db_column="id_contribution_type",
+        on_delete=models.PROTECT,
+        related_name="partner_contributions",
+        null=False,
+        blank=False,
+    )
+
+    partner = models.ForeignKey(
+        Partner,
+        verbose_name="Socio",
+        db_column="id_partner",
+        on_delete=models.PROTECT,
+        related_name="contributions",
+        null=False,
+        blank=False,
+    )
+
+    amount = models.DecimalField(
+        verbose_name="Monto",
+        max_digits=15,
+        decimal_places=2,
+        null=False,
+        blank=False,
+    )
+
+    class Meta:
+        db_table = "core_partner_contribution"
+        verbose_name = "Aporte de Socio"
+        verbose_name_plural = "Aportes de Socios"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.partner} - {self.contribution_type} - {self.amount}"

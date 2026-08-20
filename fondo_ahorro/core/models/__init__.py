@@ -19,4 +19,5 @@ from .partner import (
     PartnerReentry,
     PartnerMovementType,
     PartnerMovement,
+    PartnerContribution,
 )
