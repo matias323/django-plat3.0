@@ -9,7 +9,7 @@ class RequestType(BaseModel):
         db_table = "core_request_type"
 
     def __str__(self):
-        return self.type
+        return self.name
 
 
 class RequestStatus(BaseModel):

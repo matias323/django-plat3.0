@@ -22,10 +22,8 @@ from core.models import (
     RequestType,
     RequestStatus,
     Employee,
-    Partner,
-    PartnerReentry,
-    PartnerVoluntaryDiscount,
 )
+from core.models.partner import Partner, PartnerReentry, PartnerContributionType, PartnerContribution
 from core.models.base import BaseModel
 from core.models.location import Region, Commune
 from core.models.person import PersonContactType, PersonContact, PersonAddress
@@ -63,6 +61,8 @@ DOCUMENT_TYPE_OTHER = "Other Document"
 
 CONTACT_TYPE_PHONE = "Phone"
 CONTACT_TYPE_EMAIL = "Email"
+
+CONTRIBUTION_TYPE_A2 = "A2"
 
 DOCUMENT_TYPES = {
     "physical_request": DOCUMENT_TYPE_PHYSICAL,
@@ -452,7 +452,7 @@ def _get_core_request(registration):
 
 
 def _get_request_type(type_name, user):
-    return _get_named_record(RequestType, "type", type_name, user)
+    return _get_named_record(RequestType, "name", type_name, user)
 
 
 def _get_request_status(status_type, user):
@@ -468,7 +468,29 @@ def _get_registration_document_status(status_type, user):
 
 
 def _get_document_type(type_name, user):
-    return _get_named_record(DocumentType, "type", type_name, user)
+    return _get_named_record(DocumentType, "name", type_name, user)
+
+
+def _get_a2_contribution_type():
+    contribution_type = (
+        PartnerContributionType.objects
+        .filter(is_active=True)
+        .filter(
+            Q(discount_code__iexact=CONTRIBUTION_TYPE_A2)
+            | Q(description__iexact=CONTRIBUTION_TYPE_A2)
+            | Q(description__icontains=CONTRIBUTION_TYPE_A2)
+        )
+        .order_by("id")
+        .first()
+    )
+
+    if not contribution_type:
+        raise ValueError(
+            "No existe un tipo de aporte A2 activo. "
+            "Configure A2 en Tipos de Aporte antes de aprobar la solicitud."
+        )
+
+    return contribution_type
 
 
 # ============================================================
@@ -570,7 +592,7 @@ def _document_relations_by_type(registration, document_type_name):
         .filter(
             registration=registration,
             is_active=True,
-            document__type_document__type__iexact=document_type_name,
+            document__type_document__name__iexact=document_type_name,
         )
         .select_related("status", "document", "document__type_document")
     )
@@ -617,11 +639,11 @@ def _registration_document_approval_state(registration):
 
     has_pending = relations.filter(status__status_type__iexact=DOCUMENT_STATUS_PENDING).exists()
     physical_approved = relations.filter(
-        document__type_document__type__iexact=DOCUMENT_TYPE_PHYSICAL,
+        document__type_document__name__iexact=DOCUMENT_TYPE_PHYSICAL,
         status__status_type__iexact=DOCUMENT_STATUS_APPROVED,
     ).exists()
     identification_approved = relations.filter(
-        document__type_document__type__iexact=DOCUMENT_TYPE_IDENTIFICATION,
+        document__type_document__name__iexact=DOCUMENT_TYPE_IDENTIFICATION,
         status__status_type__iexact=DOCUMENT_STATUS_APPROVED,
     ).exists()
 
@@ -697,24 +719,24 @@ def _process_approved_partner_registration(registration, core_request, user):
 
     if not is_reentry:
         if partner:
-            if _business_is_active(partner):
+            if partner.is_active:
                 raise ValueError("El funcionario ya se encuentra registrado como socio activo.")
             raise ValueError(
                 "El funcionario ya posee un registro de socio. "
                 "La solicitud debería corresponder a un reingreso."
             )
 
-        values = {"person": registration.person}
-        if _has_field(Partner, "state"):
-            values["state"] = 1
-        if _has_field(Partner, "is_active"):
-            values["is_active"] = True
-        partner = _create_with_user(Partner, user, **values)
+        partner = _create_with_user(
+            Partner,
+            user,
+            person=registration.person,
+            is_active=True,
+        )
 
     else:
         if not partner:
             raise ValueError("No existe un registro de socio para realizar el reingreso.")
-        if _business_is_active(partner):
+        if partner.is_active:
             raise ValueError("El funcionario ya se encuentra como socio activo.")
 
         total_entries = PartnerReentry.objects.filter(partner=partner).count()
@@ -722,46 +744,48 @@ def _process_approved_partner_registration(registration, core_request, user):
         if reentries_used >= MAX_PARTNER_REENTRIES:
             raise ValueError("El socio ya utilizó la cantidad máxima de reingresos permitidos.")
 
-        active_entry_filters = {"partner": partner, **_business_active_filter(PartnerReentry)}
-        _deactivate_queryset(PartnerReentry.objects.filter(**active_entry_filters), PartnerReentry, user)
+        _deactivate_queryset(
+            PartnerReentry.objects.filter(partner=partner, is_active=True),
+            PartnerReentry,
+            user,
+            include_state=False,
+        )
 
-        if _has_field(Partner, "state"):
-            partner.state = 1
-        if _has_field(Partner, "is_active"):
-            partner.is_active = True
+        partner.is_active = True
         _save_with_user(partner, user)
 
-    reentry_values = {
-        "partner": partner,
-        "request": core_request,
-        "entry_date": today,
-        "resignation_date": None,
-    }
-    if _has_field(PartnerReentry, "state"):
-        reentry_values["state"] = 1
-    if _has_field(PartnerReentry, "is_active"):
-        reentry_values["is_active"] = True
-    _create_with_user(PartnerReentry, user, **reentry_values)
-
-    contribution_amount = registration.contributes_a2 or 0
-    discount_filters = {"person": registration.person, **_business_active_filter(PartnerVoluntaryDiscount)}
-    _deactivate_queryset(
-        PartnerVoluntaryDiscount.objects.filter(**discount_filters),
-        PartnerVoluntaryDiscount,
+    _create_with_user(
+        PartnerReentry,
         user,
+        partner=partner,
+        request=core_request,
+        entry_date=today,
+        resignation_date=None,
+        is_active=True,
     )
 
-    discount_values = {
-        "person": registration.person,
-        "amount": contribution_amount,
-        "date": today,
-        "start_date": today,
-    }
-    if _has_field(PartnerVoluntaryDiscount, "state"):
-        discount_values["state"] = 1
-    if _has_field(PartnerVoluntaryDiscount, "is_active"):
-        discount_values["is_active"] = True
-    _create_with_user(PartnerVoluntaryDiscount, user, **discount_values)
+    contribution_type = _get_a2_contribution_type()
+    contribution_amount = registration.contributes_a2 or 0
+
+    _deactivate_queryset(
+        PartnerContribution.objects.filter(
+            partner=partner,
+            contribution_type=contribution_type,
+            is_active=True,
+        ),
+        PartnerContribution,
+        user,
+        include_state=False,
+    )
+
+    _create_with_user(
+        PartnerContribution,
+        user,
+        partner=partner,
+        contribution_type=contribution_type,
+        amount=contribution_amount,
+        is_active=True,
+    )
 
     return partner
 
@@ -810,7 +834,7 @@ def registration_list(request):
             .filter(
                 person=person,
                 is_active=True,
-                request__request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+                request__request_type__name__iexact=REQUEST_TYPE_REGISTRATION,
                 request__status__status_type__iexact=REQUEST_STATUS_PENDING,
             )
             .exists()
@@ -1076,7 +1100,7 @@ def search_employee(request):
         has_pending = Registration.objects.filter(
             person=person,
             is_active=True,
-            request__request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+            request__request_type__name__iexact=REQUEST_TYPE_REGISTRATION,
             request__status__status_type__iexact=REQUEST_STATUS_PENDING,
         ).exists()
 
@@ -1224,7 +1248,7 @@ def create_registration(request):
         has_pending = Registration.objects.filter(
             person=person,
             is_active=True,
-            request__request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+            request__request_type__name__iexact=REQUEST_TYPE_REGISTRATION,
             request__status__status_type__iexact=REQUEST_STATUS_PENDING,
         ).exists()
         if has_pending:
@@ -1387,7 +1411,7 @@ def registration_detail(request, registration_id):
                 file_url = document.route
 
         document_status = relation.status.status_type if relation.status else ""
-        document_type = document.type_document.type if document.type_document else ""
+        document_type = document.type_document.name if document.type_document else ""
 
         documents.append({
             "relation_id": relation.id,
@@ -1639,7 +1663,7 @@ def update_document_status(request, registration_id, document_relation_id):
             _save_with_user(relation, request.user)
 
             document_type = (
-                relation.document.type_document.type
+                relation.document.type_document.name
                 if relation.document and relation.document.type_document
                 else ""
             )
@@ -1794,7 +1818,7 @@ def registration_self_service(request):
         .filter(
             person=person,
             is_active=True,
-            request__request_type__type__iexact=REQUEST_TYPE_REGISTRATION,
+            request__request_type__name__iexact=REQUEST_TYPE_REGISTRATION,
             request__status__status_type__iexact=REQUEST_STATUS_PENDING,
         )
         .exists()

@@ -9,7 +9,6 @@ from .request import Request
 # TIPO DE APORTE
 class PartnerContributionType(BaseModel):
     description = models.CharField(verbose_name="Descripción", max_length=255, null=False, blank=False)
-    discount_code = models.CharField(verbose_name="Código Descuento", max_length=100, null=True, blank=True)
 
     class Meta:
         db_table = "core_partner_contribution_type"
@@ -24,8 +23,8 @@ class PartnerContributionType(BaseModel):
 # ============================================================
 # SOCIO
 # Una persona solamente puede tener un registro Partner.
-# state = 1 -> socio activo
-# state = 0 -> socio inactivo
+# is_active = True  -> socio activo
+# is_active = False -> socio inactivo
 
 class Partner(BaseModel):
     person = models.OneToOneField(
@@ -115,13 +114,13 @@ class PartnerBalance(BaseModel):
 # Cada vez que una persona entra como socio se crea un registro:
 #
 # Primer ingreso:
-#   PartnerReentry #1 state=1
+#   PartnerReentry #1 is_active=True
 #
 # Renuncia:
-#   PartnerReentry #1 state=0
+#   PartnerReentry #1 is_active=False
 #
 # Reingreso:
-#   PartnerReentry #2 state=1
+#   PartnerReentry #2 is_active=True
 
 class PartnerReentry(BaseModel):
     partner = models.ForeignKey(
@@ -176,7 +175,7 @@ class PartnerMovementType(BaseModel):
         ordering = ["id"]
 
     def __str__(self):
-        return self.type
+        return self.name
 
 
 # ============================================================

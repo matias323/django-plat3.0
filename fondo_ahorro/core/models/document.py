@@ -12,7 +12,7 @@ class DocumentType(BaseModel):
         db_table = "core_document_type"
 
     def __str__(self):
-        return self.type
+        return self.name
 
 
 class Document(BaseModel):
