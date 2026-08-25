@@ -1,26 +1,212 @@
 {% extends "base.html" %}
 {% block content %}
-{% if user.is_authenticated %}
-<div class="container-fluid py-4">
-    <div class="card shadow-sm">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h4 class="mb-1">
-                        Periodo Contable
-                    </h4>
+    {% if user.is_authenticated %}
+    <div class="container-fluid py-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1">
+                            Periodo Contable
+                        </h4>
 
-                    <small class="text-body-secondary">
-                        Estructura jerárquica de cuentas contables
-                    </small>
+                        <!-- <small class="text-body-secondary">
+                            Estructura jerárquica de cuentas contables
+                        </small> -->
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-success btnNuevoPeriodo">Nuevo Periodo</button>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="card-body">
+            <div class="card-body">
+                <table class="table table-hover w-100 tbl-periodo">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Periodo</th>
+                            <th>Creado Por</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
     </div>
-</div>
-{% endif %}
+    <!-- modal editar cuenta -->
+    {% include "contabilidad/periodo_contable/periodo_contable_info.html" %}
+    {% endif %}
+
+    <!-- Token CSRF para las peticiones -->
+    {% csrf_token %}
+{% endblock %}
+{% block extra_js %}
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+           //llamar funcion para cargar periodos en datattable 
+            getPeriodos();
+        })
+
+        //capturar el crftoken para las solicitudes
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        //obtener periodos
+        const getPeriodos = async() => {
+            try {
+                const response = await fetch("/contabilidad/periodo_contable/all/", {
+                    method: "GET",
+                    headers: {
+                        "X-CSRFToken": csrftoken,
+                        "X-App-Request": "true",
+                    },
+                })
+
+                // Parsear JSON antes de validar response.ok
+                const data = await response.json().catch(() => ({
+                    success: false,
+                    message: "Respuesta inválida del servidor"
+                }));
+
+                tblPeriodos(data.data);
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire({
+                    icon: "error",
+                    title: "No se pudo guardar",
+                    text: error.message || "No es posible obtener los periodos contables",
+                })   
+            }
+        }
+
+        //cargar datatable
+        const tblPeriodos = (data) => {
+            //eliminar tabla si existe
+            if ($(".tbl-periodo").length > 0) {
+                $(".tbl-periodo").DataTable().destroy();
+            }
+            const table = new DataTable(".tbl-periodo", {
+                data: data,
+                pageLength: 10,
+                columns: [
+                    { data: "order" },
+                    { data: "period_date" },
+                    { data: "user" },
+                    { 
+                        data: "is_active",
+                        render: (data) => {
+                            if (data) {
+                                return `<span class="badge bg-success">ACTIVO</span>`;
+                            }else{
+                                return `<span class="badge bg-danger">DESACTIVADO</span>`;
+                            }
+                        } 
+                    },
+                    //BOTONES
+                    {
+                        render: () => {
+                            return `<button class="btn btn-sm btn-outline-secondary btnInfo"><i class="bi bi-list"></i></button>`
+                        }
+                    }
+                ],
+                language: {
+                    url: "/static/core/dataTables/es-CL.json"
+                },
+                initComplete: () => {
+                    const tbody = $('.tbl-periodo tbody');
+
+                    //capturar click btn ver info
+                    tbody.off('click', '.btnInfo').on('click', '.btnInfo', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const data = table.row($(this).closest('tr')).data();
+                        console.log(data);
+                        modalInfoPeriodo(data);
+                    })
+                }
+            })
+        }
+
+        //modal info periodo
+        const modalInfoPeriodo = (data) => {
+            const modal = new bootstrap.Modal(document.getElementById('modalInfoPeriodo'));
+            //cargar info en el modal
+            document.querySelector('#modalInfoPeriodoLabel').textContent = `Información del periodo contable: ${data.period_date}`
+            document.querySelector('#txtInfoPeriodo').textContent = data.period_date;
+            document.querySelector('#txtInfoEstado').textContent = data.is_active ? "ACTIVO" : "DESACTIVADO";
+            document.querySelector('#txtInfoEstado').classList.add(data.is_active ? "text-success" : "text-danger");
+            document.querySelector('#txtInfoEstado').classList.remove(data.is_active ? "text-danger" : "text-success");
+            document.querySelector('#txtInfoFechaInicio').textContent = data.start_date;
+            document.querySelector('#txtInfoFechaTermino').textContent = data.end_date;
+            document.querySelector('#txtInfoFechaApertura').textContent = data.opening_date;
+            document.querySelector('#txtInfoFechaCierre').textContent = data.closing_date;
+            document.querySelector('#txtInfoUsuario').textContent = data.user;
+
+            modal.show();
+        }
+
+        //btn nuevo periodo
+        document.addEventListener("click", async (e) => {
+            if (e.target && e.target.closest(".btnNuevoPeriodo")) {
+                e.preventDefault();
+                try{
+                    //mostrar swal de confirmacion
+                    Swal.fire({
+                        title: "Crear nuevo periodo contable",
+                        text: "Estas seguro de activar el nuevo periodo? El periodo anterior se desactivara",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#3085d6",
+                        cancelButtonColor: "#d33",
+                        confirmButtonText: "Si, Crear",
+                        cancelButtonText: "Cancelar",
+                    }).then(async (result) => {
+                        if (result.isConfirmed) {
+                            const response = await fetch(`/contabilidad/periodo_contable/nuevo-periodo/`, {
+                                method: "POST",
+                                headers: {
+                                    "X-CSRFToken": csrftoken,
+                                    "X-App-Request": "true",
+                                },
+                            });
+
+                            // Parsear JSON antes de validar response.ok
+                            const data = await response.json().catch(() => ({
+                                success: false,
+                                message: "Respuesta inválida del servidor"
+                            }));
+
+                            console.log(data);
+
+                            if (data.success) {
+                                getPeriodos();
+                            }
+                            Swal.fire({
+                                icon: data.success ? "success" : "error",
+                                title: data.success ? "¡Éxito!" : "No se pudo guardar",
+                                text: data.message,
+                            });
+                        }
+                    })
+                } catch (error) {
+                    console.error(error);
+                    Swal.fire({
+                        icon: "error",
+                        title: "No se pudo guardar",
+                        text: error.message || "No es posible procesar la solicitud",
+                    })   
+                }
+            }
+        })
+
+        
+
+    </script>
+{% endblock %}
+
+
 
 
 

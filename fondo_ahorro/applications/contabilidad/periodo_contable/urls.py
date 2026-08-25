@@ -15,13 +15,15 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.urls import path
-from .views import PeriodoContableView
+from .views import PeriodoContableTemplate, PeriodoContableView
 
 
 app_name = "periodo_contable" 
 
 urlpatterns = [
-    path("", PeriodoContableView.as_view(), name="periodo"),
+    path("", PeriodoContableTemplate.as_view(), name="periodo"),
+    path("all/", PeriodoContableView.as_view(), name="all_periodos"),
+    path("nuevo-periodo/", PeriodoContableView.as_view(), name="nuevo_periodo"),
     # path("editar/<int:pk>/", EditarCuentaApiView.as_view(), name="editar_cuenta"),
     # path("exportar/", ExportarPlanCuentasView.as_view(), name="exportar_plan_cuentas"),
     # path("activar/<int:pk>/", ActivarCuentaView.as_view(), name="activar_cuenta"),

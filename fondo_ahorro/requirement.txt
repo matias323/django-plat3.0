@@ -11,3 +11,4 @@ sqlparse==0.5.5
 urllib3==2.7.0
 python-dotenv==1.2.2
 openpyxl==3.1.5
+django-datatables-view==1.20.0
