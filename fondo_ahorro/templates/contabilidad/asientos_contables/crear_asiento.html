@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+    {% if user.is_authenticated %}
+
+
+        <!-- Token CSRF para las peticiones -->
+        {% csrf_token %}
+    {% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+    
+</script>
+
+
+
+
