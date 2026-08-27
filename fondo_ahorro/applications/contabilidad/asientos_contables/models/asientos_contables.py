@@ -31,6 +31,7 @@ class AsientoContableTipo(BaseModel):
 
 class AsientoContable(BaseModel):
     entry_number = models.PositiveIntegerField(null=False, blank=False, verbose_name="Número Asiento")
+    entry_year = models.PositiveIntegerField(verbose_name="Año Asiento")
     entry_date = models.DateField(null=False, blank=False, verbose_name="Fecha Asiento")
     description = models.CharField(max_length=200, null=True, blank=True, verbose_name="Glosa Asiento")
     voucher_number = models.CharField(max_length=20, null=False, blank=False, verbose_name="Número Comprobante")
@@ -58,6 +59,9 @@ class AsientoContable(BaseModel):
         verbose_name = "Asiento Contable"
         verbose_name_plural = "Asientos Contables"
         ordering = ["-entry_date"]
+        constraints = [
+            models.UniqueConstraint(fields=["entry_number", "entry_year"], name="unique_asiento_numero_anio"),
+        ]
         
     def __str__(self):
         return f"{self.voucher_number} - {self.period}"
@@ -80,6 +84,7 @@ class AsientoContable(BaseModel):
             "is_active": self.is_active,
             "numero_asiento": self.entry_number,
             "fecha_asiento": self.entry_date,
+            "anio_asiento": self.entry_year,
             "glosa": self.description,
             "numero_comprobante": self.voucher_number,
             "asiento_estado": self.status.description,
@@ -165,4 +170,15 @@ class AsientoMovimientoAux(BaseModel):
             "user_create": self.user_create.person.get_name(),
         }
 
+class AsientoContableCorrelativo(BaseModel):
+    year = models.PositiveIntegerField(verbose_name="Año", null=False, blank=False, unique=True)
+    last_number = models.PositiveIntegerField(verbose_name="Último Número", null=False, blank=False)
+    
+    class Meta:
+        db_table = "contab_asiento_correlativo"
+        verbose_name = "Correlativo Asiento Contable"
+        verbose_name_plural = "Correlativos Asientos Contables"
+        
+    def __str__(self):
+        return f"{self.year} - {self.last_number}"
 
