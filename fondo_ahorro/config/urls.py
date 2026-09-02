@@ -28,7 +28,7 @@ urlpatterns = [
     path('devolucion/consejo/', include('applications.devoluciones.dev_consejo.urls'),name="dev_consejo"),
     path('contabilidad/plan_cuentas/', include('applications.contabilidad.plan_cuentas.urls'),name="plan_cuentas"),
     path('contabilidad/periodo_contable/', include('applications.contabilidad.periodo_contable.urls'),name="periodo_contable"),
-    path('contabilidad/asiento_contable/', include('applications.contabilidad.asientos_contables.urls'),name="asientos_contables"),
+    path('contabilidad/asientos_contables/', include('applications.contabilidad.asientos_contables.urls'),name="asientos_contables"),
 
     path("registrations/",include("applications.inscripcion.registrations.urls")),
 

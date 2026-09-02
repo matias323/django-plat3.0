@@ -3,4 +3,6 @@ from .asientos_contables import (
     AsientoContableTipo, 
     AsientoContable, 
     AsientoMovimiento, 
-    AsientoMovimientoAux)
+    AsientoMovimientoAux,
+    AsientoContableCorrelativo,
+    AsientoContableAprobacion)

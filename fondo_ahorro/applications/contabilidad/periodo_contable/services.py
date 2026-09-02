@@ -6,9 +6,17 @@ import calendar
 
 
 class PeriodoContableServices: 
+    
+    # obtener el periodo contable actual
     @staticmethod
     def get_periodo_contable_actual():
         periodo = PeriodoContable.objects.filter(is_active=True).first()
+        return periodo
+    
+    # obtener el periodo contable por año y mes
+    @staticmethod
+    def get_periodo_contable_by_year_and_month(year, month):
+        periodo = PeriodoContable.objects.filter(year=year, month=month).first()
         return periodo
 
     # obtener todos los periodos contables (datatable)

@@ -28,6 +28,10 @@ class AsientoContableTipo(BaseModel):
         db_table = "contab_asiento_tipo"
         verbose_name = "Tipo de Asiento Contable"
         verbose_name_plural = "Tipos de Asientos Contables"
+        
+    #tipos de asiento(ingreso manual)
+    def ingreso_manual():
+        return AsientoContableTipo.objects.filter(pk=6, is_active=True)
 
 class AsientoContable(BaseModel):
     entry_number = models.PositiveIntegerField(null=False, blank=False, verbose_name="Número Asiento")
@@ -89,8 +93,7 @@ class AsientoContable(BaseModel):
             "numero_comprobante": self.voucher_number,
             "asiento_estado": self.status.description,
             "asiento_tipo": self.entry_type.description,
-            "periodo": self.period,
-            "periodo_estado": self.period.is_active,
+            "periodo": self.period.periodo_to_dict(),
             "user_create": self.user_create.person.get_name(),
             "movimientos": [
                 movimientos.movimiento_to_dict() for movimientos in self.movimientos.all()
@@ -124,8 +127,8 @@ class AsientoMovimiento(BaseModel):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "is_active": self.is_active,
-            "asiento": self.entry,
-            "cuenta": self.account,
+            "asiento": self.entry.asiento_to_dict(),
+            "cuenta": self.account.cuenta_to_dict(),
             "glosa": self.description,
             "debe": self.debit,
             "haber": self.credit,
@@ -164,7 +167,7 @@ class AsientoMovimientoAux(BaseModel):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "is_active": self.is_active,
-            "movimiento_id": self.movement.id,
+            "movimiento": self.movement.movimiento_to_dict(),
             "persona": self.person.get_full_name(),
             "monto": self.amount,
             "user_create": self.user_create.person.get_name(),
@@ -181,4 +184,20 @@ class AsientoContableCorrelativo(BaseModel):
         
     def __str__(self):
         return f"{self.year} - {self.last_number}"
+    
+class AsientoContableAprobacion(BaseModel):
+    entry = models.ForeignKey(
+            AsientoContable, 
+            on_delete=models.PROTECT, 
+            null=False, blank=False, 
+            verbose_name="Asiento Contable", 
+            related_name="aprobaciones")
+    
+    class Meta:
+        db_table = "contab_asiento_aprobacion"
+        verbose_name = "Aprobación Asiento Contable"
+        verbose_name_plural = "Aprobaciones Asientos Contables"
+        
+    def __str__(self):
+        return f"{self.entry} - {self.user_create.person.get_name()}"
 

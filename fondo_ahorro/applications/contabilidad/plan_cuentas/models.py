@@ -33,6 +33,29 @@ class Cuentas(BaseModel):
     def __str__(self):
         return f"{self.num_cuenta} - {self.nombre}"
     
+    #obtener las cuentas hijas activas que no tienen subcuentas (cuentas imputables/movimiento)
+    @staticmethod
+    def get_cuentas_hijas():
+        return Cuentas.objects.filter(is_active=True, subcuentas__isnull=True).select_related("cuenta_tipo").order_by("num_cuenta")
+    
+    #obtener catalogo de cuentas json
+    @classmethod
+    def get_catalogo_cuentas(cls):
+        cuentas = cls.get_cuentas_hijas()
+        data = [
+            {
+                "id": cuenta.id,
+                "num_cuenta": cuenta.num_cuenta,
+                "nombre": cuenta.nombre,
+                "is_auxiliar": cuenta.is_auxiliar,
+                "is_tratamiento_especial": cuenta.tratamiento_especial,
+                "cuenta_tipo": cuenta.cuenta_tipo.descripcion
+            }
+            for cuenta in cuentas
+        ]
+        return data
+        
+    
     def cuenta_to_dict(self):
         return {
             "id": self.id,
