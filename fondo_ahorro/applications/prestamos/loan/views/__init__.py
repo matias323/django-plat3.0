@@ -1,0 +1,1 @@
+# applications/prestamos/loan/views/__init__.py

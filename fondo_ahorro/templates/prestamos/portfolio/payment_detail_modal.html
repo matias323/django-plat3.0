@@ -1,0 +1,173 @@
+{% load l10n %}
+
+
+<!-- HEADER -->
+<div class="modal-header">
+    <div>
+        <h5 class="modal-title mb-0">Detalle de pago #{{ payment.id }}</h5>
+        <small class="text-muted">Préstamo #{{ loan.id }}</small>
+    </div>
+
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+
+<!-- BODY -->
+<div class="modal-body">
+
+    <!-- INFORMACION PAGO -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong>Información del pago</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label class="form-label">Tipo</label>
+                    <input type="text" class="form-control" value="{{ payment.payment_type }}" readonly>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Monto</label>
+                    <div class="form-control money-text">{{ payment.amount|unlocalize }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Estado</label>
+                    <input type="text" class="form-control" value="{{ payment.status }}" readonly>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Fecha</label>
+                    <input type="text" class="form-control" value="{{ payment.created_at|date:'d-m-Y H:i' }}" readonly>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Usuario</label>
+                    <input type="text" class="form-control" value="{{ payment_user }}" readonly>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label">Dividendo</label>
+                    <input type="text" class="form-control"
+                           value="{% if payment.installment %}Cuota {{ payment.installment.installment_number }}{% else %}-{% endif %}"
+                           readonly>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- COMPOSICION -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <strong>Composición del pago</strong>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+
+                <table class="table table-bordered align-middle text-center mb-0">
+                    <thead>
+                        <tr>
+                            <th>Método</th>
+                            <th>Detalle</th>
+                            <th>Monto</th>
+                            <th>Número</th>
+                            <th>Documento</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td>{{ row.method }}</td>
+                                <td>{{ row.detail|default:"-" }}</td>
+                                <td class="money-text">{{ row.amount|unlocalize }}</td>
+                                <td>{{ row.number|default:"-" }}</td>
+
+                                <td>
+                                    {% if row.document_url %}
+                                        <a href="{{ row.document_url }}" target="_blank" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-muted py-4">
+                                    No existen módulos asociados.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- DOCUMENTOS GENERALES -->
+    {% if general_documents %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong>Documentos generales</strong>
+            </div>
+
+            <div class="list-group list-group-flush">
+                {% for row in general_documents %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center gap-3">
+                        <span>{{ row.relation.document }}</span>
+
+                        {% if row.url %}
+                            <a href="{{ row.url }}" target="_blank" class="btn btn-sm btn-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+
+    <!-- REVERSA -->
+    {% if reversal %}
+        <div class="alert alert-danger mb-0">
+            <div class="fw-bold mb-1">
+                Pago reversado
+            </div>
+
+            <div>
+                <strong>Motivo:</strong>
+                {{ reversal.reason }}
+            </div>
+
+            <div>
+                <strong>Fecha:</strong>
+                {{ reversal.created_at|date:"d-m-Y H:i" }}
+            </div>
+
+            {% if reversal_url %}
+                <a href="{{ reversal_url }}" target="_blank" class="btn btn-sm btn-outline-danger mt-2">
+                    Ver documento de reversa
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+
+<!-- FOOTER -->
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        Cerrar
+    </button>
+</div>

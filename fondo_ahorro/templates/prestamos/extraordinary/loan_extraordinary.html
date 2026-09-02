@@ -1,0 +1,524 @@
+{% extends "base.html" %}
+{% load l10n %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="text-center mb-3">Crear préstamo extraordinario</h2>
+            <hr>
+
+            {% if config_error %}
+                <div class="alert alert-danger">{{ config_error }}</div>
+            {% endif %}
+
+            <form id="extraordinaryLoanForm" enctype="multipart/form-data" autocomplete="off">
+                {% csrf_token %}
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Buscar persona</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="personSearch" placeholder="RUT, código o nombre">
+                            <button type="button" class="btn btn-outline-primary" id="btnPersonSearch">
+                                <i class="bi bi-search me-1"></i> Buscar
+                            </button>
+                        </div>
+                        <input type="hidden" id="personId" name="person_id" value="0">
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Persona seleccionada</label>
+                        <div class="form-control bg-body-tertiary" id="selectedPerson">No hay persona seleccionada.</div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Tipo de préstamo</label>
+                        <select class="form-select" id="loanType" name="loan_type" required>
+                            <option value="">Seleccione...</option>
+                            {% for loan_type in loan_types %}
+                                <option value="{{ loan_type.id }}">{{ loan_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Concepto</label>
+                        <select class="form-select" id="typeConcept" name="type_concept" disabled required>
+                            <option value="">Seleccione un tipo primero...</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Método de cobro</label>
+                        <div class="form-control bg-body-tertiary">
+                            {% if collection_method %}{{ collection_method.name }}{% else %}No configurado{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Monto préstamo</label>
+                        <input type="text" class="form-control" id="loanAmount" name="loan_amount" inputmode="numeric" placeholder="0" required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Tasa</label>
+                        <select class="form-select" id="loanRate" name="rate" required>
+                            <option value="">Seleccione...</option>
+                            {% for rate in rates %}
+                                <option value="{{ rate.id }}">{{ rate.name }} - {{ rate.rate|unlocalize }}%</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Plazo</label>
+                        <input type="number" min="1" class="form-control" id="loanTerm" name="term" placeholder="Ej: 120" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Fecha creación</label>
+                        <div class="form-control bg-body-tertiary" id="creationDate">{{ creation_date|date:"Y-m-d" }}</div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Fecha entrada</label>
+                        <div class="form-control bg-body-tertiary" id="startDate">{{ start_date|date:"Y-m-d" }}</div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Fecha término</label>
+                        <div class="form-control bg-body-tertiary" id="endDate">-</div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Estado préstamo</label>
+                        <div class="form-control bg-body-tertiary">
+                            {% if loan_status %}{{ loan_status.name }}{% else %}No configurado{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Documento de autorización (PDF)</label>
+                        <input type="file" class="form-control" id="authorizationDocument" name="authorization_document"
+                               accept=".pdf,application/pdf" required>
+                        <div class="form-text">Adjunte el respaldo que autoriza la creación del préstamo extraordinario.</div>
+                    </div>
+
+                    <div class="col-md-6"></div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Interés total calculado</label>
+                        <div class="form-control bg-body-tertiary text-end fw-bold" id="interestAmount">$0</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Dividendo estimado</label>
+                        <div class="form-control bg-body-tertiary text-end fw-bold" id="installmentAmount">$0</div>
+                    </div>
+
+                    <div class="col-12 d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-outline-secondary" id="btnRecalculate">
+                            <i class="bi bi-calculator me-1"></i> Recalcular
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="btnCreateLoan" {% if config_error %}disabled{% endif %}>
+                            <i class="bi bi-check-lg me-1"></i> Crear préstamo extraordinario
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="personSearchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Buscar persona</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="personSearchResults">
+                    <div class="alert alert-info mb-0">Ingrese un texto para buscar.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("extraordinaryLoanForm");
+    const modalElement = document.getElementById("personSearchModal");
+    const personModal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+    const personSearch = document.getElementById("personSearch");
+    const personId = document.getElementById("personId");
+    const selectedPerson = document.getElementById("selectedPerson");
+    const personSearchResults = document.getElementById("personSearchResults");
+    const loanType = document.getElementById("loanType");
+    const typeConcept = document.getElementById("typeConcept");
+    const loanAmount = document.getElementById("loanAmount");
+    const loanRate = document.getElementById("loanRate");
+    const loanTerm = document.getElementById("loanTerm");
+
+    const authorizationDocument = document.getElementById("authorizationDocument");
+    const startDate = document.getElementById("startDate");
+    const endDate = document.getElementById("endDate");
+    const interestAmount = document.getElementById("interestAmount");
+    const installmentAmount = document.getElementById("installmentAmount");
+    const btnCreateLoan = document.getElementById("btnCreateLoan");
+
+    const personSearchUrl = "{% url 'loan:extraordinary_person_search' %}";
+    const conceptsUrl = "{% url 'loan:extraordinary_concepts' %}";
+    const simulateUrl = "{% url 'loan:extraordinary_simulate' %}";
+    const createUrl = "{% url 'loan:extraordinary_create' %}";
+    const initialStartDate = "{{ start_date|date:'Y-m-d' }}";
+    let simulationTimer = null;
+
+    // ============================================================
+    // SWEETALERT GLOBAL
+    // ============================================================
+    function showError(title, text) {
+        return window.AppSwalError(title, text);
+    }
+
+    function showSuccess(title, text) {
+        return window.AppSwalSuccess(title, text);
+    }
+
+    function showConfirm(title, text) {
+        return window.AppSwalConfirm({
+            title: title,
+            text: text,
+            confirmText: "Confirmar",
+            cancelText: "Cancelar",
+            confirmClass: "btn-primary"
+        });
+    }
+
+    // ============================================================
+    // UTILIDADES
+    // ============================================================
+    function escapeHtml(value) {
+        const div = document.createElement("div");
+        div.textContent = value ?? "";
+        return div.innerHTML;
+    }
+
+    function cleanNumber(value) {
+        return String(value || "").replace(/[^\d]/g, "");
+    }
+
+    function getAmount() {
+        return parseInt(cleanNumber(loanAmount.value), 10) || 0;
+    }
+
+    function formatCLP(value) {
+        return new Intl.NumberFormat("es-CL", {
+            style: "currency",
+            currency: "CLP",
+            maximumFractionDigits: 0
+        }).format(Number(value || 0));
+    }
+
+    function formatMoneyInput() {
+        const clean = cleanNumber(loanAmount.value);
+        loanAmount.value = clean ? Number(clean).toLocaleString("es-CL") : "";
+    }
+
+    function csrfToken() {
+        return form.querySelector("[name=csrfmiddlewaretoken]").value;
+    }
+
+    function resetSimulation() {
+        interestAmount.textContent = "$0";
+        installmentAmount.textContent = "$0";
+        endDate.textContent = "-";
+    }
+
+    // ============================================================
+    // BUSCAR PERSONA
+    // ============================================================
+    async function searchPerson() {
+        const query = String(personSearch.value || "").trim();
+
+        if (!query) {
+            await showError("Búsqueda requerida", "Debe ingresar un RUT, código o nombre.");
+            return;
+        }
+
+        personSearchResults.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border spinner-border-sm"></div>
+                <div class="text-muted mt-2">Buscando...</div>
+            </div>`;
+
+        personModal.show();
+
+        try {
+            const response = await fetch(`${personSearchUrl}?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se pudo realizar la búsqueda.");
+            }
+
+            if (!data.results.length) {
+                personSearchResults.innerHTML = '<div class="alert alert-warning mb-0">No se encontraron personas.</div>';
+                return;
+            }
+
+            personSearchResults.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle">
+                        <thead>
+                            <tr><th>ID</th><th>RUT</th><th>Código</th><th>Nombre</th><th>Acción</th></tr>
+                        </thead>
+                        <tbody>
+                            ${data.results.map(item => `
+                                <tr>
+                                    <td>${item.id}</td>
+                                    <td>${escapeHtml(item.rut)}</td>
+                                    <td>${escapeHtml(item.employee_code || "-")}</td>
+                                    <td>${escapeHtml(item.name)}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-primary btnSelectPerson"
+                                                data-id="${item.id}"
+                                                data-name="${escapeHtml(item.name)}"
+                                                data-rut="${escapeHtml(item.rut)}"
+                                                data-code="${escapeHtml(item.employee_code || "")}">
+                                            Seleccionar
+                                        </button>
+                                    </td>
+                                </tr>`).join("")}
+                        </tbody>
+                    </table>
+                </div>`;
+
+        } catch (error) {
+            personSearchResults.innerHTML = `<div class="alert alert-danger mb-0">${escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    document.getElementById("btnPersonSearch").addEventListener("click", searchPerson);
+
+    personSearch.addEventListener("keydown", function (event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            searchPerson();
+        }
+    });
+
+    personSearch.addEventListener("input", function () {
+        personId.value = "0";
+        selectedPerson.textContent = "No hay persona seleccionada.";
+    });
+
+    document.addEventListener("click", function (event) {
+        const button = event.target.closest(".btnSelectPerson");
+        if (!button) return;
+
+        personId.value = button.dataset.id;
+        selectedPerson.textContent = [
+            button.dataset.code ? `Código ${button.dataset.code}` : "",
+            button.dataset.rut,
+            button.dataset.name
+        ].filter(Boolean).join(" · ");
+
+        personModal.hide();
+    });
+
+    // ============================================================
+    // CONCEPTOS POR TIPO
+    // ============================================================
+    function resetConcepts(message = "Seleccione un tipo primero...") {
+        typeConcept.innerHTML = `<option value="">${escapeHtml(message)}</option>`;
+        typeConcept.disabled = true;
+    }
+
+    async function loadConcepts() {
+        const loanTypeId = Number(loanType.value || 0);
+
+        if (!loanTypeId) {
+            resetConcepts();
+            return;
+        }
+
+        typeConcept.innerHTML = '<option value="">Cargando conceptos...</option>';
+        typeConcept.disabled = true;
+
+        try {
+            const response = await fetch(`${conceptsUrl}?loan_type_id=${loanTypeId}`);
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se pudieron cargar los conceptos.");
+            }
+
+            if (!data.concepts.length) {
+                resetConcepts("No hay conceptos asociados.");
+                return;
+            }
+
+            typeConcept.innerHTML = `
+                <option value="">Seleccione...</option>
+
+                ${data.concepts.map(item => `
+                    <option value="${item.id}">
+                        ${escapeHtml(item.name)}
+                    </option>
+                `).join("")}
+            `;
+
+            typeConcept.disabled = false;
+
+        } catch (error) {
+            resetConcepts("Error al cargar conceptos.");
+            await showError("No se pudieron cargar los conceptos", error.message);
+        }
+    }
+
+    loanType.addEventListener("change", loadConcepts);
+
+    // ============================================================
+    // SIMULACION
+    // ============================================================
+    async function simulate(showErrors = false) {
+        if (getAmount() <= 0 || Number(loanRate.value || 0) <= 0 || Number(loanTerm.value || 0) <= 0) {
+            resetSimulation();
+            return false;
+        }
+
+        const data = new FormData();
+        data.append("csrfmiddlewaretoken", csrfToken());
+        data.append("loan_amount", getAmount());
+        data.append("rate", loanRate.value);
+        data.append("term", loanTerm.value);
+
+        try {
+            const response = await fetch(simulateUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken() },
+                body: data
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.status !== "ok") {
+                throw new Error(result.message || "No se pudo simular el préstamo.");
+            }
+
+            interestAmount.textContent = formatCLP(result.interest_amount);
+            installmentAmount.textContent = formatCLP(result.installment);
+            startDate.textContent = result.start_date;
+            endDate.textContent = result.end_date;
+            return true;
+
+        } catch (error) {
+            resetSimulation();
+            if (showErrors) await showError("No se pudo simular el préstamo", error.message);
+            return false;
+        }
+    }
+
+    function scheduleSimulation() {
+        clearTimeout(simulationTimer);
+        simulationTimer = setTimeout(() => simulate(false), 350);
+    }
+
+    loanAmount.addEventListener("input", function () {
+        formatMoneyInput();
+        scheduleSimulation();
+    });
+
+    loanRate.addEventListener("change", scheduleSimulation);
+    loanTerm.addEventListener("input", scheduleSimulation);
+    document.getElementById("btnRecalculate").addEventListener("click", () => simulate(true));
+
+    // ============================================================
+    // CREAR
+    // ============================================================
+    function validateForm() {
+        if (Number(personId.value || 0) <= 0) return "Debe seleccionar una persona.";
+        if (Number(loanType.value || 0) <= 0) return "Debe seleccionar el tipo de préstamo.";
+        if (Number(typeConcept.value || 0) <= 0) return "Debe seleccionar el concepto.";
+        if (getAmount() <= 0) return "Debe ingresar un monto válido.";
+        if (Number(loanRate.value || 0) <= 0) return "Debe seleccionar una tasa.";
+        if (Number(loanTerm.value || 0) <= 0) return "Debe ingresar un plazo válido.";
+
+        const file = authorizationDocument.files[0];
+        if (!file) return "Debe adjuntar el documento de autorización.";
+        if (!file.name.toLowerCase().endsWith(".pdf")) return "El documento de autorización debe ser un PDF.";
+        if (file.size > 10 * 1024 * 1024) return "El documento no puede superar los 10 MB.";
+
+        return "";
+    }
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const error = validateForm();
+        if (error) {
+            await showError("Datos incompletos", error);
+            return;
+        }
+
+        const simulated = await simulate(true);
+        if (!simulated) return;
+
+        const confirmResult = await showConfirm(
+            "Crear préstamo extraordinario",
+            "¿Confirmas que deseas crear este préstamo y generar todos sus dividendos?"
+        );
+
+        if (!confirmResult.isConfirmed) return;
+
+        const data = new FormData(form);
+        data.set("person_id", personId.value);
+        data.set("loan_type", loanType.value);
+        data.set("type_concept", typeConcept.value);
+        data.set("loan_amount", getAmount());
+        data.set("rate", loanRate.value);
+        data.set("term", loanTerm.value);
+
+        const oldHtml = btnCreateLoan.innerHTML;
+        btnCreateLoan.disabled = true;
+        btnCreateLoan.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creando...';
+
+        try {
+            const response = await fetch(createUrl, {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken() },
+                body: data
+            });
+
+            const result = await response.json();
+
+            if (!response.ok || result.status !== "ok") {
+                throw new Error(result.message || "No se pudo crear el préstamo extraordinario.");
+            }
+
+            await showSuccess("Préstamo creado", `${result.message} ID préstamo: ${result.loan_id}.`);
+
+            form.reset();
+            personId.value = "0";
+            selectedPerson.textContent = "No hay persona seleccionada.";
+            startDate.textContent = initialStartDate;
+            resetConcepts();
+            resetSimulation();
+
+        } catch (error) {
+            await showError("No se pudo crear el préstamo extraordinario", error.message);
+
+        } finally {
+            btnCreateLoan.disabled = false;
+            btnCreateLoan.innerHTML = oldHtml;
+        }
+    });
+
+    resetConcepts();
+});
+</script>
+{% endblock %}

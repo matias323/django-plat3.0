@@ -30,6 +30,7 @@ urlpatterns = [
     path('contabilidad/periodo_contable/', include('applications.contabilidad.periodo_contable.urls'),name="periodo_contable"),
 
     path("registrations/",include("applications.inscripcion.registrations.urls")),
+    path("loans/",include("applications.prestamos.loan.urls")),
 
 ]
 

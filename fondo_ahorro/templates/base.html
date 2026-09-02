@@ -335,6 +335,131 @@
   });
 </script>
 
+
+<script>
+  // ============================================================
+  // SWEETALERT GLOBAL
+  // ============================================================
+  window.AppSwal = Swal.mixin({
+    buttonsStyling: false,
+    reverseButtons: true,
+
+    customClass: {
+      popup: "rounded-3 shadow",
+      confirmButton: "btn btn-primary px-4",
+      cancelButton: "btn btn-secondary px-4 ms-2"
+    },
+
+    background: "var(--bs-body-bg)",
+    color: "var(--bs-body-color)"
+  });
+
+
+  window.AppSwalSuccess = function (title, text = "") {
+    return window.AppSwal.fire({
+      icon: "success",
+      title: title,
+      text: text,
+      confirmButtonText: "Aceptar"
+    });
+  };
+
+
+  window.AppSwalError = function (title, text = "") {
+    return window.AppSwal.fire({
+      icon: "error",
+      title: title,
+      text: text,
+      confirmButtonText: "Aceptar"
+    });
+  };
+
+
+  window.AppSwalWarning = function (title, text = "") {
+    return window.AppSwal.fire({
+      icon: "warning",
+      title: title,
+      text: text,
+      confirmButtonText: "Aceptar"
+    });
+  };
+
+
+  window.AppSwalInfo = function (title, text = "") {
+    return window.AppSwal.fire({
+      icon: "info",
+      title: title,
+      text: text,
+      confirmButtonText: "Aceptar"
+    });
+  };
+
+
+  window.AppSwalConfirm = function ({
+    title = "Confirmar",
+    text = "¿Deseas continuar?",
+    html = null,
+    confirmText = "Confirmar",
+    cancelText = "Cancelar",
+    confirmClass = "btn-primary",
+    icon = "question"
+  } = {}) {
+    return window.AppSwal.fire({
+      icon: icon,
+      title: title,
+      text: html ? undefined : text,
+      html: html || undefined,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText,
+
+      customClass: {
+        popup: "rounded-3 shadow",
+        confirmButton: `btn ${confirmClass} px-4`,
+        cancelButton: "btn btn-secondary px-4 ms-2"
+      }
+    });
+  };
+
+
+  window.AppSwalTextarea = function ({
+    title = "Ingresar información",
+    text = "",
+    html = null,
+    placeholder = "",
+    confirmText = "Confirmar",
+    cancelText = "Cancelar",
+    confirmClass = "btn-primary",
+    validator = null
+  } = {}) {
+    return window.AppSwal.fire({
+      icon: "warning",
+      title: title,
+      text: html ? undefined : text,
+      html: html || undefined,
+      input: "textarea",
+      inputPlaceholder: placeholder,
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: cancelText,
+
+      customClass: {
+        popup: "rounded-3 shadow",
+        confirmButton: `btn ${confirmClass} px-4`,
+        cancelButton: "btn btn-secondary px-4 ms-2"
+      },
+
+      inputValidator: value => {
+        if (typeof validator === "function") {
+          return validator(value);
+        }
+
+        return null;
+      }
+    });
+  };
+</script>
+
   {% block extra_js %}{% endblock %}
 </body>
 </html>

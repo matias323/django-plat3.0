@@ -59,6 +59,9 @@ INSTALLED_APPS = [
     #inscripciones
     "applications.inscripcion.registrations",
 
+    #prestamos
+    "applications.prestamos.loan",
+
 ]
 
 MIDDLEWARE = [
