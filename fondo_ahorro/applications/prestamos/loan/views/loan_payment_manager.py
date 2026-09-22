@@ -52,8 +52,6 @@ MONEY = Decimal("0.01")
 
 # ============================================================
 # UTILIDADES GENERALES
-# ============================================================
-
 def _normalize(value):
     value = str(value or "").strip().lower()
     value = unicodedata.normalize("NFKD", value)
@@ -140,8 +138,6 @@ def _reference(model, aliases, fallback_id=None):
 
 # ============================================================
 # ESTADOS
-# ============================================================
-
 def _payment_pending():
     return _reference(LoanPaymentStatus, ["Pendiente", "Pending"], 1)
 
@@ -163,6 +159,25 @@ def _payment_pending_reversal():
         LoanPaymentStatus,
         ["Pendiente reversa", "Pendiente de reversa", "Pending reversal"],
         5,
+    )
+
+
+def _latest_reversible_payment_id(loan_id):
+    """Retorna el último pago efectivo del préstamo que puede participar en una reversa.
+
+    Un pago pendiente de reversa sigue siendo el último pago hasta que la solicitud
+    sea aprobada o rechazada. Así no se habilita el pago anterior mientras existe
+    una reversa pendiente sobre el último pago.
+    """
+    approved = _payment_approved()
+    pending_reversal = _payment_pending_reversal()
+
+    return (
+        LoanPayment.objects
+        .filter(loan_id=loan_id, status__in=[approved, pending_reversal], is_active=True)
+        .order_by("-id")
+        .values_list("id", flat=True)
+        .first()
     )
 
 
@@ -219,16 +234,15 @@ def _amortized_collection_method():
 
 # ============================================================
 # CLASIFICACIÓN DEL PAGO
-# ============================================================
-
 def _payment_kind(payment):
+    payment_type_id = int(payment.payment_type_id or 0)
     name = _normalize(payment.payment_type.name if payment.payment_type else "")
 
-    is_insolvent = "insolut" in name
-    is_external = "extrasistema" in name or ("extra" in name and "sistema" in name)
-    is_prepayment = "prepago" in name
-    is_insurance = "desgravamen" in name
-    is_amortization = "amortiz" in name and not is_insolvent
+    is_external = payment_type_id == 3 or "extrasistema" in name or ("extra" in name and "sistema" in name)
+    is_prepayment = payment_type_id in {1, 2} or "prepago" in name
+    is_insurance = payment_type_id == 7 or "desgravamen" in name
+    is_insolvent = payment_type_id == 8 or "insolut" in name
+    is_amortization = payment_type_id in {4, 5} or ("amortiz" in name and not is_insolvent)
 
     return {
         "name": name,
@@ -239,11 +253,8 @@ def _payment_kind(payment):
         "insolvent": is_insolvent,
     }
 
-
 # ============================================================
 # SOCIO / APORTES / MOVIMIENTOS
-# ============================================================
-
 def _partner_for_loan(loan):
     return (
         Partner.objects
@@ -464,8 +475,6 @@ def _send_reversal_deposit_to_contribution(payment, reversal, user):
 
 # ============================================================
 # DOCUMENTOS
-# ============================================================
-
 def _validate_pdf(uploaded_file):
     if not uploaded_file:
         raise ValueError("Debe adjuntar un documento PDF.")
@@ -534,8 +543,6 @@ def _save_document(request, uploaded_file, payment, folder, document_type_name):
 
 # ============================================================
 # FECHAS / TABLA FRANCESA
-# ============================================================
-
 def _month_end(value):
     return value.replace(day=monthrange(value.year, value.month)[1])
 
@@ -637,7 +644,6 @@ def _recalculate_installments(loan, months_from_current, user):
 
     paid = _installment_paid()
     pending = _installment_pending()
-
     current_first_day = timezone.localdate().replace(day=1)
     cutoff = _add_months(current_first_day, months_from_current)
 
@@ -649,16 +655,8 @@ def _recalculate_installments(loan, months_from_current, user):
         .order_by("installment_number", "id")
     )
 
-    if Decimal(loan.principal_balance or 0) <= 0:
-        for installment in installments:
-            if installment.is_active and installment.status_id != paid.id:
-                installment.is_active = False
-                _save_with_user(installment, user)
-
-        loan.interest_balance = Decimal("0")
-        _save_with_user(loan, user)
-        return
-
+    # ============================================================
+    # DETERMINAR ULTIMO DIVIDENDO QUE SE MANTIENE
     kept = [
         installment
         for installment in installments
@@ -675,36 +673,94 @@ def _recalculate_installments(loan, months_from_current, user):
         default=None,
     )
 
-    last_number = int(last_kept.installment_number) if last_kept else 0
-    periods = max(int(loan.term or 0) - last_number, 0)
-
-    if periods <= 0:
-        return
-
-    rate_value = Decimal(getattr(loan.rate, "rate", 0) or 0)
-    schedule = _french_schedule(loan.principal_balance, rate_value, periods)
+    last_number = int(last_kept.installment_number or 0) if last_kept else 0
+    first_due_date = _month_end(cutoff)
 
     if last_kept:
         first_due_date = _month_end(_add_months(last_kept.due_date, 1))
-    else:
-        first_due_date = _month_end(cutoff)
 
-    by_number = {}
+    remaining_periods = max(int(loan.term or 0) - last_number, 0)
+    balance = max(Decimal("0"), Decimal(loan.principal_balance or 0))
 
-    for installment in installments:
-        by_number.setdefault(int(installment.installment_number), installment)
+    # ============================================================
+    # DIVIDENDOS FUTUROS NO PAGADOS
+    future_non_paid = [
+        installment
+        for installment in installments
+        if installment.is_active
+        and installment.due_date >= cutoff
+        and installment.status_id != paid.id
+    ]
+
+    # ============================================================
+    # PREPAGO / AMORTIZACION TOTAL O SIN CUOTAS RESTANTES
+    if balance <= 0 or remaining_periods <= 0:
+        for installment in future_non_paid:
+            installment.is_active = False
+            _save_with_user(installment, user)
+
+        active_interest = sum(
+            (
+                Decimal(item.interest or 0)
+                for item in LoanInstallment.objects
+                .filter(loan=loan, is_active=True)
+                .exclude(status=paid)
+            ),
+            Decimal("0"),
+        )
+
+        loan.interest_balance = active_interest
+        loan.interest_amount = Decimal(loan.interest_paid or 0) + active_interest
+        _save_with_user(loan, user)
+        return 0
+
+    # ============================================================
+    # GENERAR NUEVA TABLA FRANCESA
+    rate_value = Decimal(getattr(loan.rate, "rate", 0) or 0)
+
+    if rate_value <= 0:
+        raise ValueError("La tasa del préstamo es inválida para recalcular dividendos.")
+
+    schedule = _french_schedule(balance, rate_value, remaining_periods)
+
+    if not schedule:
+        raise ValueError("No fue posible generar los dividendos recalculados.")
+
+    # ============================================================
+    # REUTILIZAR REGISTROS EXISTENTES POR NUMERO DE CUOTA
+    by_number = {
+        int(installment.installment_number): installment
+        for installment in installments
+    }
 
     generated_numbers = set()
 
     for index, row in enumerate(schedule):
         number = last_number + index + 1
-        generated_numbers.add(number)
         due_date = _month_end(_add_months(first_due_date, index))
+        generated_numbers.add(number)
 
         installment = by_number.get(number)
 
-        if not installment:
-            installment = LoanInstallment(
+        if installment and installment.status_id == paid.id:
+            raise ValueError(
+                f"No se puede recalcular la cuota {number} porque se encuentra pagada."
+            )
+
+        if installment:
+            installment.collection_method = loan.collection_method
+            installment.status = pending
+            installment.due_date = due_date
+            installment.amount = row["amount"]
+            installment.principal = row["principal"]
+            installment.interest = row["interest"]
+            installment.installment_number = number
+            installment.is_active = True
+            _save_with_user(installment, user)
+        else:
+            installment = _create_with_user(
+                LoanInstallment,
+                user,
                 loan=loan,
                 collection_method=loan.collection_method,
                 status=pending,
@@ -715,49 +771,86 @@ def _recalculate_installments(loan, months_from_current, user):
                 installment_number=number,
                 is_active=True,
             )
-        else:
-            installment.loan = loan
-            installment.collection_method = loan.collection_method
-            installment.status = pending
-            installment.due_date = due_date
-            installment.amount = row["amount"]
-            installment.principal = row["principal"]
-            installment.interest = row["interest"]
-            installment.installment_number = number
-            installment.is_active = True
+            by_number[number] = installment
 
-        _save_with_user(installment, user)
+    # ============================================================
+    # DESACTIVAR DIVIDENDOS FUTUROS QUE YA NO CORRESPONDEN
+    for installment in future_non_paid:
+        number = int(installment.installment_number or 0)
 
-    for installment in installments:
-        number = int(installment.installment_number)
-
-        if (
-            installment.is_active
-            and installment.status_id != paid.id
-            and number > last_number
-            and number not in generated_numbers
-        ):
+        if number not in generated_numbers:
             installment.is_active = False
             _save_with_user(installment, user)
 
+    # ============================================================
+    # ACTUALIZAR INTERESES DEL PRESTAMO
     active_non_paid_interest = sum(
         (
             Decimal(item.interest or 0)
-            for item in LoanInstallment.objects.filter(
-                loan=loan,
-                is_active=True,
-            ).exclude(status=paid)
+            for item in LoanInstallment.objects
+            .filter(loan=loan, is_active=True)
+            .exclude(status=paid)
         ),
         Decimal("0"),
     )
 
     loan.interest_balance = active_non_paid_interest
+    loan.interest_amount = Decimal(loan.interest_paid or 0) + active_non_paid_interest
     _save_with_user(loan, user)
 
+    # ============================================================
+    # VERIFICAR QUE EL RECALCULO QUEDO GUARDADO
+    first_number = last_number + 1
+    first_row = LoanInstallment.objects.filter(
+        loan=loan,
+        installment_number=first_number,
+        is_active=True,
+    ).first()
 
+    if not first_row:
+        raise ValueError("El recálculo se ejecutó, pero no se pudo verificar el primer dividendo generado.")
+
+    expected = schedule[0]
+
+    if (
+        Decimal(first_row.amount or 0).quantize(MONEY) != Decimal(expected["amount"]).quantize(MONEY)
+        or Decimal(first_row.principal or 0).quantize(MONEY) != Decimal(expected["principal"]).quantize(MONEY)
+        or Decimal(first_row.interest or 0).quantize(MONEY) != Decimal(expected["interest"]).quantize(MONEY)
+    ):
+        raise ValueError("Los dividendos recalculados no quedaron persistidos correctamente.")
+
+    return len(schedule)
+
+# ============================================================
+# OBTENER INICIO DE RECALCULO
 def _recalc_months_from_request(request, required):
-    value = str(request.POST.get("recalculation_start", "") or "").strip()
-    months = int(request.POST.get("recalculation_months", 0) or 0)
+    value = str(
+        request.POST.get("recalculation_start")
+        or request.POST.get("recalculo_inicio")
+        or ""
+    ).strip()
+
+    raw_months = (
+        request.POST.get("recalculation_months")
+        or request.POST.get("recalculo_meses")
+        or 0
+    )
+
+    try:
+        months = int(raw_months or 0)
+    except (TypeError, ValueError):
+        months = 0
+
+    aliases = {
+        "current": "current",
+        "actual": "current",
+        "next": "next",
+        "siguiente": "next",
+        "months": "months",
+        "x_meses": "months",
+    }
+
+    value = aliases.get(value, value)
 
     if not value:
         if required:
@@ -779,10 +872,26 @@ def _recalc_months_from_request(request, required):
 
     raise ValueError("La opción de recálculo seleccionada no es válida.")
 
-
 # ============================================================
 # ESTADO FINAL DEL PRÉSTAMO
-# ============================================================
+def _sync_installments_paid(loan, user):
+    paid = _installment_paid()
+
+    total_paid = (
+        LoanInstallment.objects
+        .filter(
+            loan=loan,
+            status=paid,
+            is_active=True,
+        )
+        .count()
+    )
+
+    loan.installments_paid = total_paid
+    _save_with_user(loan, user)
+
+    return total_paid
+
 
 def _update_loan_paid_status(loan, user):
     if Decimal(loan.principal_balance or 0) <= 0:
@@ -802,7 +911,6 @@ def _update_loan_paid_status(loan, user):
 
 # ============================================================
 # VISTA PRINCIPAL
-# ============================================================
 
 @login_required
 @require_GET
@@ -815,7 +923,6 @@ def loan_payment_manager(request):
 
 # ============================================================
 # DATATABLE
-# ============================================================
 
 @login_required
 @require_GET
@@ -936,13 +1043,13 @@ def payment_manager_datatable(request):
 
         loan_ids = {payment.loan_id for payment in page}
 
-        latest_approved = {
+        latest_reversible = {
             row["loan_id"]: row["latest_id"]
             for row in (
                 LoanPayment.objects
                 .filter(
                     loan_id__in=loan_ids,
-                    status=approved,
+                    status__in=[approved, pending_reversal],
                     is_active=True,
                 )
                 .values("loan_id")
@@ -995,9 +1102,12 @@ def payment_manager_datatable(request):
                 "can_reject": payment.status_id == pending.id,
                 "can_request_reversal": (
                     payment.status_id == approved.id
-                    and latest_approved.get(payment.loan_id) == payment.id
+                    and latest_reversible.get(payment.loan_id) == payment.id
                 ),
-                "can_approve_reversal": payment.status_id == pending_reversal.id,
+                "can_approve_reversal": (
+                    payment.status_id == pending_reversal.id
+                    and latest_reversible.get(payment.loan_id) == payment.id
+                ),
                 "can_reject_reversal": payment.status_id == pending_reversal.id,
             })
 
@@ -1020,7 +1130,6 @@ def payment_manager_datatable(request):
 
 # ============================================================
 # APROBAR / RECHAZAR PAGO
-# ============================================================
 
 @login_required
 @require_POST
@@ -1208,10 +1317,26 @@ def payment_action(request, payment_id):
                 }:
                     raise ValueError("El dividendo no está disponible para ser procesado.")
 
+                principal = Decimal(installment.principal or 0)
+                interest = Decimal(installment.interest or 0)
+
                 installment.status = _installment_paid()
                 _save_with_user(installment, request.user)
 
+                loan.principal_balance = max(
+                    Decimal("0"),
+                    Decimal(loan.principal_balance or 0) - principal,
+                )
+                loan.interest_balance = max(
+                    Decimal("0"),
+                    Decimal(loan.interest_balance or 0) - interest,
+                )
+                loan.principal_paid = Decimal(loan.principal_paid or 0) + principal
+                loan.interest_paid = Decimal(loan.interest_paid or 0) + interest
+
+                _sync_installments_paid(loan, request.user)
                 _deduct_external_contributions(payment, request.user)
+                _update_loan_paid_status(loan, request.user)
 
                 return JsonResponse({
                     "status": "ok",
@@ -1268,16 +1393,19 @@ def payment_action(request, payment_id):
                 )
                 loan.principal_paid = Decimal(loan.principal_paid or 0) + principal
                 loan.interest_paid = Decimal(loan.interest_paid or 0) + interest
-                loan.installments_paid = int(loan.installments_paid or 0) + len(installments)
 
                 _save_with_user(loan, request.user)
                 _deduct_amortization_contributions(payment, request.user)
-                _recalculate_installments(loan, 0, request.user)
+                recalculated_count = _recalculate_installments(loan, 0, request.user)
+                _sync_installments_paid(loan, request.user)
                 _update_loan_paid_status(loan, request.user)
 
                 return JsonResponse({
                     "status": "ok",
-                    "message": "Amortización de insolutos aprobada correctamente.",
+                    "message": (
+                        "Amortización de insolutos aprobada correctamente. "
+                        f"Dividendos recalculados: {recalculated_count}."
+                    ),
                 })
 
             if kind["prepayment"] or kind["insurance"] or kind["amortization"]:
@@ -1296,7 +1424,9 @@ def payment_action(request, payment_id):
                 if kind["insurance"]:
                     months_from_current = 0
 
-                _recalculate_installments(
+                loan.refresh_from_db(fields=["principal_balance", "principal_paid", "interest_balance", "interest_paid"])
+
+                recalculated_count = _recalculate_installments(
                     loan,
                     months_from_current,
                     request.user,
@@ -1305,7 +1435,10 @@ def payment_action(request, payment_id):
 
                 return JsonResponse({
                     "status": "ok",
-                    "message": "Solicitud de pago aprobada correctamente.",
+                    "message": (
+                        "Solicitud de pago aprobada correctamente. "
+                        f"Dividendos recalculados: {recalculated_count}."
+                    ),
                 })
 
             raise ValueError(
@@ -1336,7 +1469,6 @@ def payment_action(request, payment_id):
 
 # ============================================================
 # INFORMACIÓN PARA SOLICITAR REVERSA
-# ============================================================
 
 @login_required
 @require_GET
@@ -1358,19 +1490,11 @@ def payment_reversal_info(request, payment_id):
         if payment.status_id != approved.id:
             raise ValueError("Solo se puede solicitar reversa de pagos aprobados.")
 
-        latest_id = (
-            LoanPayment.objects
-            .filter(
-                loan_id=payment.loan_id,
-                status=approved,
-                is_active=True,
-            )
-            .aggregate(latest=Max("id"))["latest"]
-        )
+        latest_id = _latest_reversible_payment_id(payment.loan_id)
 
         if latest_id != payment.id:
             raise ValueError(
-                "Solo se puede solicitar la reversa del último pago aprobado del préstamo."
+                "Solo se puede solicitar la reversa del último pago del préstamo."
             )
 
         partner = _partner_for_loan(payment.loan)
@@ -1422,7 +1546,6 @@ def payment_reversal_info(request, payment_id):
 
 # ============================================================
 # SOLICITAR REVERSA
-# ============================================================
 
 @login_required
 @require_POST
@@ -1460,19 +1583,11 @@ def payment_reversal_request(request, payment_id):
             if payment.status_id != approved.id:
                 raise ValueError("Solo se puede solicitar reversa de pagos aprobados.")
 
-            latest_id = (
-                LoanPayment.objects
-                .filter(
-                    loan_id=payment.loan_id,
-                    status=approved,
-                    is_active=True,
-                )
-                .aggregate(latest=Max("id"))["latest"]
-            )
+            latest_id = _latest_reversible_payment_id(payment.loan_id)
 
             if latest_id != payment.id:
                 raise ValueError(
-                    "Solo se puede solicitar la reversa del último pago aprobado del préstamo."
+                    "Solo se puede solicitar la reversa del último pago del préstamo."
                 )
 
             deposit_amount = _deposit_origin_amount(payment)
@@ -1558,8 +1673,6 @@ def payment_reversal_request(request, payment_id):
 
 # ============================================================
 # DECIDIR REVERSA
-# ============================================================
-
 def _insolvent_installments_for_reversal(payment):
     amortized_method = _amortized_collection_method()
     paid = _installment_paid()
@@ -1654,20 +1767,9 @@ def payment_reversal_decision(request, payment_id):
                     "message": "Solicitud de reversa rechazada correctamente.",
                 })
 
-            later_approved_exists = (
-                LoanPayment.objects
-                .filter(
-                    loan_id=payment.loan_id,
-                    status=_payment_approved(),
-                    id__gt=payment.id,
-                    is_active=True,
-                )
-                .exists()
-            )
-
-            if later_approved_exists:
+            if _latest_reversible_payment_id(payment.loan_id) != payment.id:
                 raise ValueError(
-                    "No se puede aprobar la reversa porque existe un pago aprobado posterior."
+                    "No se puede aprobar la reversa porque este ya no es el último pago del préstamo."
                 )
 
             loan = (
@@ -1681,16 +1783,35 @@ def payment_reversal_decision(request, payment_id):
             kind = _payment_kind(payment)
 
             if kind["external"]:
-                if payment.installment_id:
-                    installment = (
-                        LoanInstallment.objects
-                        .select_for_update()
-                        .get(pk=payment.installment_id)
-                    )
-                    installment.status = _installment_pending()
-                    _save_with_user(installment, request.user)
+                if not payment.installment_id:
+                    raise ValueError("El pago extrasistema no posee dividendo asociado.")
 
+                installment = (
+                    LoanInstallment.objects
+                    .select_for_update()
+                    .get(pk=payment.installment_id, loan=loan)
+                )
+
+                principal = Decimal(installment.principal or 0)
+                interest = Decimal(installment.interest or 0)
+
+                installment.status = _installment_pending()
+                _save_with_user(installment, request.user)
+
+                loan.principal_balance = Decimal(payment.previous_balance or 0)
+                loan.interest_balance = Decimal(loan.interest_balance or 0) + interest
+                loan.principal_paid = max(
+                    Decimal("0"),
+                    Decimal(loan.principal_paid or 0) - principal,
+                )
+                loan.interest_paid = max(
+                    Decimal("0"),
+                    Decimal(loan.interest_paid or 0) - interest,
+                )
+
+                _sync_installments_paid(loan, request.user)
                 _restore_external_contributions(payment, request.user)
+                _update_loan_paid_status(loan, request.user)
 
             elif kind["insolvent"]:
                 installments = _insolvent_installments_for_reversal(payment)
@@ -1719,14 +1840,11 @@ def payment_reversal_decision(request, payment_id):
                     Decimal("0"),
                     Decimal(loan.interest_paid or 0) - interest,
                 )
-                loan.installments_paid = max(
-                    0,
-                    int(loan.installments_paid or 0) - len(installments),
-                )
 
                 _save_with_user(loan, request.user)
                 _restore_amortization_contributions(payment, request.user)
                 _recalculate_installments(loan, 1, request.user)
+                _sync_installments_paid(loan, request.user)
                 _update_loan_paid_status(loan, request.user)
 
             elif kind["prepayment"] or kind["insurance"] or kind["amortization"]:

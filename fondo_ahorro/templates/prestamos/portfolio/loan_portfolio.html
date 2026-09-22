@@ -147,25 +147,42 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function numberValue(value) {
-        const raw = String(value ?? "").trim();
+        let raw = String(value ?? "").trim();
 
         if (!raw) {
             return 0;
         }
 
-        const direct = Number(raw);
+        raw = raw
+            .replace(/CLP/gi, "")
+            .replace(/\$/g, "")
+            .replace(/\s/g, "");
 
-        if (Number.isFinite(direct)) {
-            return direct;
+        if (/^-?\d+$/.test(raw)) {
+            return Number(raw);
         }
 
-        const normalized = raw
-            .replace(/[^\d,.-]/g, "")
-            .replace(/\./g, "")
-            .replace(",", ".");
+        if (raw.includes(",") && raw.includes(".")) {
+            raw = raw.replace(/\./g, "").replace(",", ".");
 
-        const result = Number(normalized);
+        } else if (raw.includes(",")) {
+            const parts = raw.split(",");
 
+            if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+                raw = raw.replace(/,/g, "");
+            } else {
+                raw = raw.replace(",", ".");
+            }
+
+        } else if (raw.includes(".")) {
+            const parts = raw.split(".");
+
+            if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+                raw = raw.replace(/\./g, "");
+            }
+        }
+
+        const result = Number(raw);
         return Number.isFinite(result) ? result : 0;
     }
 
@@ -174,7 +191,35 @@ document.addEventListener("DOMContentLoaded", function () {
             style: "currency",
             currency: "CLP",
             maximumFractionDigits: 0
-        }).format(numberValue(value));
+        }).format(Math.trunc(numberValue(value)));
+    }
+
+    function formatCLPInput(value) {
+        const amount = Math.max(Math.trunc(numberValue(value)), 0);
+        return amount > 0 ? amount.toLocaleString("es-CL") : "";
+    }
+
+    function formatMoneyElements(container) {
+        if (!container) {
+            return;
+        }
+
+        container.querySelectorAll(".money-value").forEach(function (input) {
+            input.value = formatCLP(input.value);
+        });
+
+        container.querySelectorAll(".money-text").forEach(function (element) {
+            element.textContent = formatCLP(element.textContent);
+        });
+
+        container.querySelectorAll(".money-option").forEach(function (option) {
+            const label = String(option.dataset.label || option.textContent || "").trim();
+            option.textContent = `${label} - ${formatCLP(option.dataset.amount || 0)}`;
+        });
+
+        container.querySelectorAll(".clp-input").forEach(function (input) {
+            input.value = formatCLPInput(input.value);
+        });
     }
 
     async function showError(title, message) {
@@ -465,13 +510,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function formatDetailMoney() {
-        detailContent.querySelectorAll(".money-value").forEach(function (input) {
-            input.value = formatCLP(input.value);
-        });
-
-        detailContent.querySelectorAll(".money-text").forEach(function (element) {
-            element.textContent = formatCLP(element.textContent);
-        });
+        formatMoneyElements(detailContent);
     }
 
 
@@ -552,13 +591,7 @@ document.addEventListener("DOMContentLoaded", function () {
         paymentModuleIndex = 0;
         prepaymentDepositIndex = 0;
 
-        actionContent.querySelectorAll(".money-value").forEach(function (input) {
-            input.value = formatCLP(input.value);
-        });
-
-        actionContent.querySelectorAll(".money-text").forEach(function (element) {
-            element.textContent = formatCLP(element.textContent);
-        });
+        formatMoneyElements(actionContent);
 
         if (document.getElementById("paymentModuleTemplate")) {
             document.getElementById("paymentModules").innerHTML = "";
@@ -570,6 +603,14 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("prepaymentDeposits").innerHTML = "";
             addPrepaymentDeposit();
             updatePrepaymentSummary();
+        }
+
+        if (document.getElementById("amortizationContributionTable")) {
+            updateAmortizationSummary();
+        }
+
+        if (document.getElementById("overdueContributionTable")) {
+            updateOverdueContributionSummary();
         }
 
         $("#newCollectionMethod")
@@ -750,6 +791,84 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 
+    /* ============================================================
+    # FORMATO CLP EN CAMPOS MONETARIOS
+    ============================================================ */
+    $(document).on("input", ".clp-input", function () {
+        const digits = String(this.value || "").replace(/\D/g, "");
+        this.value = digits ? Number(digits).toLocaleString("es-CL") : "";
+    });
+
+
+    /* AMORTIZACION */
+    function clampContributionInput(input) {
+        const max = Math.max(numberValue(input.dataset.max), 0);
+        let value = Math.max(numberValue(input.value), 0);
+
+        if (value > max) {
+            value = max;
+        }
+
+        input.value = value > 0 ? formatCLPInput(value) : "";
+        return value;
+    }
+
+    function contributionInputsTotal(selector) {
+        return [...document.querySelectorAll(selector)]
+            .filter(input => !input.disabled)
+            .reduce((sum, input) => sum + clampContributionInput(input), 0);
+    }
+
+    function updateAmortizationSummary() {
+        const summary = document.getElementById("amortizationSummary");
+        const amountInput = document.getElementById("amortizationAmount");
+        const totalText = document.getElementById("amortizationTotalText");
+        const button = document.getElementById("btnSubmitLoanAction");
+
+        if (!summary || !amountInput || !totalText) {
+            return;
+        }
+
+        const principal = numberValue(summary.dataset.principal);
+        const total = contributionInputsTotal(".amortization-contribution-input");
+
+        amountInput.value = Math.trunc(total);
+        totalText.textContent = formatCLP(total);
+        totalText.classList.toggle("text-danger", total > principal);
+
+        if (button) {
+            button.disabled = total <= 0 || total > principal;
+        }
+    }
+
+    function updateOverdueContributionSummary() {
+        const summary = document.getElementById("overdueContributionSummary");
+        const totalText = document.getElementById("overdueContributionTotalText");
+        const differenceText = document.getElementById("overdueContributionDifferenceText");
+        const button = document.getElementById("btnSubmitLoanAction");
+
+        if (!summary || !totalText || !differenceText) {
+            return;
+        }
+
+        const target = numberValue(summary.dataset.target);
+        const total = contributionInputsTotal(".overdue-contribution-input");
+        const difference = target - total;
+
+        totalText.textContent = formatCLP(total);
+        differenceText.textContent = formatCLP(difference);
+        differenceText.classList.toggle("text-success", difference === 0);
+        differenceText.classList.toggle("text-danger", difference !== 0);
+
+        if (button) {
+            button.disabled = target <= 0 || total !== target;
+        }
+    }
+
+    $(document).on("input", ".amortization-contribution-input", updateAmortizationSummary);
+    $(document).on("input", ".overdue-contribution-input", updateOverdueContributionSummary);
+
+
     /* BUSCAR AVAL */
     $(document).on("click", "#btnSearchGuarantor", searchGuarantor);
 
@@ -858,12 +977,51 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
+        const action = String(form.dataset.action || "");
+
+        if (action === "amortization") {
+            const summary = document.getElementById("amortizationSummary");
+            const principal = numberValue(summary?.dataset.principal);
+            const total = contributionInputsTotal(".amortization-contribution-input");
+
+            if (total <= 0) {
+                await showError("Aportes requeridos", "Debe ingresar al menos un aporte mayor a cero.");
+                return;
+            }
+
+            if (total > principal) {
+                await showError("Monto inválido", "La suma de los aportes no puede superar el saldo capital.");
+                return;
+            }
+
+            const amountInput = document.getElementById("amortizationAmount");
+            if (amountInput) amountInput.value = Math.trunc(total);
+        }
+
+        if (action === "overdue") {
+            const summary = document.getElementById("overdueContributionSummary");
+            const target = numberValue(summary?.dataset.target);
+            const total = contributionInputsTotal(".overdue-contribution-input");
+
+            if (total !== target) {
+                await showError(
+                    "Aportes incompletos",
+                    "La suma de los aportes debe coincidir exactamente con el total de dividendos insolutos."
+                );
+                return;
+            }
+        }
+
         const pdfError = validatePdfInputs(form);
 
         if (pdfError) {
             await showError("Documento inválido", pdfError);
             return;
         }
+
+        form.querySelectorAll(".clp-input").forEach(function (input) {
+            input.value = String(Math.trunc(numberValue(input.value)));
+        });
 
         const result = await showConfirm(
             "Confirmar operación",
@@ -874,6 +1032,9 @@ document.addEventListener("DOMContentLoaded", function () {
         );
 
         if (!result.isConfirmed) {
+            form.querySelectorAll(".clp-input").forEach(function (input) {
+                input.value = formatCLPInput(input.value);
+            });
             return;
         }
 
@@ -936,6 +1097,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 button.disabled = false;
                 button.innerHTML = oldHtml;
             }
+
+            form.querySelectorAll(".clp-input").forEach(function (input) {
+                input.value = formatCLPInput(input.value);
+            });
         }
     });
 

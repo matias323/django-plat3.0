@@ -257,6 +257,13 @@ class Loan(BaseModel):
     start_date = models.DateField(verbose_name="Fecha de Inicio", null=False, blank=False)
     end_date = models.DateField(verbose_name="Fecha de Término", null=False, blank=False)
 
+    is_mortgage = models.BooleanField(
+        verbose_name="Hipotecario",
+        default=False,
+        null=False,
+        blank=False,
+    )
+
     status = models.ForeignKey(
         LoanStatus,
         verbose_name="Estado",

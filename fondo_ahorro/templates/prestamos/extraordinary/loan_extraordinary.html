@@ -56,12 +56,12 @@
                         </div>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Monto préstamo</label>
                         <input type="text" class="form-control" id="loanAmount" name="loan_amount" inputmode="numeric" placeholder="0" required>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Tasa</label>
                         <select class="form-select" id="loanRate" name="rate" required>
                             <option value="">Seleccione...</option>
@@ -71,9 +71,17 @@
                         </select>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Plazo</label>
                         <input type="number" min="1" class="form-control" id="loanTerm" name="term" placeholder="Ej: 120" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Hipotecario</label>
+                        <select class="form-select" id="isMortgage" name="is_mortgage" required>
+                            <option value="0" selected>No</option>
+                            <option value="1">Sí</option>
+                        </select>
                     </div>
 
                     <div class="col-md-3">
@@ -162,6 +170,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const loanAmount = document.getElementById("loanAmount");
     const loanRate = document.getElementById("loanRate");
     const loanTerm = document.getElementById("loanTerm");
+    const isMortgage = document.getElementById("isMortgage");
 
     const authorizationDocument = document.getElementById("authorizationDocument");
     const startDate = document.getElementById("startDate");
@@ -482,6 +491,7 @@ document.addEventListener("DOMContentLoaded", function () {
         data.set("loan_amount", getAmount());
         data.set("rate", loanRate.value);
         data.set("term", loanTerm.value);
+        data.set("is_mortgage", isMortgage.value);
 
         const oldHtml = btnCreateLoan.innerHTML;
         btnCreateLoan.disabled = true;

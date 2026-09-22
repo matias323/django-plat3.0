@@ -90,6 +90,12 @@ def _dipreca_code_value(dipreca):
 
 
 # ============================================================
+# ESTADO FINANCIERO DEL PRESTAMO
+def _financial_operations_locked(loan):
+    return int(loan.status_id or 0) in {4, 5}
+
+
+# ============================================================
 # CARTERA DE PRESTAMOS
 @login_required
 def loan_portfolio(request):
@@ -112,6 +118,7 @@ def loan_portfolio_datatable(request):
         queryset = (
             Loan.objects
             .filter(is_active=True)
+            .exclude(status_id__in=[4, 5]) # OMITIR ID's 4: TRANSFERIDO 5: RECUPERADO
             .select_related(
                 "person", "loan_type", "type_concept", "type_concept__concept",
                 "collection_method", "rate", "status",
@@ -237,6 +244,8 @@ def loan_detail(request, loan_id):
         is_active=True,
     )
 
+    financial_locked = _financial_operations_locked(loan)
+
     employee = (
         Employee.objects
         .select_related("grade")
@@ -245,57 +254,84 @@ def loan_detail(request, loan_id):
         .first()
     )
 
-    installments = list(
-        LoanInstallment.objects
-        .filter(loan=loan, is_active=True)
-        .select_related("collection_method", "status")
-        .order_by("installment_number")
-    )
+    # ============================================================
+    # DIVIDENDOS E INSOLUTOS
+    if financial_locked:
+        installments = []
+        installment_rows = []
+        overdue_installments = []
+        overdue_count = 0
+        overdue_principal = Decimal("0")
+        overdue_interest = Decimal("0")
+        overdue_total = Decimal("0")
 
-    payment_pending_installments = set(
-        LoanPayment.objects
-        .filter(
-            loan=loan,
-            installment__isnull=False,
-            is_active=True,
-            status__name__icontains="Pend",
-        )
-        .values_list("installment_id", flat=True)
-    )
-
-    installment_rows = []
-
-    for installment in installments:
-        previous = next(
-            (item for item in reversed(installments) if item.installment_number < installment.installment_number),
-            None,
+    else:
+        installments = list(
+            LoanInstallment.objects
+            .filter(loan=loan, is_active=True)
+            .select_related("collection_method", "status")
+            .order_by("installment_number")
         )
 
-        previous_ok = previous is None or _status_contains(previous.status, "pagad", "paid")
-        collection_name = str(installment.collection_method.name if installment.collection_method else "").lower()
+        payment_pending_installments = set(
+            LoanPayment.objects
+            .filter(
+                loan=loan,
+                installment__isnull=False,
+                is_active=True,
+                status__name__icontains="Pend",
+            )
+            .values_list("installment_id", flat=True)
+        )
 
-        installment_rows.append({
-            "installment": installment,
-            "can_pay": (
-                _status_contains(installment.status, "pendiente", "pending")
-                and ("extra" in collection_name and "sistema" in collection_name)
-                and previous_ok
-                and installment.id not in payment_pending_installments
-            ),
-        })
+        installment_rows = []
 
-    first_day_current_month = timezone.localdate().replace(day=1)
+        for installment in installments:
+            previous = next(
+                (
+                    item
+                    for item in reversed(installments)
+                    if item.installment_number < installment.installment_number
+                ),
+                None,
+            )
 
-    overdue_installments = [
-        item for item in installments
-        if item.due_date < first_day_current_month
-        and _status_contains(item.status, "pendiente", "pending")
-    ]
+            previous_ok = previous is None or _status_contains(previous.status, "pagad", "paid")
+            collection_name = str(
+                installment.collection_method.name if installment.collection_method else ""
+            ).lower()
 
-    overdue_count = len(overdue_installments)
-    overdue_principal = sum((Decimal(item.principal or 0) for item in overdue_installments), Decimal("0"))
-    overdue_interest = sum((Decimal(item.interest or 0) for item in overdue_installments), Decimal("0"))
-    overdue_total = sum((Decimal(item.amount or 0) for item in overdue_installments), Decimal("0"))
+            installment_rows.append({
+                "installment": installment,
+                "can_pay": (
+                    _status_contains(installment.status, "pendiente", "pending")
+                    and ("extra" in collection_name and "sistema" in collection_name)
+                    and previous_ok
+                    and installment.id not in payment_pending_installments
+                ),
+            })
+
+        first_day_current_month = timezone.localdate().replace(day=1)
+
+        overdue_installments = [
+            item for item in installments
+            if item.due_date < first_day_current_month
+            and _status_contains(item.status, "pendiente", "pending")
+        ]
+
+        overdue_count = len(overdue_installments)
+        overdue_principal = sum(
+            (Decimal(item.principal or 0) for item in overdue_installments),
+            Decimal("0"),
+        )
+        overdue_interest = sum(
+            (Decimal(item.interest or 0) for item in overdue_installments),
+            Decimal("0"),
+        )
+        overdue_total = sum(
+            (Decimal(item.amount or 0) for item in overdue_installments),
+            Decimal("0"),
+        )
 
     payments = (
         LoanPayment.objects
@@ -317,22 +353,30 @@ def loan_detail(request, loan_id):
     total_contributions = contributions.aggregate(total=Sum("amount"))["total"] or Decimal("0")
     minimum_prepayment = (Decimal(loan.principal_balance or 0) * Decimal("0.05")).quantize(Decimal("0.01"))
 
-    collection_records = (
-        LoanCollectionMethodRecord.objects
-        .filter(loan=loan, is_active=True)
-        .select_related("collection_method", "dipreca_code", "document", "user_create")
-        .order_by("-created_at")
-    )
+    # ============================================================
+    # COBROS Y TASAS
+    if financial_locked:
+        collection_records = LoanCollectionMethodRecord.objects.none()
+        dipreca_code = ""
+        rate_records = LoanRateRecord.objects.none()
 
-    dipreca_record = collection_records.filter(dipreca_code__isnull=False).first()
-    dipreca_code = _dipreca_code_value(dipreca_record.dipreca_code) if dipreca_record else ""
+    else:
+        collection_records = (
+            LoanCollectionMethodRecord.objects
+            .filter(loan=loan, is_active=True)
+            .select_related("collection_method", "dipreca_code", "document", "user_create")
+            .order_by("-created_at")
+        )
 
-    rate_records = (
-        LoanRateRecord.objects
-        .filter(loan=loan, is_active=True)
-        .select_related("previous_rate", "new_rate", "document", "user_create")
-        .order_by("-created_at")
-    )
+        dipreca_record = collection_records.filter(dipreca_code__isnull=False).first()
+        dipreca_code = _dipreca_code_value(dipreca_record.dipreca_code) if dipreca_record else ""
+
+        rate_records = (
+            LoanRateRecord.objects
+            .filter(loan=loan, is_active=True)
+            .select_related("previous_rate", "new_rate", "document", "user_create")
+            .order_by("-created_at")
+        )
 
     guarantors = (
         LoanGuarantor.objects
@@ -383,6 +427,7 @@ def loan_detail(request, loan_id):
         "prestamos/portfolio/loan_detail_modal.html",
         {
             "loan": loan,
+            "financial_locked": financial_locked,
             "employee": employee,
             "person_name": _person_full_name(loan.person),
             "person_rut": _person_rut(loan.person),

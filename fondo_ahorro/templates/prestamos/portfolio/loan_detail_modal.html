@@ -26,29 +26,31 @@
             </button>
         </li>
 
-        <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanInstallments" type="button">
-                Dividendos
-            </button>
-        </li>
+        {% if not financial_locked %}
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanInstallments" type="button">
+                    Dividendos
+                </button>
+            </li>
 
-        <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanPayments" type="button">
-                Pagos
-            </button>
-        </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanPayments" type="button">
+                    Pagos
+                </button>
+            </li>
 
-        <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanCollections" type="button">
-                Cobros
-            </button>
-        </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanCollections" type="button">
+                    Cobros
+                </button>
+            </li>
 
-        <li class="nav-item">
-            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanRates" type="button">
-                Tasas
-            </button>
-        </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanRates" type="button">
+                    Tasas
+                </button>
+            </li>
+        {% endif %}
 
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#loanHistory" type="button">
@@ -214,20 +216,25 @@
                                    readonly>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label">Método de cobro</label>
                             <input type="text" class="form-control"
                                    value="{% if loan.collection_method %}{{ loan.collection_method.name }}{% else %}-{% endif %}"
                                    readonly>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
+                            <label class="form-label">Hipotecario</label>
+                            <input type="text" class="form-control" value="{% if loan.is_mortgage %}Sí{% else %}No{% endif %}" readonly>
+                        </div>
+
+                        <div class="col-md-3">
                             <label class="form-label">Fecha inicio</label>
                             <input type="text" class="form-control"
                                    value="{{ loan.start_date|date:'d-m-Y' }}" readonly>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-md-3">
                             <label class="form-label">Fecha término</label>
                             <input type="text" class="form-control"
                                    value="{{ loan.end_date|date:'d-m-Y' }}" readonly>
@@ -238,6 +245,8 @@
             </div>
         </div>
 
+
+        {% if not financial_locked %}
 
         <!-- DIVIDENDOS -->
         <div class="tab-pane fade" id="loanInstallments">
@@ -556,6 +565,9 @@
                 </table>
             </div>
         </div>
+
+
+        {% endif %}
 
 
         <!-- HISTORIAL -->

@@ -36,8 +36,6 @@ MONEY = Decimal("0.01")
 
 # ============================================================
 # UTILIDADES
-# ============================================================
-
 
 def _save_with_user(instance, audit_user):
     instance.save(user=audit_user)
@@ -225,7 +223,6 @@ def _pending_installment_status():
 
 # ============================================================
 # TABLA FRANCESA
-# ============================================================
 def _french_schedule(principal, annual_rate, term, start_date):
     principal = Decimal(principal)
     annual_rate = Decimal(annual_rate or 0)
@@ -314,7 +311,6 @@ def _simulation(amount, rate, term):
 
 # ============================================================
 # VISTA PRINCIPAL
-# ============================================================
 @login_required
 @require_GET
 def loan_extraordinary(request):
@@ -347,7 +343,6 @@ def loan_extraordinary(request):
 
 # ============================================================
 # BUSCAR PERSONA
-# ============================================================
 @login_required
 @require_GET
 def extraordinary_person_search(request):
@@ -443,7 +438,6 @@ def extraordinary_concepts(request):
 
 # ============================================================
 # SIMULAR
-# ============================================================
 @login_required
 @require_POST
 def extraordinary_simulate(request):
@@ -480,7 +474,6 @@ def extraordinary_simulate(request):
 
 # ============================================================
 # CREAR PRESTAMO EXTRAORDINARIO
-# ============================================================
 @login_required
 @require_POST
 def extraordinary_create(request):
@@ -493,17 +486,29 @@ def extraordinary_create(request):
         rate_id = int(request.POST.get("rate", 0) or 0)
         term = int(request.POST.get("term", 0) or 0)
         amount = _parse_money(request.POST.get("loan_amount"))
+
+        mortgage_value = str(request.POST.get("is_mortgage", "0") or "0").strip().lower()
+
+        if mortgage_value not in {"0", "1", "false", "true", "off", "on", "no", "si", "sí"}:
+            raise ValueError("El valor de hipotecario no es válido.")
+
+        is_mortgage = mortgage_value in {"1", "true", "on", "si", "sí"}
+
         uploaded_file = request.FILES.get("authorization_document")
         _validate_pdf(uploaded_file)
 
         if person_id <= 0:
             raise ValueError("Debe seleccionar una persona.")
+
         if loan_type_id <= 0:
             raise ValueError("Debe seleccionar el tipo de préstamo.")
+
         if type_concept_id <= 0:
             raise ValueError("Debe seleccionar el concepto.")
+
         if rate_id <= 0:
             raise ValueError("Debe seleccionar una tasa.")
+
         if term <= 0:
             raise ValueError("Debe ingresar un plazo válido.")
 
@@ -513,8 +518,10 @@ def extraordinary_create(request):
 
         if not person:
             raise ValueError("La persona seleccionada no existe o se encuentra inactiva.")
+
         if not loan_type:
             raise ValueError("El tipo de préstamo seleccionado no es válido.")
+
         if not rate:
             raise ValueError("La tasa seleccionada no es válida.")
 
@@ -526,17 +533,12 @@ def extraordinary_create(request):
                 is_active=True,
                 concept__is_active=True,
             )
-            .select_related(
-                "loan_type",
-                "concept",
-            )
+            .select_related("loan_type", "concept")
             .first()
         )
 
         if not type_concept:
-            raise ValueError(
-                "El concepto no pertenece al tipo de préstamo seleccionado."
-            )
+            raise ValueError("El concepto no pertenece al tipo de préstamo seleccionado.")
 
         collection_method = _active_remuneration_method()
         status = _active_loan_status()
@@ -549,7 +551,6 @@ def extraordinary_create(request):
                 Loan,
                 request.user,
                 request=None,
-
                 loan_type=loan_type,
                 type_concept=type_concept,
                 person=person,
@@ -566,9 +567,11 @@ def extraordinary_create(request):
                 interest_paid=0,
                 start_date=simulation["start_date"],
                 end_date=simulation["end_date"],
+                is_mortgage=is_mortgage,
                 status=status,
                 previous_loan=None,
             )
+
             for row in simulation["schedule"]:
                 _create_with_user(
                     LoanInstallment,
@@ -603,9 +606,17 @@ def extraordinary_create(request):
     except (TypeError, ValueError) as error:
         if saved_route and default_storage.exists(saved_route):
             default_storage.delete(saved_route)
-        return JsonResponse({"status": "error", "message": str(error)}, status=400)
+
+        return JsonResponse({
+            "status": "error",
+            "message": str(error),
+        }, status=400)
 
     except Exception as error:
         if saved_route and default_storage.exists(saved_route):
             default_storage.delete(saved_route)
-        return JsonResponse({"status": "error", "message": f"No se pudo crear el préstamo extraordinario: {error}"}, status=500)
+
+        return JsonResponse({
+            "status": "error",
+            "message": f"No se pudo crear el préstamo extraordinario: {error}",
+        }, status=500)

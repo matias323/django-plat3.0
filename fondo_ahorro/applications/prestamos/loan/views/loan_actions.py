@@ -35,6 +35,17 @@ from ..models.payment import (
 MAX_FILE_SIZE = 10 * 1024 * 1024
 MONEY = Decimal("0.01")
 
+FINANCIAL_ACTIONS = {
+    "pay-installment",
+    "no-collection",
+    "prepayment",
+    "amortization",
+    "overdue",
+    "insurance",
+    "collection-method",
+    "rate",
+}
+
 
 # ============================================================
 # FUNCIONES GENERALES
@@ -42,6 +53,12 @@ def _normalize(value):
     value = unicodedata.normalize("NFKD", str(value or ""))
     value = "".join(char for char in value if not unicodedata.combining(char))
     return " ".join(value.strip().lower().replace("_", " ").replace("-", " ").split())
+
+
+# ============================================================
+# ESTADO FINANCIERO DEL PRESTAMO
+def _financial_operations_locked(loan):
+    return int(loan.status_id or 0) in {4, 5}
 
 
 def _has_field(model, field_name):
@@ -67,14 +84,34 @@ def _get_client_ip(request):
 
 def _decimal(value, label="Monto"):
     try:
-        raw = str(value or "0").strip().replace(" ", "")
+        raw = str(value or "0").strip()
+        raw = raw.replace("$", "").replace("CLP", "").replace("clp", "").replace(" ", "")
+
+        if not raw:
+            raw = "0"
 
         if "," in raw and "." in raw:
-            raw = raw.replace(".", "").replace(",", ".")
+            if raw.rfind(",") > raw.rfind("."):
+                raw = raw.replace(".", "").replace(",", ".")
+            else:
+                raw = raw.replace(",", "")
+
         elif "," in raw:
-            raw = raw.replace(",", ".")
+            parts = raw.split(",")
+
+            if len(parts) == 2 and 1 <= len(parts[1]) <= 2:
+                raw = raw.replace(",", ".")
+            else:
+                raw = raw.replace(",", "")
+
+        elif "." in raw:
+            parts = raw.split(".")
+
+            if len(parts) > 2 or (len(parts) == 2 and len(parts[1]) == 3):
+                raw = raw.replace(".", "")
 
         result = Decimal(raw)
+
     except (InvalidOperation, TypeError, ValueError):
         raise ValueError(f"{label} inválido.")
 
@@ -317,6 +354,39 @@ def _document_number_type(name, fallback_id, user):
         return _create_with_user(LoanDocumentNumberType, user, name=name)
 
 
+def _validate_document_number_unique(number_type, number, annual=False, year=None):
+    number = int(number)
+
+    # Bloquea el tipo durante la transacción para evitar que dos solicitudes
+    # concurrentes validen el mismo número al mismo tiempo.
+    LoanDocumentNumberType.objects.select_for_update().get(pk=number_type.pk)
+
+    queryset = LoanDocumentNumber.objects.filter(
+        number_type=number_type,
+        number=number,
+        is_active=True,
+    )
+
+    if annual:
+        year = int(year or timezone.localdate().year)
+        queryset = queryset.filter(document__created_at__year=year)
+
+    if not queryset.exists():
+        return
+
+    normalized_type = _normalize(number_type.name)
+
+    if "deposit" in normalized_type:
+        raise ValueError(
+            f"El número de depósito {number} ya fue utilizado durante el año {year}."
+        )
+
+    if "resolucion" in normalized_type:
+        raise ValueError(f"El número de resolución {number} ya fue utilizado.")
+
+    raise ValueError(f"El número {number} ya fue utilizado para {number_type.name}.")
+
+
 def _create_payment(request, loan, payment_type, amount, installment=None):
     return _create_with_user(
         LoanPayment,
@@ -429,9 +499,15 @@ def _french_schedule(principal, annual_rate, count):
 
 def _recalculate_pending_installments(loan, user):
     pending = _pending_installment_status()
+    no_collection = _no_collection_status()
+
     installments = list(
         LoanInstallment.objects
-        .filter(loan=loan, status=pending, is_active=True)
+        .filter(
+            loan=loan,
+            status__in=[pending, no_collection],
+            is_active=True,
+        )
         .order_by("installment_number")
     )
 
@@ -445,8 +521,14 @@ def _recalculate_pending_installments(loan, user):
         installment.amount, installment.principal, installment.interest = values
         _save_with_user(installment, user)
 
-    loan.interest_balance = sum((item.interest for item in installments), Decimal("0"))
-    loan.interest_amount = Decimal(loan.interest_paid or 0) + Decimal(loan.interest_balance or 0)
+    loan.interest_balance = sum(
+        (Decimal(item.interest or 0) for item in installments),
+        Decimal("0"),
+    )
+    loan.interest_amount = (
+        Decimal(loan.interest_paid or 0)
+        + Decimal(loan.interest_balance or 0)
+    )
     _save_with_user(loan, user)
 
 
@@ -615,6 +697,27 @@ def loan_action_modal(request, loan_id, action):
         is_active=True,
     )
 
+    if _financial_operations_locked(loan) and action in FINANCIAL_ACTIONS:
+        return render(
+            request,
+            "prestamos/portfolio/loan_action_modal.html",
+            {
+                "loan": loan,
+                "action": action,
+                "modal_error": (
+                    "Este préstamo se encuentra transferido o recuperado y no admite "
+                    "operaciones financieras. Las operaciones deben realizarse sobre "
+                    "el préstamo vigente correspondiente."
+                ),
+            },
+        )
+
+    contribution_options = _contribution_options_for_loan(loan)
+    total_contributions_available = sum(
+        (Decimal(option["amount"] or 0) for option in contribution_options),
+        Decimal("0"),
+    )
+
     context = {
         "loan": loan,
         "action": action,
@@ -622,12 +725,17 @@ def loan_action_modal(request, loan_id, action):
         "installment": None,
         "installments_no_collection": LoanInstallment.objects.none(),
         "contributions": _contributions_for_loan(loan),
-        "contribution_options": _contribution_options_for_loan(loan),
+        "contribution_options": contribution_options,
+        "total_contributions_available": total_contributions_available,
         "external_methods": LoanPaymentExternalMethod.objects.filter(is_active=True).order_by("id"),
         "collection_methods": LoanCollectionMethod.objects.filter(is_active=True).exclude(pk=loan.collection_method_id),
         "rates": LoanRate.objects.filter(is_active=True).exclude(pk=loan.rate_id).order_by("name"),
         "document_types": DocumentType.objects.filter(is_active=True).order_by("name"),
         "minimum_prepayment": (Decimal(loan.principal_balance or 0) * Decimal("0.05")).quantize(MONEY),
+        "overdue_count": 0,
+        "overdue_principal": Decimal("0"),
+        "overdue_interest": Decimal("0"),
+        "overdue_total": Decimal("0"),
         "dipreca_code": "",
     }
 
@@ -657,14 +765,26 @@ def loan_action_modal(request, loan_id, action):
             first_day = timezone.localdate().replace(day=1)
             pending = _pending_installment_status()
 
-            overdue = (
+            overdue = list(
                 LoanInstallment.objects
                 .filter(loan=loan, status=pending, due_date__lt=first_day, is_active=True)
                 .order_by("installment_number")
             )
 
             context["overdue_installments"] = overdue
-            context["overdue_total"] = overdue.aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            context["overdue_count"] = len(overdue)
+            context["overdue_principal"] = sum(
+                (Decimal(item.principal or 0) for item in overdue),
+                Decimal("0"),
+            )
+            context["overdue_interest"] = sum(
+                (Decimal(item.interest or 0) for item in overdue),
+                Decimal("0"),
+            )
+            context["overdue_total"] = sum(
+                (Decimal(item.amount or 0) for item in overdue),
+                Decimal("0"),
+            )
 
         elif action == "collection-method":
             context["dipreca_code"] = str(_get_person_dipreca(loan.person) or "")
@@ -863,6 +983,13 @@ def loan_action_post(request, loan_id, action):
                 is_active=True,
             )
 
+            if _financial_operations_locked(loan) and action in FINANCIAL_ACTIONS:
+                raise ValueError(
+                    "Este préstamo se encuentra transferido o recuperado y no admite "
+                    "operaciones financieras. Las operaciones deben realizarse sobre "
+                    "el préstamo vigente correspondiente."
+                )
+
             handlers = {
                 "pay-installment": _post_pay_installment,
                 "no-collection": _post_no_collection,
@@ -967,6 +1094,9 @@ def _post_pay_installment(request, loan, saved_paths):
 
     total = Decimal("0")
     parsed = []
+    used_deposit_numbers = set()
+    deposit_number_type = _document_number_type("Número de Depósito", 1, request.user)
+    current_year = timezone.localdate().year
 
     for row in modules:
         try:
@@ -1004,6 +1134,21 @@ def _post_pay_installment(request, loan, saved_paths):
 
             if not detail.isdigit():
                 raise ValueError("El número del depósito debe contener solamente números.")
+
+            deposit_number = int(detail)
+
+            if deposit_number in used_deposit_numbers:
+                raise ValueError(
+                    f"El número de depósito {deposit_number} está repetido en la misma operación."
+                )
+
+            _validate_document_number_unique(
+                deposit_number_type,
+                deposit_number,
+                annual=True,
+                year=current_year,
+            )
+            used_deposit_numbers.add(deposit_number)
 
             _validate_pdf(row["document"])
 
@@ -1063,7 +1208,7 @@ def _post_pay_installment(request, loan, saved_paths):
                     LoanDocumentNumber,
                     request.user,
                     document=document,
-                    number_type=_document_number_type("Número de Depósito", 1, request.user),
+                    number_type=deposit_number_type,
                     number=int(row["detail"]),
                 )
 
@@ -1127,6 +1272,8 @@ def _post_prepayment(request, loan, saved_paths):
     total = Decimal("0")
     parsed = []
     used_numbers = set()
+    deposit_number_type = _document_number_type("Número de Depósito", 1, request.user)
+    current_year = timezone.localdate().year
 
     for row in deposits:
         amount = _decimal(row["amount"])
@@ -1138,12 +1285,23 @@ def _post_prepayment(request, loan, saved_paths):
         if not number.isdigit():
             raise ValueError("Cada depósito debe tener un número válido.")
 
-        if number in used_numbers:
-            raise ValueError("No puede repetir el número de depósito en el mismo prepago.")
+        deposit_number = int(number)
+
+        if deposit_number in used_numbers:
+            raise ValueError(
+                f"El número de depósito {deposit_number} está repetido en el mismo prepago."
+            )
+
+        _validate_document_number_unique(
+            deposit_number_type,
+            deposit_number,
+            annual=True,
+            year=current_year,
+        )
 
         _validate_pdf(row["document"])
 
-        used_numbers.add(number)
+        used_numbers.add(deposit_number)
         total += amount
         parsed.append((amount, number, row["document"]))
 
@@ -1185,7 +1343,7 @@ def _post_prepayment(request, loan, saved_paths):
             LoanDocumentNumber,
             request.user,
             document=document,
-            number_type=_document_number_type("Número de Depósito", 1, request.user),
+            number_type=deposit_number_type,
             number=int(number),
         )
 
@@ -1195,15 +1353,10 @@ def _post_prepayment(request, loan, saved_paths):
 # ============================================================
 # AMORTIZACION
 def _post_amortization(request, loan, saved_paths):
-    amount = _decimal(request.POST.get("amount"), "Monto de amortización")
+    balance = Decimal(loan.principal_balance or 0).quantize(MONEY)
 
-    if amount <= 0:
-        raise ValueError("Debe indicar un monto de amortización mayor a cero.")
-
-    balance = Decimal(loan.principal_balance or 0)
-
-    if amount > balance:
-        raise ValueError("La amortización no puede superar el saldo capital.")
+    if balance <= 0:
+        raise ValueError("El préstamo no posee saldo capital pendiente.")
 
     if LoanPayment.objects.filter(
         loan=loan,
@@ -1216,18 +1369,35 @@ def _post_amortization(request, loan, saved_paths):
     contributions = _parse_contribution_amounts(request)
 
     if not contributions:
-        raise ValueError("Debe utilizar al menos un aporte.")
+        raise ValueError("Debe utilizar al menos un aporte con saldo disponible.")
 
-    total = sum((value for _, value in contributions), Decimal("0"))
+    available_by_type = {
+        int(option["id"]): Decimal(option["amount"] or 0).quantize(MONEY)
+        for option in _contribution_options_for_loan(loan)
+    }
 
-    if total.quantize(MONEY) != amount.quantize(MONEY):
-        raise ValueError("La suma de los aportes debe ser igual al monto de amortización.")
+    total = Decimal("0")
 
     for contribution_type_id, contribution_amount in contributions:
-        if contribution_amount > _available_contribution(contribution_type_id, loan):
-            raise ValueError("Uno de los aportes supera el saldo disponible.")
+        available = available_by_type.get(int(contribution_type_id), Decimal("0"))
 
-    is_total = amount.quantize(MONEY) == balance.quantize(MONEY)
+        if available <= 0:
+            raise ValueError("Uno de los aportes seleccionados no posee saldo disponible.")
+
+        if contribution_amount > available:
+            raise ValueError("Uno de los aportes supera el saldo disponible de la persona.")
+
+        total += Decimal(contribution_amount or 0)
+
+    amount = total.quantize(MONEY)
+
+    if amount <= 0:
+        raise ValueError("La suma de los aportes debe ser mayor a cero.")
+
+    if amount > balance:
+        raise ValueError("La suma de los aportes no puede superar el saldo capital del préstamo.")
+
+    is_total = amount == balance
     payment_type = _payment_type(
         ["Amortización total"] if is_total else ["Amortización parcial"],
         5 if is_total else 4,
@@ -1242,7 +1412,7 @@ def _post_amortization(request, loan, saved_paths):
             payment=payment,
             contribution_type_id=contribution_type_id,
             contribution_amount=contribution_amount,
-            previous_contribution_balance=_available_contribution(contribution_type_id, loan),
+            previous_contribution_balance=available_by_type[int(contribution_type_id)],
         )
 
     uploaded_file = request.FILES.get("document")
@@ -1271,19 +1441,22 @@ def _post_amortization(request, loan, saved_paths):
             if not resolution.isdigit():
                 raise ValueError("El número de resolución debe contener solamente números.")
 
+            resolution_number_type = _document_number_type("Número de Resolución", 2, request.user)
+            resolution_number = int(resolution)
+            _validate_document_number_unique(resolution_number_type, resolution_number)
+
             _create_with_user(
                 LoanDocumentNumber,
                 request.user,
                 document=document,
-                number_type=_document_number_type("Número de Resolución", 2, request.user),
-                number=int(resolution),
+                number_type=resolution_number_type,
+                number=resolution_number,
             )
 
     elif resolution:
         raise ValueError("Si informa un número de resolución debe adjuntar el documento PDF.")
 
     return "Solicitud de amortización registrada correctamente."
-
 
 # ============================================================
 # AMORTIZACION DE INSOLUTOS
@@ -1317,9 +1490,19 @@ def _post_overdue(request, loan):
     if total.quantize(MONEY) != amount.quantize(MONEY):
         raise ValueError("La suma de aportes debe coincidir exactamente con el total insoluto.")
 
+    available_by_type = {
+        int(option["id"]): Decimal(option["amount"] or 0).quantize(MONEY)
+        for option in _contribution_options_for_loan(loan)
+    }
+
     for contribution_type_id, contribution_amount in contributions:
-        if contribution_amount > _available_contribution(contribution_type_id, loan):
-            raise ValueError("Uno de los aportes supera el saldo disponible.")
+        available = available_by_type.get(int(contribution_type_id), Decimal("0"))
+
+        if available <= 0:
+            raise ValueError("Uno de los aportes seleccionados no posee saldo disponible.")
+
+        if contribution_amount > available:
+            raise ValueError("Uno de los aportes supera el saldo disponible de la persona.")
 
     payment = _create_payment(
         request,
@@ -1335,7 +1518,7 @@ def _post_overdue(request, loan):
             payment=payment,
             contribution_type_id=contribution_type_id,
             contribution_amount=contribution_amount,
-            previous_contribution_balance=_available_contribution(contribution_type_id, loan),
+            previous_contribution_balance=available_by_type[int(contribution_type_id)],
         )
 
     new_status = _pending_amortization_status()
@@ -1699,6 +1882,7 @@ def _post_transfer_guarantors(request, loan, saved_paths):
             interest_paid=0,
             start_date=loan.start_date,
             end_date=loan.end_date,
+            is_mortgage=loan.is_mortgage,
             status=child_status,
             previous_loan=loan,
         )
