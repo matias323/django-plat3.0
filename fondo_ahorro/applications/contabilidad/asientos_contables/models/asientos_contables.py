@@ -17,6 +17,10 @@ class AsientoContableEstado(BaseModel):
         db_table = "contab_asiento_estado"
         verbose_name = "Estado de Asiento Contable"
         verbose_name_plural = "Estados de Asientos Contables"
+        
+    #estados
+    def estados():
+        return AsientoContableEstado.objects.filter(is_active=True)
     
 class AsientoContableTipo(BaseModel):
     description = models.CharField(max_length=50, null=False, blank=False, verbose_name="Descripción")
@@ -32,6 +36,10 @@ class AsientoContableTipo(BaseModel):
     #tipos de asiento(ingreso manual)
     def ingreso_manual():
         return AsientoContableTipo.objects.filter(pk=6, is_active=True)
+    
+    #tipos de asiento(todos)
+    def todos():
+        return AsientoContableTipo.objects.filter(is_active=True)
 
 class AsientoContable(BaseModel):
     entry_number = models.PositiveIntegerField(null=False, blank=False, verbose_name="Número Asiento")
@@ -57,6 +65,8 @@ class AsientoContable(BaseModel):
     origin_content_type = models.ForeignKey(ContentType, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Tipo de Origen")
     origin_object_id = models.PositiveBigIntegerField(null=True, blank=True, verbose_name="ID de Origen")
     origin = GenericForeignKey("origin_content_type", "origin_object_id")
+    is_null = models.BooleanField(default=False, verbose_name="Es Nulo")
+    version = models.PositiveBigIntegerField(null=False, blank=False, default=1, verbose_name="Versión")
     
     class Meta:
         db_table = "contab_asiento"
@@ -81,6 +91,18 @@ class AsientoContable(BaseModel):
         }
     
     def asiento_to_dict(self):
+        movimientos_data = []
+        
+        for movimiento in self.movimientos.all():
+            auxiliares_data = []
+            
+            for auxiliar in movimiento.auxiliares.all():
+                auxiliares_data.append(auxiliar.auxiliar_to_dict())
+            
+            movimiento_data = movimiento.movimiento_to_dict()
+            movimiento_data["auxiliares"] = auxiliares_data
+            movimientos_data.append(movimiento_data)
+        
         return {
             "id": self.id,
             "created_at": self.created_at,
@@ -93,12 +115,14 @@ class AsientoContable(BaseModel):
             "numero_comprobante": self.voucher_number,
             "asiento_estado": self.status.description,
             "asiento_tipo": self.entry_type.description,
+            "id_asiento_tipo" : self.entry_type.id,
             "periodo": self.period.periodo_to_dict(),
             "user_create": self.user_create.person.get_name(),
-            "movimientos": [
-                movimientos.movimiento_to_dict() for movimientos in self.movimientos.all()
-            ],
-            "origen": self.get_origen_to_dict()
+            "movimientos": movimientos_data,
+            "origen": self.get_origen_to_dict(),
+            "is_null": self.is_null,
+            "version": self.version,
+            "aprobacion": self.aprobaciones.exists()
         }
         
 class AsientoMovimiento(BaseModel):
@@ -127,7 +151,7 @@ class AsientoMovimiento(BaseModel):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "is_active": self.is_active,
-            "asiento": self.entry.asiento_to_dict(),
+            # "asiento": self.entry.asiento_to_dict(), #genera error de recursion infinita
             "cuenta": self.account.cuenta_to_dict(),
             "glosa": self.description,
             "debe": self.debit,
@@ -167,8 +191,10 @@ class AsientoMovimientoAux(BaseModel):
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "is_active": self.is_active,
-            "movimiento": self.movement.movimiento_to_dict(),
-            "persona": self.person.get_full_name(),
+            # "movimiento": self.movement.movimiento_to_dict(), #genera error de recursion infinita
+            "nombre_persona": self.person.get_full_name(),
+            "rut": self.person.get_rut(),
+            "id_persona": self.person.id,
             "monto": self.amount,
             "user_create": self.user_create.person.get_name(),
         }
@@ -200,4 +226,20 @@ class AsientoContableAprobacion(BaseModel):
         
     def __str__(self):
         return f"{self.entry} - {self.user_create.person.get_name()}"
+    
+class AsientoContableBloqueo(BaseModel):
+    entry = models.ForeignKey(AsientoContable, on_delete=models.PROTECT, null=False, blank=False, verbose_name="Asiento Contable", related_name="bloqueo")
+    locked_at = models.DateTimeField(auto_now_add=True, null=False, blank=False, verbose_name="Fecha Bloqueo")
+    class Meta:
+        db_table = "contab_asiento_bloqueo"
+        verbose_name = "Bloqueo Asiento Contable"
+        verbose_name_plural = "Bloqueos Asientos Contables"
+        
+    #retornar el nombre de la persona que tiene el bloqueo
+    def get_user_bloqueo(self):
+        if not self.user_create:
+            return "Usuario desconocido"
+        
+        return self.user_create.person.get_full_name()
+            
 

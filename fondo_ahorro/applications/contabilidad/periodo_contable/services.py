@@ -22,7 +22,7 @@ class PeriodoContableServices:
     # obtener todos los periodos contables (datatable)
     @staticmethod
     def get_periodos_contables():
-        periodos = PeriodoContable.objects.select_related('user_create', 'user_create__person').order_by('pk')
+        periodos = PeriodoContable.objects.select_related('user_create', 'user_create__person').order_by('-pk')
         data = []
         for orden, row in enumerate(periodos, start=1):
             data.append({

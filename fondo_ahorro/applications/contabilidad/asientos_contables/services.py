@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from .models.asientos_contables import (
     AsientoContableCorrelativo, 
     AsientoContable, 
@@ -7,13 +7,16 @@ from .models.asientos_contables import (
     AsientoContableEstado, 
     AsientoMovimiento, 
     AsientoMovimientoAux,
-    AsientoContableAprobacion)
+    AsientoContableAprobacion,
+    AsientoContableBloqueo)
 
 from core.models.person import Person
 from applications.contabilidad.plan_cuentas.models import Cuentas
 from applications.contabilidad.periodo_contable.services import PeriodoContableServices
 from django.contrib.contenttypes.models import ContentType
-from datetime import date
+from datetime import date, timedelta
+from django.utils import timezone
+import time
 
 class AsientoContableServices:
     
@@ -54,202 +57,202 @@ class AsientoContableServices:
             
     
     #crear encabezado asiento
-    @staticmethod
-    @transaction.atomic
-    def crear_encabezado_asiento(user, entry_date, description, entry_type, origen=None):
-        #validar user
-        if not user or not user.is_authenticated:
-            raise ValueError("El usuario es requerido")
+    # @staticmethod
+    # @transaction.atomic
+    # def crear_encabezado_asiento(user, entry_date, description, entry_type, origen=None):
+    #     #validar user
+    #     if not user or not user.is_authenticated:
+    #         raise ValueError("El usuario es requerido")
         
-        #validar fecha de asiento
-        if not entry_date:
-            raise ValueError("La fecha del asiento es requerida")
+    #     #validar fecha de asiento
+    #     if not entry_date:
+    #         raise ValueError("La fecha del asiento es requerida")
         
-        # convertir fecha recibida desde HTTP
-        if isinstance(entry_date, str):
-            try:
-                entry_date = date.fromisoformat(entry_date)
-            except ValueError:
-                raise ValueError("La fecha del asiento no tiene un formato válido")
+    #     # convertir fecha recibida desde HTTP
+    #     if isinstance(entry_date, str):
+    #         try:
+    #             entry_date = date.fromisoformat(entry_date)
+    #         except ValueError:
+    #             raise ValueError("La fecha del asiento no tiene un formato válido")
         
-        #periodo
-        periodo = PeriodoContableServices.get_periodo_contable_by_year_and_month(entry_date.year, entry_date.month)
-        if not periodo or periodo.is_active == False:
-            raise ValueError("El periodo contable no esta activo")
+    #     #periodo
+    #     periodo = PeriodoContableServices.get_periodo_contable_by_year_and_month(entry_date.year, entry_date.month)
+    #     if not periodo or periodo.is_active == False:
+    #         raise ValueError("El periodo contable no esta activo")
         
-        #validar tipo asiento
-        entry_type = AsientoContableTipo.objects.filter(pk=entry_type).first()
-        if not entry_type or entry_type.is_active == False:
-            raise ValueError("El tipo de asiento no esta activo")
+    #     #validar tipo asiento
+    #     entry_type = AsientoContableTipo.objects.filter(pk=entry_type).first()
+    #     if not entry_type or entry_type.is_active == False:
+    #         raise ValueError("El tipo de asiento no esta activo")
         
-        #numero de asiento
-        entry_number = AsientoContableServices.get_numero_asiento(entry_date.year)
+    #     #numero de asiento
+    #     entry_number = AsientoContableServices.get_numero_asiento(entry_date.year)
         
-        #numero de documento
-        voucher_number = f"A{periodo.year}{entry_number}"
+    #     #numero de documento
+    #     voucher_number = f"A{periodo.year}{entry_number}"
         
-        #estado BORRADOR
-        status = AsientoContableEstado.objects.get(pk=1)
+    #     #estado BORRADOR
+    #     status = AsientoContableEstado.objects.get(pk=1)
         
-        #crear asiento
-        asiento = AsientoContable.objects.create(
-            entry_year = periodo.year,
-            entry_number = entry_number,
-            entry_date = entry_date,
-            description = description.upper().strip() if description else None,
-            voucher_number = voucher_number,
-            status = status,
-            entry_type = entry_type,
-            period = periodo,
-            user_create = user
-        )
+    #     #crear asiento
+    #     asiento = AsientoContable.objects.create(
+    #         entry_year = periodo.year,
+    #         entry_number = entry_number,
+    #         entry_date = entry_date,
+    #         description = description.upper().strip() if description else None,
+    #         voucher_number = voucher_number,
+    #         status = status,
+    #         entry_type = entry_type,
+    #         period = periodo,
+    #         user_create = user
+    #     )
         
-        #registrar origen
-        if origen is not None:
-            asiento.origin_content_type = ContentType.objects.get_for_model(origen)
-            asiento.origin_object_id = origen.pk
-            asiento.save(update_fields=[
-                "origin_content_type",
-                "origin_object_id",
-                "updated_at"
-            ])
+    #     #registrar origen
+    #     if origen is not None:
+    #         asiento.origin_content_type = ContentType.objects.get_for_model(origen)
+    #         asiento.origin_object_id = origen.pk
+    #         asiento.save(update_fields=[
+    #             "origin_content_type",
+    #             "origin_object_id",
+    #             "updated_at"
+    #         ])
             
-        return asiento
+    #     return asiento
         
     #crear movimiento
-    @staticmethod
-    @transaction.atomic
-    def crear_movimiento(user, asiento, account, debit, credit, description=None, auxiliares=None):
-        #validar user
-        if not user or not user.is_authenticated:
-            raise ValueError("El usuario es requerido")
+    # @staticmethod
+    # @transaction.atomic
+    # def crear_movimiento(user, asiento, account, debit, credit, description=None, auxiliares=None):
+    #     #validar user
+    #     if not user or not user.is_authenticated:
+    #         raise ValueError("El usuario es requerido")
         
-        #validar asiento
-        asiento = AsientoContable.objects.get(pk=asiento)
-        if not asiento or asiento.status != 1: #1 = BORRADOR
-            raise ValueError("El asiento no esta activo")
+    #     #validar asiento
+    #     asiento = AsientoContable.objects.get(pk=asiento)
+    #     if not asiento or asiento.status != 1: #1 = BORRADOR
+    #         raise ValueError("El asiento no esta activo")
         
-        #periodo
-        if not asiento.period.is_active:
-            raise ValueError("El periodo contable no esta activo")
+    #     #periodo
+    #     if not asiento.period.is_active:
+    #         raise ValueError("El periodo contable no esta activo")
         
-        #validar cuenta
-        account = Cuentas.objects.filter(pk=account).first()
-        if not account or account.is_active == False:
-            raise ValueError("La cuenta no esta activa")
+    #     #validar cuenta
+    #     account = Cuentas.objects.filter(pk=account).first()
+    #     if not account or account.is_active == False:
+    #         raise ValueError("La cuenta no esta activa")
         
-        is_auxiliar = account.is_auxiliar
+    #     is_auxiliar = account.is_auxiliar
                 
-        #validar debe y haber
-        if debit < 0 or credit < 0:
-            raise ValueError("El monto debe ser mayor a 0")
+    #     #validar debe y haber
+    #     if debit < 0 or credit < 0:
+    #         raise ValueError("El monto debe ser mayor a 0")
         
-        if debit > 0 and credit > 0:
-            raise ValueError("El movimiento solo permite valor en debe o haber")
+    #     if debit > 0 and credit > 0:
+    #         raise ValueError("El movimiento solo permite valor en debe o haber")
         
-        if debit == 0 and credit == 0:
-            raise ValueError("El movimiento debe tener al menos debe o haber")
+    #     if debit == 0 and credit == 0:
+    #         raise ValueError("El movimiento debe tener al menos debe o haber")
         
-        #crear movimiento
-        movimiento = AsientoMovimiento.objects.create(
-            entry = asiento,
-            account = account,
-            description = description.upper().strip() if description else None,
-            debit = debit,
-            credit = credit,
-            user_create = user
-        )
+    #     #crear movimiento
+    #     movimiento = AsientoMovimiento.objects.create(
+    #         entry = asiento,
+    #         account = account,
+    #         description = description.upper().strip() if description else None,
+    #         debit = debit,
+    #         credit = credit,
+    #         user_create = user
+    #     )
         
-        #auxiliares
-        if is_auxiliar:
-            #validar que vengan auxiliares
-            if len(auxiliares) == 0:
-                raise ValueError("El movimiento debe tener al menos un auxiliar")
+    #     #auxiliares
+    #     if is_auxiliar:
+    #         #validar que vengan auxiliares
+    #         if len(auxiliares) == 0:
+    #             raise ValueError("El movimiento debe tener al menos un auxiliar")
             
-            #validar que los montos coincidan
-            monto_total = sum(auxiliar.get("amount", 0) for auxiliar in auxiliares)
+    #         #validar que los montos coincidan
+    #         monto_total = sum(auxiliar.get("amount", 0) for auxiliar in auxiliares)
             
-            if (debit + credit) != monto_total:
-                raise ValueError("El monto total de los auxiliares debe ser igual al monto del movimiento")
+    #         if (debit + credit) != monto_total:
+    #             raise ValueError("El monto total de los auxiliares debe ser igual al monto del movimiento")
 
-            for auxiliar_data in auxiliares:
-                person = auxiliar_data.get("person", None)
-                amount = auxiliar_data.get("amount", 0)
+    #         for auxiliar_data in auxiliares:
+    #             person = auxiliar_data.get("person", None)
+    #             amount = auxiliar_data.get("amount", 0)
                 
-                #validar persona
-                person = Person.objects.filter(pk=person).first()
-                if not person or person.is_active == False:
-                    raise ValueError(f"La persona no identificada")
+    #             #validar persona
+    #             person = Person.objects.filter(pk=person).first()
+    #             if not person or person.is_active == False:
+    #                 raise ValueError(f"La persona no identificada")
                 
-                #validar monto
-                if amount <=0:
-                    raise ValueError("El monto debe ser mayor a 0")
+    #             #validar monto
+    #             if amount <=0:
+    #                 raise ValueError("El monto debe ser mayor a 0")
                 
-                #crear auxiliar
-                auxiliar = AsientoMovimientoAux.objects.create(
-                    movement = movimiento,
-                    person = person,
-                    amount = amount,
-                    user_create = user
-                )
+    #             #crear auxiliar
+    #             auxiliar = AsientoMovimientoAux.objects.create(
+    #                 movement = movimiento,
+    #                 person = person,
+    #                 amount = amount,
+    #                 user_create = user
+    #             )
                 
-        return movimiento
+    #     return movimiento
     
     #desactivar movimiento
-    @staticmethod
-    @transaction.atomic
-    def desactivar_movimiento(user, movimiento, asiento):
-        #validar user
-        if not user or not user.is_authenticated:
-            raise ValueError("El usuario es requerido")
+    # @staticmethod
+    # @transaction.atomic
+    # def desactivar_movimiento(user, movimiento, asiento):
+    #     #validar user
+    #     if not user or not user.is_authenticated:
+    #         raise ValueError("El usuario es requerido")
         
-        #buscar asiento
-        asiento = AsientoContable.objects.filter(pk=asiento).first()
+    #     #buscar asiento
+    #     asiento = AsientoContable.objects.filter(pk=asiento).first()
         
-        if not asiento:
-            raise ValueError("El asiento no existe")
+    #     if not asiento:
+    #         raise ValueError("El asiento no existe")
         
-        if asiento.status in [3, 4]:
-            raise ValueError("El no es posible desactivar el movimiento")
+    #     if asiento.status in [3, 4]:
+    #         raise ValueError("El no es posible desactivar el movimiento")
         
-        #buscar movimiento
-        movimiento = AsientoMovimiento.objects.select_for_update().filter(pk=movimiento, entry=asiento).first()
+    #     #buscar movimiento
+    #     movimiento = AsientoMovimiento.objects.select_for_update().filter(pk=movimiento, entry=asiento).first()
         
-        if not movimiento:
-            raise ValueError("El movimiento no existe")
+    #     if not movimiento:
+    #         raise ValueError("El movimiento no existe")
         
-        movimiento.is_active = False
-        movimiento.user_update = user
-        movimiento.save(update_fields=[
-            "is_active",
-            "user_update",
-            "updated_at"
-        ])
+    #     movimiento.is_active = False
+    #     movimiento.user_update = user
+    #     movimiento.save(update_fields=[
+    #         "is_active",
+    #         "user_update",
+    #         "updated_at"
+    #     ])
         
-        #auxiliares
-        AsientoMovimientoAux.objects.filter(movement=movimiento, is_active=True).update(is_active=False, user_update=user)
+    #     #auxiliares
+    #     AsientoMovimientoAux.objects.filter(movement=movimiento, is_active=True).update(is_active=False, user_update=user)
         
-        return True
+    #     return True
     
     #contabilizar asiento
     @staticmethod
     @transaction.atomic
-    def contabilizar_asiento(user, asiento):
+    def contabilizar_asiento(user, pk):
         #validar user
         if not user or not user.is_authenticated:
             raise ValueError("El usuario es requerido")
         
         #buscar asiento
-        asiento = AsientoContable.objects.select_for_update().filter(pk=asiento).first()
+        asiento = AsientoContable.objects.select_for_update().filter(pk=pk).first()
         
         if not asiento:
             raise ValueError("El asiento no existe")
         
         #validar asiento
-        AsientoContableServices.validar_asiento(asiento)
+        AsientoContableServices.validar_asiento(pk)
         
         #contabilizar
-        asiento.status = AsientoContableEstado.objects.get(pk=2)
+        asiento.status = AsientoContableEstado.objects.get(pk=4) #4: contabilizado
         asiento.user_update = user
         asiento.save(update_fields=[
             "status",
@@ -268,18 +271,24 @@ class AsientoContableServices:
             
     #validar asiento
     @staticmethod
-    def validar_asiento(asiento):
+    def validar_asiento(pk):
         #validar asiento
-        asiento = AsientoContable.objects.filter(pk=asiento).first()
+        asiento = AsientoContable.objects.filter(pk=pk).first()
         if not asiento:
             raise ValueError("El asiento no existe")
         
-        asiento_estado = asiento.status
-        
         #movimeinto
         movimientos = AsientoMovimiento.objects.filter(entry=asiento, is_active=True).select_related("account")
-        if len(movimientos) < 2 and asiento_estado!=3 or not movimientos.exist():#nulo
+        if len(movimientos) < 2 or not movimientos.exists():#nulo
             raise ValueError("El asiento debe tener al menos 2 movimientos")
+        
+        #asiento nulo
+        if asiento.is_null: 
+            if len(movimientos) > 1:
+                raise ValueError("El asiento nulo no debe tener movimientos activos")
+        
+        if asiento.status.id == 4:
+            raise ValueError("El asiento ya ha sido contabilizado")
         
         total_debe = 0
         total_haber = 0
@@ -321,26 +330,27 @@ class AsientoContableServices:
     #anular asiento
     @staticmethod
     @transaction.atomic
-    def anular_asiento(user, asiento):
-         #validar user
+    def anular_asiento(user, asiento_id):
+        #validar user
         if not user or not user.is_authenticated:
             raise ValueError("El usuario es requerido")
         
         #validar asiento
-        asiento = AsientoContable.objects.filter(pk=asiento).first()
+        asiento = AsientoContable.objects.filter(pk=asiento_id).first()
         if not asiento:
             raise ValueError("El asiento no existe")
         
-        if asiento.status in [3, 4]:
-            raise ValueError("No es posible anular el asiento")
+        if asiento.status.id == 4: #4: contabilizado
+            raise ValueError("No es posible anular el asiento, ya ha sido contabilizado")
         
         if asiento.period.is_active == False:
             raise ValueError("El periodo contable no esta activo")
         
-        asiento.status = AsientoContableEstado.objects.get(pk=4)
+        
+        asiento.is_null = True
         asiento.user_update = user
         asiento.save(update_fields=[
-            "status",
+            "is_null",
             "user_update",
             "updated_at"
         ])
@@ -352,6 +362,144 @@ class AsientoContableServices:
         AsientoMovimiento.objects.filter(entry=asiento, is_active=True).update(is_active=False, user_update=user)
         
         return True
+    
+    #quitar nulo asiento
+    @staticmethod
+    @transaction.atomic
+    def quitar_nulo_asiento(user, asiento_id):
+         #validar user
+        if not user or not user.is_authenticated:
+            raise ValueError("El usuario es requerido")
+        
+        #validar asiento
+        asiento = AsientoContable.objects.filter(pk=asiento_id).first()
+        if not asiento:
+            raise ValueError("El asiento no existe")
+        
+        if asiento.status.id == 4: #4: contabilizado
+            raise ValueError("No es posible activar el asiento, ya ha sido contabilizado")
+        
+        if asiento.period.is_active == False:
+            raise ValueError("El periodo contable no esta activo")
+        
+        
+        asiento.is_null = False
+        asiento.user_update = user
+        asiento.save(update_fields=[
+            "is_null",
+            "user_update",
+            "updated_at"
+        ])
+        
+        #auxiliares
+        AsientoMovimientoAux.objects.filter(movement__entry=asiento, is_active=True).update(is_active=False, user_update=user)
+        
+        #movimeinto
+        AsientoMovimiento.objects.filter(entry=asiento, is_active=True).update(is_active=False, user_update=user)
+        
+        return True
+    
+    #crear movimiento
+    @staticmethod
+    @transaction.atomic
+    def crear_movimiento(user, asiento_id, data):
+        #validar user
+        if not user or not user.is_authenticated:
+            raise ValueError("El usuario es requerido")
+        
+        #validar asiento
+        asiento = AsientoContable.objects.get(pk=asiento_id)
+        if not asiento or asiento.status.id == 4: #4 = CONTABILIZADO
+            raise ValueError("El asiento no esta activo")
+        
+        #validar que asiento no este nulo
+        if asiento.is_null:
+            raise ValueError("El asiento esta nulo")
+        
+        #periodo
+        if not asiento.period.is_active:
+            raise ValueError("El periodo contable no esta activo")
+        
+
+        account_id = data.get("account")
+        description = data.get("description")
+        debit = data.get("debit", 0)
+        credit = data.get("credit", 0)
+        auxiliares = data.get("auxiliares", [])
+        
+        
+        #validar cuenta
+        account = Cuentas.objects.filter(pk=account_id).first()
+        if not account or account.is_active == False:
+            raise ValueError("La cuenta no esta activa")
+        
+        #verificar si cuenta es imputable(utilizable para contabilizar)
+        cuentas_catalogo = Cuentas.get_catalogo_cuentas()
+        if not any(c["id"] == account_id for c in cuentas_catalogo):
+            raise ValueError(f"La cuenta no es imputable(No se puede utilizar para contabilizar)")
+        
+        #validar debe y haber
+        if debit == 0 and credit == 0:
+            raise ValueError("El movimiento debe tener al menos debe o haber")
+        
+        if debit > 0 and credit > 0:
+            raise ValueError("El movimiento solo permite valor en debe o haber")
+        
+    
+        
+        #crear movimiento
+        movimiento = AsientoMovimiento.objects.create(
+            entry = asiento,
+            account = account,
+            description = description.upper().strip() if description else None,
+            debit = debit,
+            credit = credit,
+            user_create = user
+        )
+        
+        #auxiliares
+        
+        if account.is_auxiliar:
+            #validar que vengan auxiliares
+            if len(auxiliares) == 0:
+                raise ValueError("El movimiento debe tener al menos un auxiliar")
+            
+            #validar que los montos coincidan
+            monto_total = sum(auxiliar.get("amount", 0) for auxiliar in auxiliares)
+            
+            if (debit + credit) != monto_total:
+                raise ValueError("El monto total de los auxiliares debe ser igual al monto del movimiento")
+            
+            # Set para registrar personas ya procesadas en este movimiento
+            auxiliares_procesados = set()
+
+            for auxiliar_data in auxiliares:
+                person_id = auxiliar_data.get("person", None)
+                amount = auxiliar_data.get("amount", 0)
+                
+                #validar persona
+                person = Person.objects.filter(pk=person_id).first()
+                if not person or person.is_active == False:
+                    raise ValueError(f"La persona no identificada")
+                
+                #validar monto
+                if amount <=0:
+                    raise ValueError("El monto debe ser mayor a 0")
+                
+                if person_id in auxiliares_procesados:
+                    raise ValueError(f"La persona {person.get_full_name()} se encuentra duplicada en el movimiento")
+                
+                auxiliares_procesados.add(person_id)
+                
+                #crear auxiliar
+                AsientoMovimientoAux.objects.create(
+                    movement = movimiento,
+                    person = person,
+                    amount = amount,
+                    user_create = user
+                )
+                
+        return movimiento
         
     
     #crear asiento contable
@@ -376,7 +524,7 @@ class AsientoContableServices:
         #periodo
         periodo = PeriodoContableServices.get_periodo_contable_by_year_and_month(entry_date.year, entry_date.month)
         if not periodo or periodo.is_active == False:
-            raise ValueError("El periodo contable no esta activo")
+            raise ValueError("La fecha del asiento corresponde a un periodo inactivo")
         
         #movimientos
         if movimientos is None or len(movimientos) == 0:
@@ -396,19 +544,18 @@ class AsientoContableServices:
         
         #numero de asiento
         entry_number = AsientoContableServices.get_numero_asiento(entry_date.year)
-        
         #numero de documento
         voucher_number = f"A{periodo.year}{entry_number}"
         
         #estado BORRADOR
-        status = AsientoContableEstado.objects.get(pk=1)
+        status = AsientoContableEstado.objects.get(pk=1) #1: borrador
         
         #crear asiento
         asiento = AsientoContable.objects.create(
             entry_year = periodo.year,
             entry_number = entry_number,
             entry_date = entry_date,
-            description = description if description else None,
+            description = description.upper().strip(),
             voucher_number = voucher_number,
             status = status,
             entry_type = entry_type,
@@ -423,76 +570,304 @@ class AsientoContableServices:
             asiento.save(update_fields=[
                 "origin_content_type",
                 "origin_object_id",
-                "updated_at"
+                "updated_at",
+                "user_update"
             ])
         
         #movimientos
         for movimiento_data in movimientos:
-            account = movimiento_data.get("account")
-            debit = movimiento_data.get("debit", 0)
-            credit = movimiento_data.get("credit", 0)
-            account = movimiento_data.get("account", None)
-            description_movimiento = movimiento_data.get("description", None)
-            
-            #validar cuenta
-            account = Cuentas.objects.filter(pk=account).first()
-            if not account or account.is_active == False:
-                raise ValueError(f"La cuenta {account} no esta activa")
-            
-            is_auxiliar = account.is_auxiliar
-            auxiliares = movimiento_data.get("auxiliares", [])
-            
-            #validar debito y credito
-            if debit <0 or credit <0:
-                raise ValueError("El monto debe ser mayor a 0")
-            
-            if debit==0 and credit==0:
-                raise ValueError("Se debe incluir un monto mayor a 0 en debe o haber")
-            
-            #crear movimiento
-            movimiento = AsientoMovimiento.objects.create(
-                entry = asiento,
-                account = account,
-                description = description_movimiento.upper().strip() if description_movimiento else None,
-                debit = debit,
-                credit = credit,
-                user_create = user
-            )
-            
-            #auxiliares
-            if is_auxiliar:
-                #validar que vengan auxiliares
-                if len(auxiliares) == 0:
-                    raise ValueError("El movimiento debe tener al menos un auxiliar")
-                
-                #validar que los montos coincidan
-                monto_total = sum(auxiliar.get("amount", 0) for auxiliar in auxiliares)
-                
-                if sum(debit, credit) != monto_total:
-                    raise ValueError("El monto total de los auxiliares debe ser igual al monto del movimiento")
-                
-                for auxiliar_data in auxiliares:
-                    person = auxiliar_data.get("person", None)
-                    amount = auxiliar_data.get("amount", 0)
-                    
-                    #validar persona
-                    person = Person.objects.filter(pk=person).first()
-                    if not person or person.is_active == False:
-                        raise ValueError(f"La persona no identificada")
-                    
-                    #validar monto
-                    if amount <=0:
-                        raise ValueError("El monto debe ser mayor a 0")
-                    
-                    #crear auxiliar
-                    auxiliar = AsientoMovimientoAux.objects.create(
-                        movement = movimiento,
-                        person = person,
-                        amount = amount,
-                        user_create = user
-                    )
+            AsientoContableServices.crear_movimiento(user, asiento.id, movimiento_data)
               
-        return asiento       
+        return asiento
+    
+    #verificar si se puede editar el asiento
+    @staticmethod
+    @transaction.atomic
+    def check_asiento_edit(pk, version, user):
+        response = []
+        #validar user
+        if not user or not user.is_authenticated:
+            raise ValueError("El usuario es requerido")
+        
+        if not pk or pk <= 0:
+            raise ValueError("El id del asiento es requerido")
+        
+        if not version or version <= 0:
+            raise ValueError("La versión del asiento es requerida")
+        
+        #buscar asiento
+        asiento = AsientoContable.objects.filter(pk=pk).first()
+        
+        if not asiento:
+            raise ValueError("El asiento no existe")
+        
+        if asiento.status.id == 4: #4: contabilizado
+            raise ValueError("No es posible editar el asiento")
+        
+        if asiento.is_null:
+            raise ValueError("No es posible editar el asiento")
+        
+        if asiento.version != version:
+            response = {
+                "success": False,
+                "message": "El asiento ha sido modificado por otro usuario",
+                "refresh": True
+            }
+            return response
+            
+        
+        #buscar si asiento esta siendo modificado por otro usuario
+        bloqueo = AsientoContableBloqueo.objects.filter(entry=asiento, is_active=True).order_by("-locked_at").first()
+        if bloqueo:
+            
+            #verificar si el bloqueo es del mismo usuario
+            if bloqueo.user_create == user:
+                #actualizar el locked_at
+                bloqueo.locked_at = timezone.now()
+                bloqueo.save(update_fields=[
+                    "locked_at",
+                    "updated_at",
+                    "user_update"
+                ])
+                
+                response = {
+                    "success": True,
+                    "message": "El asiento se puede editar",
+                    "refresh": False
+                }
+                return response
+                
+                
+            #tiempo de expiracion
+            tiempo_expiracion = timezone.now() - timedelta(minutes=15)
+            
+            if bloqueo.locked_at < tiempo_expiracion:
+                bloqueo.is_active = False
+                bloqueo.save(update_fields=[
+                    "is_active",
+                    "updated_at",
+                    "user_update"
+                ])
+                
+                #crear nuevo bloqueo
+                AsientoContableBloqueo.objects.create(
+                    entry = asiento,
+                    user_create = user,
+                    is_active = True,
+                    locked_at = timezone.now()
+                    
+                )
+                
+                response = {
+                    "success": True,
+                    "message": "El asiento se puede editar",
+                    "refresh": False
+                }
+                return response
+            else:
+                response = {
+                    "success": False,
+                    "message": f"El asiento se encuentra siendo modificado por {bloqueo.get_user_bloqueo()}",
+                    "refresh": False
+                }
+                return response
+        
+        #crear bloqueo
+        AsientoContableBloqueo.objects.create(
+            entry = asiento,
+            user_create = user,
+            is_active = True,
+            locked_at = timezone.now()
+        )
+        
+        response = {
+            "success": True,
+            "message": "El asiento se puede editar",
+            "refresh": False
+        }
+        return response
+    
+    #quitar bloqueo asiento
+    @staticmethod
+    @transaction.atomic
+    def uncheck_asiento(user, pk):
+        #validar user
+        if not user or not user.is_authenticated:
+            raise ValueError("El usuario es requerido")
+        
+        if not pk:
+            raise ValueError("El id del asiento es requerido")
+        
+        #buscar asiento
+        asiento = AsientoContable.objects.filter(pk=pk).first()
+        
+        if not asiento:
+            raise ValueError("El asiento no existe")
+        
+        #buscar bloqueo
+        bloqueo = AsientoContableBloqueo.objects.filter(entry=asiento, is_active=True).order_by("-locked_at").first()
+        if not bloqueo:
+            raise ValueError("No existe un registro de bloqueo para el asiento")
+        
+        bloqueo.is_active = False
+        bloqueo.save(update_fields=[
+            "is_active",
+            "updated_at",
+            "user_update"
+        ])
+        
+        return True
+    
+    #editar asiento
+    @staticmethod
+    @transaction.atomic
+    def editar_asiento(user, asiento_id, glosa_asiento, movimientos):
+         #validar user
+        if not user or not user.is_authenticated:
+            raise ValueError("El usuario es requerido")
+        
+        if not asiento_id:
+            raise ValueError("El id del asiento es requerido")
+        
+        if not glosa_asiento:
+            raise ValueError("La glosa del asiento es requerida")
+                     
+        #movimientos
+        if movimientos is None or len(movimientos) == 0:
+            raise ValueError("El asiento debe tener al menos 2 movimientos")
+                
+        #validar debe y haber
+        debit_total = sum(movimiento.get("debit", 0) for movimiento in movimientos)
+        credit_total = sum(movimiento.get("credit", 0) for movimiento in movimientos)
+                
+        if debit_total != credit_total:
+            raise ValueError("El asiento debe tener el mismo monto de debe y haber")
+        
+        #verificar que el asiento exista, periodo activo y no este contabilizado
+        asiento = AsientoContable.objects.filter(pk=asiento_id).first()
+        if not asiento:
+            raise ValueError("El asiento no existe")
+        
+        if asiento.status.id == 4: #4: contabilizado
+            raise ValueError("No es posible editar el asiento")
+        
+        if asiento.period.is_active == False:
+            raise ValueError("El periodo contable no esta activo")
+        
+        #verificar si se puede editar
+        response = AsientoContableServices.check_asiento_edit(asiento_id, asiento.version, user)
+        if not response["success"]:
+            raise ValueError(response["message"])
+    
+        
+        #desactivar movimientos actuales
+        AsientoMovimiento.objects.filter(entry=asiento, is_active=True).update(is_active=False, user_update=user)
+        
+        #desactivar auxiliares pertenecientes al movimiento
+        AsientoMovimientoAux.objects.filter(movement__entry=asiento, is_active=True).update(is_active=False, user_update=user)
+        
+        #actualizar glosa
+        asiento.description = glosa_asiento.upper().strip()
+        asiento.user_update = user
+        asiento.save(update_fields=[
+            "description",
+            "user_update",
+            "updated_at"
+        ])
+        
+        #crear movimientos
+        for movimiento_data in movimientos:
+            AsientoContableServices.crear_movimiento(user, asiento_id, movimiento_data)
+            
+        #quitar bloqueo
+        AsientoContableServices.uncheck_asiento(user, asiento_id)
+        
+        #incrementar version
+        asiento.version = asiento.version + 1
+        asiento.user_update = user
+        asiento.save(update_fields=[
+            "version",
+            "user_update",
+            "updated_at"
+        ])
+        
+        return asiento
+    
+    #generar pdf de asiento contable
+    @staticmethod
+    def asiento_pdf(pk):
+        
+        movimientos = (
+            AsientoMovimiento.objects.filter(is_active=True)
+            .select_related("account", "user_create", "user_create__person")
+            .prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True)
+                .select_related("person", "user_create", "user_create__person")))
+        )
+        
+        asiento = (AsientoContable.objects.select_related("status", "entry_type", "period", "user_create", "user_create__person")
+            .prefetch_related(Prefetch("movimientos", queryset=movimientos))
+            .filter(pk=pk, is_active=True, status=4)
+            .first()
+        )
+        
+        if not asiento:
+            return None
+        
+        return asiento.asiento_to_dict()
+    
+    #buscar asientos
+    @staticmethod
+    def buscar_asientos(numero=None, periodo_id=None, tipo_id=None, estado_id=None, fecha_inicio=None, fecha_fin=None):
+        filters = Q(is_active=True)
+        
+        if numero:
+            filters &= Q(entry_number=numero)
+            
+        if periodo_id:
+            filters &= Q(period=periodo_id)
+            
+        if tipo_id:
+            filters &= Q(entry_type=tipo_id)
+            
+        if estado_id:
+            filters &= Q(status=estado_id)
+            
+        if fecha_inicio and fecha_fin:
+            filters &= Q(entry_date__range=[fecha_inicio, fecha_fin])
+        elif fecha_inicio:
+            filters &= Q(entry_date__gte=fecha_inicio)
+        elif fecha_fin:
+            filters &= Q(entry_date__lte=fecha_fin)
+            
+        movimientos = (AsientoMovimiento.objects.filter(is_active=True)
+                       .select_related("account", "user_create", "user_create__person")
+                       .prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True))))
+            
+        asientos = (AsientoContable.objects.filter(filters)
+                    .select_related("status", "entry_type", "period", "user_create", "user_create__person")
+                    .prefetch_related(Prefetch("movimientos", queryset=movimientos))
+                    .order_by("entry_number"))
+        
+        return [asiento.asiento_to_dict() for asiento in asientos]
+    
+    #obtener asientos contables del periodo activo
+    @staticmethod
+    def asientos_periodo_activo():
+        data = []
+        periodo = PeriodoContableServices.get_periodo_contable_actual()
+        if not periodo:
+            return data
+        
+        movimientos = AsientoMovimiento.objects.filter(is_active=True).prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True)))
+        
+        asientos = AsientoContable.objects.filter(period=periodo, is_active=True).prefetch_related(Prefetch("movimientos", queryset=movimientos)).order_by("entry_number")
+        
+        for asiento in asientos:
+            data.append(asiento.asiento_to_dict())
+        
+        # time.sleep(10)
+        return data
+        
                 
             
             

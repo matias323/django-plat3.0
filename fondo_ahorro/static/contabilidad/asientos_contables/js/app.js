@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <i class="bi bi-search"></i>
                     </button>
                     <input type="text" class="form-control form-control-sm input-codigo-cuenta" 
-                           placeholder="Código (ej. 1011)" value="${defaultCodigoCuenta}" 
-                           list="list-cuentas" maxlength="15" autocomplete="off" style="max-width: 95px; font-weight: 600;">
+                           placeholder="Numero de cuenta" value="${defaultCodigoCuenta}" 
+                           list="list-cuentas" maxlength="15" autocomplete="off" style="max-width: 150px; font-weight: 600;">
                     <input type="text" class="form-control form-control-sm input-nombre-cuenta bg-light" 
                            placeholder="Nombre de cuenta" value="${accountName !== 'Seleccione o busque una cuenta...' ? accountName : ''}" readonly>
                     <input type="hidden" class="input-cuenta-id">
@@ -136,7 +136,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const inputHaber = tr.querySelector('.input-haber');
         const btnDelete = tr.querySelector('.btn-delete-row');
         const btnAux = tr.querySelector('.btn-auxiliar-row');
-        const modalAuxiliar = new bootstrap.Modal(document.getElementById('modal-auxiliares'));
 
         // Búsqueda modal
         btnSearch.addEventListener('click', () => {
@@ -235,6 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Eliminar fila
         btnDelete.addEventListener('click', () => {
             tr.remove();
+            //quitar los auxiliares de la fila eliminada
+            auxiliaresMovimiento = auxiliaresMovimiento.filter(auxiliar => auxiliar.account !== Number(inputCuentaId.value));
             renumberRows();
             recalculateTotals();
             Swal.fire('Fila eliminada', 'La fila se ha eliminado correctamente.', 'success');
@@ -243,7 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Abrir modal de auxiliares
         btnAux.addEventListener('click', (e) => {
             e.preventDefault();
-            modalAuxiliar.show();
+            document.getElementById("cuenta-seleccionada-modal").value = inputCuentaId.value;
+            renderizarTblAux();
+            $('#modal-auxiliares').modal('show');
         });
     }
 
@@ -470,14 +473,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const glosa = row.querySelector('.input-glosa-linea')?.value || '';
             const debe = parseMoney(row.querySelector('.input-debe')?.value);
             const haber = parseMoney(row.querySelector('.input-haber')?.value);
+            const cuentaId = row.querySelector('.input-cuenta-id')?.value || '';
 
             if (codigo || debe > 0 || haber > 0) {
                 movimientos.push({
-                    codigoCuenta: codigo,
-                    nombreCuenta: nombre,
-                    glosa,
-                    debe,
-                    haber
+                    num_cuenta: codigo,
+                    nombre_cuenta: nombre,
+                    description: glosa,
+                    debit: debe,
+                    credit: haber,
+                    account: Number(cuentaId)
                 });
             }
         });
@@ -485,20 +490,31 @@ document.addEventListener('DOMContentLoaded', () => {
         let totalDebe = 0;
         let totalHaber = 0;
         movimientos.forEach(m => {
-            totalDebe += m.debe;
-            totalHaber += m.haber;
+            totalDebe += m.debit;
+            totalHaber += m.credit;
+        });
+
+        //incluir auxiliares a cada movimeinto
+        const movimientosAux = movimientos.map(movimiento => {
+            //filtrar los auxiliares que pertenecen al movimiento
+            const auxiliaresMov = auxiliaresMovimiento.filter(aux => aux.account == movimiento.account);
+            return {
+                ...movimiento,
+                auxiliares: auxiliaresMov
+            };
         });
 
         return {
             fechaAsiento: document.getElementById('fecha-asiento')?.value || '',
             fechaContable: document.getElementById('fecha-contable')?.value || '',
             periodo: document.getElementById('periodo-asiento')?.value || '',
-            tipoAsiento: document.getElementById('tipo-asiento')?.value || '',
+            tipoAsiento: Number(document.getElementById('tipo-asiento')?.value) || 0,
             glosaGeneral: document.getElementById('glosa-general')?.value || '',
             totalDebe: totalDebe,
             totalHaber: totalHaber,
             diferencia: totalDebe - totalHaber,
-            movimientos
+            movimientos: movimientosAux,
+            auxiliares : auxiliaresMovimiento
         };
     }
 
@@ -506,7 +522,22 @@ document.addEventListener('DOMContentLoaded', () => {
         btnPostEntry.addEventListener('click', () => {
             const data = getJournalEntryData();
             console.log(data)
-            // return
+            if (data.fechaAsiento === '') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Asiento incompleto',
+                    text: 'El asiento debe tener una fecha de asiento.',
+                })
+                return;
+            }
+            if (data.glosaGeneral === '') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Asiento incompleto',
+                    text: 'El asiento debe tener una glosa general.',
+                })
+                return;
+            }
             if (data.movimientos.length < 2) {
                 Swal.fire({
                     icon: 'warning',
@@ -525,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Validar cuentas vacías
-            const missingAccount = data.movimientos.some(m => !m.codigoCuenta);
+            const missingAccount = data.movimientos.some(m => !m.num_cuenta);
             if (missingAccount) {
                 Swal.fire({
                     icon: 'warning',
@@ -534,28 +565,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 return;
             }
-            // showToast(`¡Asiento ${data.numeroAsiento} contabilizado exitosamente!`, "success");
-            
-            // Abrir vista previa del comprobante
-            // renderVoucherModal(data);
+            Swal.fire({
+                icon: 'question',
+                title: 'Finalizar asiento',
+                text: 'Está seguro de que desea finalizar el asiento?',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Si, Finalizar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    //contabilizar
+                    contabilizar(data);
+                }
+            })
+        });
+    }
+
+    /**
+     * btn limpiar
+     */
+    if (btnClearAll) {
+        btnClearAll.addEventListener('click', () => {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Limpiar asiento',
+                text: 'Está seguro de que desea limpiar todos los datos del asiento actual?',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Si, Limpiar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    clearAll();
+                }
+            })
         });
     }
 
     /**
      * Limpiar todo
      */
-    if (btnClearAll) {
-        btnClearAll.addEventListener('click', () => {
-            if (confirm("¿Está seguro de que desea limpiar todos los datos del asiento actual?")) {
-                tbodyMovements.innerHTML = '';
-                document.getElementById('glosa-general').value = '';
-                
-                // Inicializar 2 filas vacías estándar
-                createMovementRow();
-                createMovementRow();
-                recalculateTotals();
-            }
-        });
+    const clearAll = () => {
+        tbodyMovements.innerHTML = '';
+        document.getElementById('glosa-general').value = 'Ajuste Contable';
+        
+        recalculateTotals();
+        auxiliaresMovimiento = [];
+        document.getElementById('fecha-asiento').value = '';
     }
 
     /**
@@ -675,7 +734,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-// solicitudes
+    // solicitudes
 
     // busqueda de auxiliares
     let timerBusquedaPersona = null;
@@ -739,10 +798,10 @@ document.addEventListener('DOMContentLoaded', () => {
         resultSearchPersona.innerHTML = '';
 
         if(data.length === 0){
-            resultSearchPersona.innerHTML = `
-            <div class="list-group-item text-danger>
-                No se encontraron auxiliares
-            </div>`
+            const item = document.createElement("div")
+            item.className = "list-group-item list-group-item-action text-muted text-center"
+            item.innerHTML = `Sin resultados`
+            resultSearchPersona.appendChild(item)
             return
         }
 
@@ -783,10 +842,161 @@ document.addEventListener('DOMContentLoaded', () => {
 
         inputBuscarPersona.dataset.nombre = personNombre
         inputBuscarPersona.dataset.rut = personRut
+        inputBuscarPersona.dataset.personId = personId
 
         resultSearchPersona.innerHTML = ''
         resultSearchPersona.classList.remove('show')
     })
+
+    //capturar el click agregar auxiliar modal
+    document.addEventListener("click", (e) => {
+        if (e.target && e.target.closest("#btn-add-auxiliar")){
+            e.preventDefault();
+            const montoAux = document.getElementById("monto-auxiliar-modal").value;
+            const idPerson = inputBuscarPersona.dataset.personId;
+            const rutPerson = inputBuscarPersona.dataset.rut;
+            const nombrePerson = inputBuscarPersona.dataset.nombre;
+            const cuentaMov = document.getElementById("cuenta-seleccionada-modal").value;
+
+            let montoLimpio = montoAux.replaceAll(".", "").replaceAll("$", "");
+            montoLimpio = parseInt(montoLimpio, 10);
+
+            if (!montoAux || !idPerson || !rutPerson || !nombrePerson) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Debe seleccionar un auxiliar y ingresar un monto',
+                })
+                return;
+            }
+
+            if (montoAux <= 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'El monto debe ser mayor a 0',
+                })
+                return;
+            }
+
+            // Evitar persona repetida
+            const existe = auxiliaresMovimiento.some(
+                auxiliar => auxiliar.id === Number(idPerson) && auxiliar.cuenta === Number(cuentaMov)
+            );
+
+            if (existe) {
+                Swal.fire({
+                    icon: "warning",
+                    title: "Persona ya agregada",
+                    text: "La persona seleccionada ya existe en los auxiliares."
+                });
+
+                return;
+            }
+
+            auxiliaresMovimiento.push({
+                person: Number(idPerson),
+                rut: rutPerson,
+                nombre: nombrePerson,
+                amount: montoLimpio,
+                account: Number(cuentaMov)
+            });
+
+            //limpiar seleccion aux
+            inputBuscarPersona.value = "";
+            inputBuscarPersona.dataset.personId = "";
+            inputBuscarPersona.dataset.rut = "";
+            inputBuscarPersona.dataset.nombre = "";
+            personaSeleccionada.value = "";
+            resultSearchPersona.innerHTML = '';
+            resultSearchPersona.classList.remove('show');
+
+            // Limpiar monto
+            document.getElementById("monto-auxiliar-modal").value = '';
+
+            // actualizar tabla
+            renderizarTblAux();
+            
+        }
+    })
+
+    //tabla auxiliares modal
+    const renderizarTblAux = () => {
+        const tblBodyAux = document.getElementById("tbody-auxiliares-modal");
+        const cuentaMov = document.getElementById("cuenta-seleccionada-modal").value;
+        tblBodyAux.innerHTML = '';
+        auxiliaresMovimiento.forEach((auxiliar, index) => {
+            if(auxiliar.account !== Number(cuentaMov)) return
+            let montoFormat = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(auxiliar.amount);
+            const btnEliminarAux =  `<button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-aux" data-index="${index}">
+            <i class="bi bi-trash"></i>
+            </button>`;
+           
+            tblBodyAux.innerHTML += `
+            <tr>
+                <td>${auxiliar.rut}</td>
+                <td>${auxiliar.nombre}</td>
+                <td>${montoFormat}</td>
+                <td>${btnEliminarAux}</td>
+            </tr>
+            `;
+        });
+    }
+
+    //eliminar aux de tbl
+    document.addEventListener("click", (e) => {
+        const btn = e.target.closest(".btn-eliminar-aux");
+        if (!btn) return;
+
+        const index = parseInt(btn.dataset.index, 10);
+        
+        auxiliaresMovimiento.splice(index, 1);
+        console.log(auxiliaresMovimiento)
+        renderizarTblAux();
+    })
+
+    //enviar datos para contabilizar
+    const contabilizar = async(data) => {
+        // Spinner de carga
+        Swal.fire({
+            title: "Espere",
+            text: "Guardando datos...",
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => {
+                Swal.showLoading();
+            },
+        });
+        try {
+            const response = await fetch("/contabilidad/asientos_contables/contabilizar/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrftoken,
+                    "X-App-Request": "true",
+                },
+                body: JSON.stringify(data),
+            });
+
+            const res = await response.json();
+            console.log(res)
+            Swal.fire({
+                icon: res.success ? "success" : "warning",
+                title: res.message,
+                text: res.success ?"NUMERO DE COMPROBANTE: "+ res.data.numero_comprobante : ""
+            });
+
+            if(res.success){
+                clearAll()
+            }
+        } catch (error) {
+            console.error(error)
+            Swal.fire({
+                icon: "error",
+                title: "No se pudo guardar",
+                text: error.message || "No es posible procesar la solicitud",
+            })
+        }
+        
+    }
 
 
 

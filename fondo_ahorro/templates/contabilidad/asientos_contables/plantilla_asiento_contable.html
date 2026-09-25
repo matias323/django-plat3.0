@@ -232,7 +232,8 @@
                     <div class="col-md-6 mb-3">
                         <div class="input-group">
                             <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control" id="search-auxiliar-modal" 
+                            <input type="hidden" id="cuenta-seleccionada-modal">
+                            <input type="text" class="form-control" id="search-auxiliar-modal" autocomplete="off" 
                                     placeholder="Buscar por código, rut o nombre del auxiliar..." autofocus>
                         </div>
                         <div class="list-group" id="result-search-aux"></div>
@@ -241,7 +242,7 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <div class="input-group">
-                            <span class="input-group-text bg-light">Monto</span>
+                            <span class="input-group-text bg-light"><i class="bi bi-currency-dollar"></i></span>
                             <input type="text" class="form-control input-currency" id="monto-auxiliar-modal">
                         </div>
                     </div>
@@ -261,7 +262,7 @@
                                 <th>Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="tbody-auxiliares">
+                        <tbody id="tbody-auxiliares-modal">
                             <!-- Llenado dinámico -->
                         </tbody>
                     </table>
