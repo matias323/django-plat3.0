@@ -1,0 +1,1009 @@
+{% extends "base.html" %}
+{% block title %}
+    Inventario
+{% endblock %}
+{% block content %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css">
+    <style>
+        .inventory-page .nav-tabs .nav-link {
+            font-weight: 600;
+        }
+        .inventory-page .table th {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        .inventory-page .table td {
+            vertical-align: middle;
+        }
+        .inventory-filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .inventory-filters .btn {
+            min-width: 135px;
+        }
+        .inventory-depreciated > td {
+            background: #f8d7da !important;
+        }
+        .inventory-soon > td {
+            background: #fff3cd !important;
+        }
+        .inventory-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .inventory-page .select2-container {
+            width: 100% !important;
+        }
+        .inventory-office-actions {
+            display: flex;
+            gap: 10px;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+        .inventory-office-actions > div {
+            min-width: 260px;
+            flex: 1;
+        }
+        @media (max-width: 768px) {
+            .inventory-filters .btn {
+                min-width: calc(50% - 4px);
+            }
+        }
+    </style>
+    <div class="container-fluid inventory-page">
+        {% if permission_denied %}
+            <div class="alert alert-danger">No tiene permisos para acceder al módulo de inventario.</div>
+        {% else %}
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h3 class="mb-0">Inventario</h3>
+                {% if can_edit %}
+                    <button type="button" class="btn btn-secondary" id="btnInventoryMaintenance">
+                        <span class="fa fa-cogs"></span>
+                        Mantenedor
+                    </button>
+                {% endif %}
+            </div>
+            <ul class="nav nav-tabs" id="inventoryTabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#productsPanel" type="button">
+                        Productos
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#invoicesPanel" type="button">
+                        Facturas
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#recordsPanel" type="button">
+                        Actas de Entrega
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#peoplePanel" type="button">
+                        Por persona
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#officesPanel" type="button">
+                        Oficinas
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content mt-3">
+                <div class="tab-pane fade show active" id="productsPanel">
+                    <div class="inventory-toolbar mb-3">
+                        <div class="inventory-filters">
+                            <button class="btn btn-primary btn-depreciation-filter active" data-filter="">Todos</button>
+                            <button class="btn btn-info btn-depreciation-filter" data-filter="unassigned">
+                                Sin asignar
+                            </button>
+                            <button class="btn btn-warning btn-depreciation-filter" data-filter="soon">
+                                Por depreciar
+                            </button>
+                            <button class="btn btn-danger btn-depreciation-filter" data-filter="depreciated">
+                                Depreciados
+                            </button>
+                            <button class="btn btn-secondary btn-depreciation-filter" data-filter="written_off">
+                                De baja
+                            </button>
+                            <button class="btn btn-dark btn-depreciation-filter" data-filter="book2">Libro 2</button>
+                        </div>
+                        {% if can_edit %}
+                            <button type="button" class="btn btn-primary" id="btnNewProduct">
+                                <span class="fa fa-plus"></span>
+                                Nuevo producto
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div class="table-responsive">
+                        <table id="productsTable" class="table table-bordered table-striped table-hover w-100">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Marca</th>
+                                    <th class="text-center">N° Rol</th>
+                                    {% comment "" %}<th>Clase activo</th>{% endcomment %}
+                                    {% comment "" %}<th>Clase</th> {% endcomment %}
+                                    <th class="text-center">Fondo</th>
+                                    <th class="text-center">Factura</th>
+                                    {% comment "" %}<th class="text-center">Stock</th>{% endcomment %}
+                                    {% comment "" %}<th>Valor inicial</th>{% endcomment %}
+                                    <th>Valor actual</th>
+                                    <th>Dep. acumulada</th>
+                                    <th class="text-center">Fecha adquisición</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="invoicesPanel">
+                    {% if can_edit %}
+                        <div class="text-end mb-3">
+                            <button type="button" class="btn btn-primary" id="btnNewInvoice">
+                                <span class="fa fa-plus"></span>
+                                Nueva factura
+                            </button>
+                        </div>
+                    {% endif %}
+                    <div class="table-responsive">
+                        <table id="invoicesTable" class="table table-bordered table-striped table-hover w-100">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>N° Factura</th>
+                                    <th>Fecha factura</th>
+                                    <th>RUT proveedor</th>
+                                    <th>Empresa</th>
+                                    <th>Monto</th>
+                                    <th>IVA</th>
+                                    <th>Productos</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="recordsPanel">
+                    {% if can_edit %}
+                        <div class="text-end mb-3">
+                            <button type="button" class="btn btn-primary" id="btnNewRecord">
+                                <span class="fa fa-plus"></span>
+                                Nueva acta
+                            </button>
+                        </div>
+                    {% endif %}
+                    <div class="table-responsive">
+                        <table id="recordsTable" class="table table-bordered table-striped table-hover w-100">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>N° Acta</th>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Área</th>
+                                    <th>Prestamista</th>
+                                    <th>Productos</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="peoplePanel">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">
+                                <strong>Buscar persona</strong>
+                            </label>
+                            <select id="inventoryPerson" class="form-control" style="width:100%;"></select>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="personProductsTable" class="table table-bordered table-striped table-hover w-100">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>N° Rol</th>
+                                    <th>N° BCU</th>
+                                    <th>N° SAP</th>
+                                    <th>N° Serial</th>
+                                    <th>Fondo</th>
+                                    <th>Clase activo</th>
+                                    <th>Clase</th>
+                                    <th>Subclase</th>
+                                    <th>Valor inicial</th>
+                                    <th>Valor actual</th>
+                                    <th>Fecha asignación</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="officesPanel">
+                    <div class="row align-items-end mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label">
+                                <strong>Oficina</strong>
+                            </label>
+                            <select id="inventoryOffice" class="form-control">
+                                <option value="">Seleccione</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" id="btnOfficeExport" class="btn btn-primary" disabled>
+                                <span class="fa fa-file-excel-o"></span>
+                                Exportar planilla mural
+                            </button>
+                        </div>
+                    </div>
+                    {% if can_edit %}
+                        <div class="inventory-office-actions mb-3">
+                            <div>
+                                <label class="form-label">
+                                    <strong>Agregar productos de una persona</strong>
+                                </label>
+                                <select id="officePersonSearch" class="form-control"></select>
+                            </div>
+                            <div>
+                                <label class="form-label">
+                                    <strong>Agregar producto individual</strong>
+                                </label>
+                                <select id="officeProductSearch" class="form-control"></select>
+                            </div>
+                        </div>
+                    {% endif %}
+                    <hr>
+                    <h5>Personas asociadas a la oficina</h5>
+                    <div class="table-responsive mb-4">
+                        <table id="officePeopleTable" class="table table-bordered table-striped table-hover w-100">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Persona</th>
+                                    <th>RUT</th>
+                                    <th>Productos asociados</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                    <h5>Productos asociados a la oficina</h5>
+                    <div class="table-responsive">
+                        <table id="officeProductsTable" class="table table-bordered table-striped table-hover w-100">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Producto</th>
+                                    <th>Marca</th>
+                                    <th>Modelo</th>
+                                    <th>N° Rol</th>
+                                    <th>N° BCU</th>
+                                    <th>N° Serial</th>
+                                    <th>Fondo</th>
+                                    <th>Clase activo</th>
+                                    <th>Clase</th>
+                                    <th>Subclase</th>
+                                    <th>Valor actual</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" id="productModalContent"></div>
+        </div>
+    </div>
+    <div class="modal fade" id="invoiceModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" id="invoiceModalContent"></div>
+        </div>
+    </div>
+    <div class="modal fade" id="invoiceDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" id="invoiceDetailModalContent"></div>
+        </div>
+    </div>
+    <div class="modal fade" id="recordModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" id="recordModalContent"></div>
+        </div>
+    </div>
+    <div class="modal fade" id="recordDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content" id="recordDetailModalContent"></div>
+        </div>
+    </div>
+    <div class="modal fade" id="maintenanceModal" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content" id="maintenanceModalContent"></div>
+        </div>
+    </div>
+    {% if not permission_denied %}
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+        <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+        <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+        <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <script>
+            (function () {
+                window.inventoryShowModal = function (id) {
+                    const element = document.getElementById(id);
+                    if (!element) return;
+                    if (window.bootstrap && bootstrap.Modal) {
+                        bootstrap.Modal.getOrCreateInstance(element).show();
+                        return;
+                    }
+                    if (window.jQuery && $.fn.modal) $('#' + id).modal('show');
+                };
+                window.inventoryHideModal = function (id) {
+                    const element = document.getElementById(id);
+                    if (!element) return;
+                    if (window.bootstrap && bootstrap.Modal) {
+                        const modal = bootstrap.Modal.getInstance(element) || bootstrap.Modal.getOrCreateInstance(element);
+                        modal.hide();
+                        return;
+                    }
+                    if (window.jQuery && $.fn.modal) $('#' + id).modal('hide');
+                };
+                const canEdit = {{ can_edit|yesno:"true,false" }};
+                const urls = {
+                    productsData: "{% url 'inventory:products_data' %}",
+                    personProducts: "{% url 'inventory:person_products_data' %}",
+                    productModal: "{% url 'inventory:product_modal' %}",
+                    peopleSearch: "{% url 'inventory:search_people' %}",
+                    invoicesData: "{% url 'inventory:invoices_data' %}",
+                    invoiceModal: "{% url 'inventory:invoice_modal' %}",
+                    invoiceDetail: "{% url 'inventory:invoice_detail' 999999 %}",
+                    recordsData: "{% url 'inventory:delivery_records_data' %}",
+                    recordModal: "{% url 'inventory:delivery_record_modal' %}",
+                    recordDetail: "{% url 'inventory:delivery_record_detail' 999999 %}",
+                    offices: "{% url 'inventory:offices_list' %}",
+                    officeProducts: "{% url 'inventory:office_products_data' %}",
+                    officePeople: "{% url 'inventory:office_people_data' %}",
+                    officeProductSearch: "{% url 'inventory:search_office_products' %}",
+                    officePersonSearch: "{% url 'inventory:search_office_people' %}",
+                    officeProductUpdate: "{% url 'inventory:office_product_update' %}",
+                    officePersonUpdate: "{% url 'inventory:office_person_update' %}",
+                    officeSync: "{% url 'inventory:office_sync' %}",
+                    officeExport: "{% url 'inventory:office_export' 999999 %}",
+                    maintenance: "{% url 'inventory:maintenance_modal' %}"
+                };
+                let depreciationFilter = "";
+                function csrfToken() {
+                    const name = "csrftoken=";
+                    const cookie = document.cookie.split(";").map(v => v.trim()).find(v => v.startsWith(name));
+                    return cookie ? decodeURIComponent(cookie.substring(name.length)): "";
+                }
+                function postHeaders(xhr) {
+                    xhr.setRequestHeader("X-CSRFToken", csrfToken());
+                }
+                function endpoint(pattern, id) {
+                    return pattern.replace("999999", id);
+                }
+                window.inventoryShowMessage = function (title, message, icon = 'info') {
+                    if (window.Swal && typeof window.Swal.fire === 'function') {
+                        return window.Swal.fire({
+                            title: title,
+                            text: message || '',
+                            icon: icon
+                        });
+                    }
+
+                    alert(message || title);
+                    return Promise.resolve();
+                };
+
+                window.inventoryConfirm = function (title, message, confirmText = 'Aceptar') {
+                    if (window.Swal && typeof window.Swal.fire === 'function') {
+                        return window.Swal.fire({
+                            title: title,
+                            text: message || '',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: confirmText,
+                            cancelButtonText: 'Cancelar',
+                            reverseButtons: true
+                        }).then(result => result.isConfirmed);
+                    }
+
+                    return Promise.resolve(confirm(message || title));
+                };
+
+                function showError(message) {
+                    return window.inventoryShowMessage(
+                        'Error',
+                        message || 'Ocurrió un error.',
+                        'error'
+                    );
+                }
+
+                function showOk(message) {
+                    return window.inventoryShowMessage(
+                        'Correcto',
+                        message || 'Operación realizada.',
+                        'success'
+                    );
+                }
+                const productsTable = $('#productsTable').DataTable({
+                    processing: true,
+                    serverSide: true,
+                    responsive: true,
+                    pageLength: 25,
+                    ajax: {
+                        url: urls.productsData,
+                        type: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken()
+                        },
+                        data: d => {
+                            d.depreciation_filter = depreciationFilter;
+                        }
+                    },
+                    columns: [{
+                        data: 'name'
+                    },
+                    {
+                        data: 'brand'
+                    },
+                    {
+                        data: 'role'
+                    },
+                    // {
+                    //     data: 'asset_class'
+                    // },
+                    // {
+                    //     data: 'class'
+                    // },
+                    {
+                        data: 'fund'
+                    },
+                    {
+                        data: 'invoice'
+                    },
+                    // {
+                    //     data: 'stock'
+                    // },
+                    // {
+                    //     data: 'initial_value'
+                    // },
+                    {
+                        data: 'current_value'
+                    },
+                    {
+                        data: 'accumulated'
+                    },
+                    {
+                        data: 'acquisition_date'
+                    },
+                    {
+                        data: 'status',
+                        orderable: false
+                    },
+                    {
+                        data: 'actions',
+                        orderable: false,
+                        searchable: false,
+                        className: 'text-center'
+                    }],
+                    order: [[7,'desc']]
+                });
+                const invoicesTable = $('#invoicesTable').DataTable({
+                    responsive: true,
+                    pageLength: 25,
+                    ajax: {
+                        url: urls.invoicesData,
+                        type: 'GET'
+                    },
+                    columns: [{
+                        data: 'number'
+                    },
+                    {
+                        data: 'date'
+                    },
+                    {
+                        data: 'rut'
+                    },
+                    {
+                        data: 'provider'
+                    },
+                    {
+                        data: 'amount'
+                    },
+                    {
+                        data: 'vat'
+                    },
+                    {
+                        data: 'products'
+                    },
+                    {
+                        data: 'actions',
+                        orderable: false,
+                        className: 'text-center'
+                    }]
+                });
+                const recordsTable = $('#recordsTable').DataTable({
+                    responsive: true,
+                    pageLength: 25,
+                    ajax: {
+                        url: urls.recordsData,
+                        type: 'GET'
+                    },
+                    columns: [{
+                        data: 'number'
+                    },
+                    {
+                        data: 'date'
+                    },
+                    {
+                        data: 'type'
+                    },
+                    {
+                        data: 'area'
+                    },
+                    {
+                        data: 'lender'
+                    },
+                    {
+                        data: 'products'
+                    },
+                    {
+                        data: 'status'
+                    },
+                    {
+                        data: 'actions',
+                        orderable: false,
+                        className: 'text-center'
+                    }]
+                });
+                const personProductsTable = $('#personProductsTable').DataTable({
+                    responsive: false,
+                    scrollX: true,
+                    pageLength: 25,
+                    ajax: {
+                        url: urls.personProducts,
+                        type: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken()
+                        },
+                        data: d => {
+                            d.person_id = $('#inventoryPerson').val() || 0;
+                        }
+                    },
+                    columns: [{
+                        data: 'name'
+                    },
+                    {
+                        data: 'brand'
+                    },
+                    {
+                        data: 'model'
+                    },
+                    {
+                        data: 'role'
+                    },
+                    {
+                        data: 'bcu'
+                    },
+                    {
+                        data: 'sap'
+                    },
+                    {
+                        data: 'serial'
+                    },
+                    {
+                        data: 'fund'
+                    },
+                    {
+                        data: 'asset_class'
+                    },
+                    {
+                        data: 'class'
+                    },
+                    {
+                        data: 'subclass'
+                    },
+                    {
+                        data: 'initial_value'
+                    },
+                    {
+                        data: 'current_value'
+                    },
+                    {
+                        data: 'assignment_date'
+                    },
+                    {
+                        data: 'status'
+                    },
+                    {
+                        data: 'actions',
+                        orderable: false,
+                        className: 'text-center'
+                    }]
+                });
+                const officePeopleTable = $('#officePeopleTable').DataTable({
+                    responsive: true,
+                    pageLength: 25,
+                    ajax: {
+                        url: urls.officePeople,
+                        type: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken()
+                        },
+                        data: d => {
+                            d.office_id = $('#inventoryOffice').val() || 0;
+                        }
+                    },
+                    columns: [{
+                        data: 'person'
+                    },
+                    {
+                        data: 'rut'
+                    },
+                    {
+                        data: 'products'
+                    },
+                    {
+                        data: 'actions',
+                        orderable: false,
+                        className: 'text-center'
+                    }]
+                });
+                const officeProductsTable = $('#officeProductsTable').DataTable({
+                    responsive: false,
+                    scrollX: true,
+                    pageLength: 25,
+                    ajax: {
+                        url: urls.officeProducts,
+                        type: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken()
+                        },
+                        data: d => {
+                            d.office_id = $('#inventoryOffice').val() || 0;
+                        }
+                    },
+                    columns: [{
+                        data: 'name'
+                    },
+                    {
+                        data: 'brand'
+                    },
+                    {
+                        data: 'model'
+                    },
+                    {
+                        data: 'role'
+                    },
+                    {
+                        data: 'bcu'
+                    },
+                    {
+                        data: 'serial'
+                    },
+                    {
+                        data: 'fund'
+                    },
+                    {
+                        data: 'asset_class'
+                    },
+                    {
+                        data: 'class'
+                    },
+                    {
+                        data: 'subclass'
+                    },
+                    {
+                        data: 'current_value'
+                    },
+                    {
+                        data: 'status'
+                    },
+                    {
+                        data: 'actions',
+                        orderable: false,
+                        className: 'text-center'
+                    }]
+                });
+                window.reloadInventoryProducts = () => productsTable.ajax.reload(null, false);
+                window.reloadInventoryInvoices = () => invoicesTable.ajax.reload(null, false);
+                window.reloadInventoryRecords = () => recordsTable.ajax.reload(null, false);
+                window.reloadInventoryOffices = () => {
+                    officePeopleTable.ajax.reload(null, false);
+                    officeProductsTable.ajax.reload(null, false);
+                };
+                $('#inventoryPerson').select2({
+                    width: '100%',
+                    placeholder: 'Buscar persona...',
+                    allowClear: true,
+                    minimumInputLength: 2,
+                    ajax: {
+                        url: urls.peopleSearch,
+                        dataType: 'json',
+                        delay: 300,
+                        data: p => ({
+                            q: p.term || ''
+                        }),
+                        processResults: d => d
+                    }
+                }).on('change', () => personProductsTable.ajax.reload());
+                function loadOffices() {
+                    $.getJSON(urls.offices, resp => {
+                        const select = $('#inventoryOffice').html('<option value="">Seleccione</option>');
+                        (resp.data || []).forEach(item => select.append(new Option(item.name, item.id)));
+                    });
+                }
+                loadOffices();
+                if (canEdit) {
+                    $('#officePersonSearch').select2({
+                        width: '100%',
+                        placeholder: 'Buscar persona disponible...',
+                        allowClear: true,
+                        minimumInputLength: 2,
+                        ajax: {
+                            url: urls.officePersonSearch,
+                            dataType: 'json',
+                            delay: 300,
+                            data: p => ({
+                                q: p.term || '',
+                                office_id: $('#inventoryOffice').val() || 0
+                            }),
+                            processResults: d => d
+                        }
+                    });
+                    $('#officeProductSearch').select2({
+                        width: '100%',
+                        placeholder: 'Buscar por nombre, rol, BCU o serial...',
+                        allowClear: true,
+                        minimumInputLength: 2,
+                        ajax: {
+                            url: urls.officeProductSearch,
+                            dataType: 'json',
+                            delay: 300,
+                            data: p => ({
+                                q: p.term || ''
+                            }),
+                            processResults: d => d
+                        }
+                    });
+                }
+                $(document).on('click', '.btn-depreciation-filter', function () {
+                    depreciationFilter = $(this).data('filter') || '';
+                    $('.btn-depreciation-filter').removeClass('active');
+                    $(this).addClass('active');
+                    productsTable.ajax.reload();
+                });
+                $(document).on('click', '#btnNewProduct', () => $('#productModalContent').load(urls.productModal,
+                () => window.inventoryShowModal('productModal')));
+                $(document).on('click', '.btn-product', function () {
+                    $('#productModalContent').load(urls.productModal + '?id=' + $(this).data('id'), () => window.inventoryShowModal('productModal'));
+                });
+                $(document).on('click', '#btnNewInvoice', () => $('#invoiceModalContent').load(urls.invoiceModal,
+                () => window.inventoryShowModal('invoiceModal')));
+                $(document).on('click', '.btn-invoice-view', function () {
+                    $('#invoiceDetailModalContent').load(endpoint(urls.invoiceDetail, $(this).data('id')),
+                    () => window.inventoryShowModal('invoiceDetailModal'));
+                });
+                $(document).on('click', '#btnNewRecord', () => $('#recordModalContent').load(urls.recordModal,
+                () => window.inventoryShowModal('recordModal')));
+                $(document).on('click', '.btn-record-view', function () {
+                    $('#recordDetailModalContent').load(endpoint(urls.recordDetail, $(this).data('id')), () => window.inventoryShowModal('recordDetailModal'));
+                });
+                $(document).on('click', '#btnInventoryMaintenance', () => $('#maintenanceModalContent').load(urls.maintenance,
+                () => window.inventoryShowModal('maintenanceModal')));
+                $('#inventoryOffice').on('change', function () {
+                    const officeId = $(this).val() || 0;
+                    $('#btnOfficeExport').prop('disabled', !officeId);
+                    if (canEdit && officeId) {
+                        $.ajax({
+                            url: urls.officeSync,
+                            type: 'POST',
+                            data: {
+                                office_id: officeId
+                            },
+                            beforeSend: postHeaders,
+                            complete: () => window.reloadInventoryOffices()
+                        });
+                    } else window.reloadInventoryOffices();
+                    if (canEdit) {
+                        $('#officePersonSearch,#officeProductSearch').val(null).trigger('change');
+                    }
+                });
+                $('#btnOfficeExport').on('click', function () {
+                    const id = $('#inventoryOffice').val();
+                    if (id) window.location.href = endpoint(urls.officeExport, id);
+                });
+                $(document).on('change', '#officeProductSearch', function () {
+                    const productId = $(this).val(), officeId = $('#inventoryOffice').val();
+                    if (!productId) return;
+                    if (!officeId) {
+                        showError('Debe seleccionar una oficina.');
+                        $(this).val(null).trigger('change');
+                        return;
+                    }
+                    $.ajax({
+                        url: urls.officeProductUpdate,
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            office_id: officeId,
+                            product_id: productId,
+                            action: 'add'
+                        },
+                        beforeSend: postHeaders,
+                        success: r => {
+                            r.status === 'success' ? window.reloadInventoryOffices(): showError(r.message);
+                            $('#officeProductSearch').val(null).trigger('change');
+                        }
+                    });
+                });
+                $(document).on('change', '#officePersonSearch', function () {
+                    const personId = $(this).val(), officeId = $('#inventoryOffice').val();
+                    if (!personId) return;
+                    if (!officeId) {
+                        showError('Debe seleccionar una oficina.');
+                        $(this).val(null).trigger('change');
+                        return;
+                    }
+                    $.ajax({
+                        url: urls.officePersonUpdate,
+                        type: 'POST',
+                        dataType: 'json',
+                        data: {
+                            office_id: officeId,
+                            person_id: personId,
+                            action: 'add'
+                        },
+                        beforeSend: postHeaders,
+                        success: r => {
+                            r.status === 'success' ? window.reloadInventoryOffices(): showError(r.message);
+                            $('#officePersonSearch').val(null).trigger('change');
+                        }
+                    });
+                });
+                $(document).on('click', '.btn-office-product-remove', function () {
+                    const button = $(this);
+                    const productId = button.data('id');
+                    const officeId = $('#inventoryOffice').val();
+
+                    if (!officeId) {
+                        showError('Debe seleccionar una oficina.');
+                        return;
+                    }
+
+                    window.inventoryConfirm(
+                        '¿Quitar producto?',
+                        'El producto será quitado de la oficina y, si está asignado a una persona, esa asignación también será desvinculada.',
+                        'Quitar producto'
+                    ).then(function (confirmed) {
+                        if (!confirmed) {
+                            return;
+                        }
+
+                        button.prop('disabled', true);
+
+                        $.ajax({
+                            url: urls.officeProductUpdate,
+                            type: 'POST',
+                            dataType: 'json',
+                            data: {
+                                office_id: officeId,
+                                product_id: productId,
+                                action: 'remove'
+                            },
+                            beforeSend: postHeaders,
+
+                            success: function (response) {
+                                if (response.status !== 'success') {
+                                    showError(response.message);
+                                    return;
+                                }
+
+                                window.reloadInventoryOffices();
+
+                                if (window.reloadInventoryProducts) {
+                                    window.reloadInventoryProducts();
+                                }
+
+                                showOk(response.message);
+                            },
+
+                            error: function (xhr) {
+                                console.error(xhr.responseText);
+                                showError(
+                                    xhr.responseJSON?.message ||
+                                    'No se pudo quitar el producto de la oficina.'
+                                );
+                            },
+
+                            complete: function () {
+                                button.prop('disabled', false);
+                            }
+                        });
+                    });
+                });
+
+                $(document).on('click', '.btn-office-person-remove', function () {
+                    const button = $(this);
+                    const personId = button.data('id');
+                    const officeId = $('#inventoryOffice').val();
+
+                    if (!officeId) {
+                        showError('Debe seleccionar una oficina.');
+                        return;
+                    }
+
+                    window.inventoryConfirm(
+                        '¿Quitar persona?',
+                        'La persona será quitada de esta oficina. Los productos asociados a ella también dejarán de figurar en la oficina, pero seguirán asignados a la persona.',
+                        'Quitar persona'
+                    ).then(function (confirmed) {
+                        if (!confirmed) {
+                            return;
+                        }
+
+                        button.prop('disabled', true);
+
+                        $.ajax({
+                            url: urls.officePersonUpdate,
+                            type: 'POST',
+                            dataType: 'json',
+                            data: {
+                                office_id: officeId,
+                                person_id: personId,
+                                action: 'remove'
+                            },
+                            beforeSend: postHeaders,
+
+                            success: function (response) {
+                                if (response.status !== 'success') {
+                                    showError(response.message);
+                                    return;
+                                }
+
+                                window.reloadInventoryOffices();
+                                showOk(response.message);
+                            },
+
+                            error: function (xhr) {
+                                console.error(xhr.responseText);
+                                showError(
+                                    xhr.responseJSON?.message ||
+                                    'No se pudo quitar la persona de la oficina.'
+                                );
+                            },
+
+                            complete: function () {
+                                button.prop('disabled', false);
+                            }
+                        });
+                    });
+                });
+                $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
+                    setTimeout(() => $.fn.dataTable.tables({
+                        visible: true,
+                        api: true
+                    }).columns.adjust(), 100);
+                });
+            })();
+        </script>
+    {% endif %}
+{% endblock %}

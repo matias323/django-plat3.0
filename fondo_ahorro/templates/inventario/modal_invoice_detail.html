@@ -1,0 +1,259 @@
+<style>
+    #invoiceDetailBody .detail-label {
+        font-weight: 600;
+    }
+    #invoiceDetailBody .clp-cell {
+        white-space: nowrap;
+    }
+</style>
+<div class="modal-header">
+    <h5 class="modal-title">
+        Factura N°
+        {{ invoice.invoice_number }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body" id="invoiceDetailBody">
+    <div class="row mb-2">
+        <div class="col-md-3 mb-2">
+            <span class="detail-label">Estado</span>
+            <input class="form-control 
+                {% if invoice.status == 1 and invoice.is_active %}
+                    text-success
+                {% else %}
+                    text-danger
+                {% endif %}
+                fw-bold" value="{{ invoice.get_status_display }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">N° Factura</span>
+            <input class="form-control" value="{{ invoice.invoice_number }}" readonly>
+        </div>
+        <div class="col-md-3 mb-2">
+            <span class="detail-label">Proveedor</span>
+            <input class="form-control" value="{{ invoice.provider_name }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">RUT</span>
+            <input class="form-control" value="{{ invoice.formatted_provider_rut }}" readonly>
+        </div>
+        <div class="col-md-3 mb-2">
+            <span class="detail-label">Giro</span>
+            <input class="form-control" value="{{ invoice.business_activity }}" readonly>
+        </div>
+        <div class="col-md-3 mb-2">
+            <span class="detail-label">Comuna</span>
+            <input class="form-control" value="{{ invoice.commune.name|default:'' }}" readonly>
+        </div>
+        <div class="col-md-4 mb-2">
+            <span class="detail-label">Dirección</span>
+            <input class="form-control" value="{{ invoice.address }} {{ invoice.address_number|default:'' }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">Dpto./Oficina</span>
+            <input class="form-control" value="{{ invoice.address_block|default:'' }}" readonly>
+        </div>
+        <div class="col-md-3 mb-2">
+            <span class="detail-label">Teléfono</span>
+            <input class="form-control" value="{{ invoice.phone|default:'' }}" readonly>
+        </div>
+        <div class="col-md-3 mb-2">
+            <span class="detail-label">Correo</span>
+            <input class="form-control" value="{{ invoice.email|default:'' }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">Valor</span>
+            <input class="form-control clp-value" value="{{ invoice.net_amount }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">IVA</span>
+            <input class="form-control clp-value" value="{{ invoice.vat_amount }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">Total pagado</span>
+            <input class="form-control clp-sum" data-a="{{ invoice.net_amount }}" data-b="{{ invoice.vat_amount }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">Fecha factura</span>
+            <input class="form-control" value="{{ invoice.invoice_date|date:'d-m-Y' }}" readonly>
+        </div>
+        <div class="col-md-2 mb-2">
+            <span class="detail-label">Fecha pago</span>
+            <input class="form-control" value="{% if invoice.payment_date %}{{ invoice.payment_date|date:'d-m-Y' }}{% else %}-{% endif %}" readonly>
+        </div>
+    </div>
+    {% if can_edit %}
+        <hr>
+        <h5>Agregar documentos a la factura</h5>
+        <form id="invoiceDocumentForm" enctype="multipart/form-data" class="row align-items-end mb-3">
+            {% csrf_token %}
+            <div class="col-md-8">
+                <input type="file" name="invoice_documents" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple required>
+            </div>
+            <div class="col-md-4">
+                <button class="btn btn-success">
+                    <span class="bi bi-upload"></span>
+                    Subir documentos
+                </button>
+            </div>
+        </form>
+    {% endif %}
+    <hr>
+    <h5>Documentos de la factura</h5>
+    {% if documents %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Documento</th>
+                        <th style="width:100px;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                        <tr>
+                            <td>{{ doc.name }}</td>
+                            <td class="text-center">
+                                <a href="{{ doc.url }}" target="_blank" class="btn btn-sm btn-primary">
+                                    <span class="bi bi-eye"></span>
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">Esta factura no tiene documentos asociados.</div>
+    {% endif %}
+    <hr>
+    <h5>Productos asociados</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered table-striped table-sm align-middle">
+            <thead class="table-secondary">
+                <tr>
+                    <th>Producto</th>
+                    <th>N° Rol</th>
+                    <th>Fondo</th>
+                    <th>Clase activo</th>
+                    <th>Clase</th>
+                    <th>Subclase</th>
+                    <th>Vida útil</th>
+                    <th>Valor inicial</th>
+                    <th>Valor actual</th>
+                    <th>Dep. acum.</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.role_number }}</td>
+                        <td>{{ product.fund.name|default:'' }}</td>
+                        <td>{{ product.subclass.asset_class.name }}</td>
+                        <td>{{ product.subclass.inventory_class.name }}</td>
+                        <td>{{ product.subclass.name }}</td>
+                        <td>
+                            {{ product.useful_life_years }}
+                            años
+                        </td>
+                        <td class="clp-cell" data-value="{{ product.initial_value }}"></td>
+                        <td class="clp-cell" data-value="{{ product.current_value }}"></td>
+                        <td class="clp-cell" data-value="{{ product.accumulated_depreciation }}"></td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-primary btn-invoice-product" data-id="{{ product.id }}">
+                                <span class="bi bi-eye"></span>
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="11" class="text-center">Esta factura no tiene productos asociados.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="modal-footer">
+    {% if can_cancel and invoice.status == 1 and invoice.is_active %}
+        <button type="button" class="btn btn-danger" id="btnCancelInvoice">
+            <span class="fa fa-exclamation-triangle"></span>
+            Anular factura
+        </button>
+    {% endif %}
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+</div>
+<script>
+    (function () {
+        const format = v => '$' + (parseInt(v || 0, 10) || 0).toLocaleString('es-CL');
+        $('#invoiceDetailBody .clp-value').each(function () {
+            $(this).val(format($(this).val()));
+        });
+        $('#invoiceDetailBody .clp-cell').each(function () {
+            $(this).text(format($(this).data('value')));
+        });
+        $('#invoiceDetailBody .clp-sum').each(function () {
+            $(this).val(format((parseInt($(this).data('a') || 0, 10) || 0) + (parseInt($(this).data('b') || 0,
+            10) || 0)));
+        });
+        function error(m) {
+            typeof swal === 'function' ? swal('Error', m || 'No se pudo realizar la operación.', 'error'): alert(m);
+        }
+        $('#invoiceDocumentForm').off('submit.inventory').on('submit.inventory', function (e) {
+            e.preventDefault();
+            const data = new FormData(this);
+            $.ajax({
+                url: "{% url 'inventory:invoice_document_upload' invoice.id %}",
+                type: 'POST',
+                data: data,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: r => {
+                    if (r.status === 'success') {
+                        $('#invoiceDetailModalContent').load("{% url 'inventory:invoice_detail' invoice.id %}");
+                        typeof swal === 'function' ? swal('Correcto', r.message, 'success'): alert(r.message);
+                    } else error(r.message);
+                },
+                error: x => error(x.responseJSON?.message || 'Error al subir documentos.')
+            });
+        });
+        $('#btnCancelInvoice').off('click.inventory').on('click.inventory', function () {
+            const execute = () => $.ajax({
+                url: "{% url 'inventory:invoice_cancel' invoice.id %}",
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': document.cookie.split('; ').find(v => v.startsWith('csrftoken='))?.split('=')[1] || ''
+                },
+                dataType: 'json',
+                success: r => {
+                    if (r.status === 'success') {
+                        if (window.reloadInventoryInvoices) window.reloadInventoryInvoices();
+                        if (window.reloadInventoryProducts) window.reloadInventoryProducts();
+                        window.inventoryHideModal('invoiceDetailModal');
+                        typeof swal === 'function' ? swal('Correcto', r.message, 'success'): alert(r.message);
+                    } else error(r.message);
+                }
+            });
+            if (typeof swal === 'function') {
+                swal({
+                    title: '¿Anular factura?',
+                    text: 'La factura y sus productos asociados quedarán deshabilitados.',
+                    icon: 'warning',
+                    buttons: ['Cancelar',
+                    'Anular'],
+                    dangerMode: true
+                }).then(ok => {
+                    if (ok) execute();
+                });
+            } else if (confirm('¿Anular factura?')) execute();
+        });
+        $('.btn-invoice-product').off('click.inventory').on('click.inventory', function () {
+            const id = $(this).data('id');
+            window.inventoryHideModal('invoiceDetailModal');
+            $('#productModalContent').load("{% url 'inventory:product_modal' %}?id=" + id, () => window.inventoryShowModal('productModal'));
+        });
+    })();
+</script>
