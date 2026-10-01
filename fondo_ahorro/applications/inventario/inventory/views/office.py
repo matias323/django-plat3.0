@@ -14,6 +14,85 @@ from ..utils import audit_save, can_edit_inventory, clp, date_cl, person_full_na
 from .inventory import person_query
 
 
+def sync_office_products_from_people(office_id, user=None):
+    """
+    Sincroniza los productos de una oficina con las asignaciones activas
+    de las personas que actualmente pertenecen a esa oficina.
+
+    - Agrega productos nuevos asignados a personas de la oficina.
+    - Quita productos que antes estuvieron asignados a esas personas,
+      pero cuya asignación ya no está activa.
+    - Si un producto cambia a una persona de otra oficina, el vínculo
+      del producto se mueve a la oficina correcta.
+    - Los productos agregados manualmente que nunca estuvieron asignados
+      a una persona de esta oficina no se eliminan.
+    """
+    office_id = int(office_id or 0)
+    if not office_id:
+        return
+
+    person_ids = list(
+        OfficePerson.objects.filter(
+            office_id=office_id,
+            is_active=True,
+        ).values_list("person_id", flat=True)
+    )
+
+    if not person_ids:
+        return
+
+    active_product_ids = set(
+        ProductAssignment.objects.filter(
+            person_id__in=person_ids,
+            is_active=True,
+            product__status=Product.STATUS_ACTIVE,
+            product__is_active=True,
+        ).values_list("product_id", flat=True)
+    )
+
+    historical_product_ids = set(
+        ProductAssignment.objects.filter(
+            person_id__in=person_ids,
+        ).values_list("product_id", flat=True)
+    )
+
+    stale_product_ids = historical_product_ids - active_product_ids
+
+    if stale_product_ids:
+        OfficeProduct.objects.filter(
+            office_id=office_id,
+            product_id__in=stale_product_ids,
+        ).delete()
+
+    for product_id in active_product_ids:
+        link = OfficeProduct.objects.filter(product_id=product_id).first()
+
+        if link:
+            changed = False
+
+            if link.office_id != office_id:
+                link.office_id = office_id
+                changed = True
+
+            if not link.is_active:
+                link.is_active = True
+                changed = True
+
+            if changed:
+                audit_save(link, user)
+
+            continue
+
+        audit_save(
+            OfficeProduct(
+                office_id=office_id,
+                product_id=product_id,
+                is_active=True,
+            ),
+            user,
+        )
+
+
 @login_required
 def offices_list(request):
     data = [{"id": office.id, "name": office.name} for office in Office.objects.filter(is_active=True).order_by("name")]
@@ -24,7 +103,10 @@ def offices_list(request):
 def office_products_data(request):
     office_id = int(request.POST.get("office_id", 0) or 0)
     data = []
+
     if office_id:
+        sync_office_products_from_people(office_id, request.user)
+
         links = OfficeProduct.objects.filter(office_id=office_id, is_active=True).select_related(
             "product", "product__fund", "product__subclass", "product__subclass__asset_class",
             "product__subclass__inventory_class",
@@ -63,12 +145,12 @@ def office_people_data(request):
     data = []
     if office_id:
         for link in OfficePerson.objects.filter(office_id=office_id, is_active=True).select_related("person"):
-            total = OfficeProduct.objects.filter(
-                office_id=office_id,
-                product__assignments__person=link.person,
-                product__assignments__is_active=True,
+            total = ProductAssignment.objects.filter(
+                person=link.person,
                 is_active=True,
-            ).distinct().count()
+                product__status=Product.STATUS_ACTIVE,
+                product__is_active=True,
+            ).values("product_id").distinct().count()
             data.append({
                 "person": person_full_name(link.person),
                 "rut": person_rut(link.person),
@@ -239,25 +321,19 @@ def office_person_update(request):
 def office_sync(request):
     if not can_edit_inventory(request):
         return JsonResponse({"status": "error", "message": "No tiene permisos."}, status=403)
+
     try:
         office_id = int(request.POST.get("office_id", 0) or 0)
+
         if not office_id:
             raise ValueError("Oficina inválida.")
 
-        for person_link in OfficePerson.objects.filter(office_id=office_id, is_active=True):
-            product_ids = ProductAssignment.objects.filter(
-                person_id=person_link.person_id, is_active=True, product__status=Product.STATUS_ACTIVE,
-            ).values_list("product_id", flat=True)
-            for product_id in product_ids:
-                if OfficeProduct.objects.filter(product_id=product_id, is_active=True).exclude(
-                    office_id=office_id
-                ).exists():
-                    continue
-                link, _ = OfficeProduct.objects.get_or_create(office_id=office_id, product_id=product_id)
-                link.is_active = True
-                audit_save(link, request.user)
+        sync_office_products_from_people(office_id, request.user)
 
-        return JsonResponse({"status": "success", "message": "Oficina sincronizada correctamente."})
+        return JsonResponse({
+            "status": "success",
+            "message": "Oficina sincronizada correctamente.",
+        })
     except Exception as exc:
         transaction.set_rollback(True)
         return JsonResponse({"status": "error", "message": str(exc)})

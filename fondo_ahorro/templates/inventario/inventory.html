@@ -998,6 +998,12 @@
                     });
                 });
                 $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function () {
+                    const target = $(this).data('bs-target');
+
+                    if (target === '#officesPanel' && $('#inventoryOffice').val()) {
+                        window.reloadInventoryOffices();
+                    }
+
                     setTimeout(() => $.fn.dataTable.tables({
                         visible: true,
                         api: true

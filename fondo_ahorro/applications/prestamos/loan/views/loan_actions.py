@@ -810,33 +810,79 @@ def guarantor_search(request, loan_id):
     search = str(request.GET.get("q", "") or "").strip()
 
     if len(search) < 2:
-        return JsonResponse({"status": "error", "message": "Ingrese al menos 2 caracteres."}, status=400)
+        return JsonResponse({
+            "status": "error",
+            "message": "Ingrese al menos 2 caracteres.",
+        }, status=400)
 
     excluded = list(
-        LoanGuarantor.objects.filter(loan=loan, is_active=True).values_list("person_id", flat=True)
+        LoanGuarantor.objects
+        .filter(loan=loan, is_active=True)
+        .values_list("person_id", flat=True)
     )
     excluded.append(loan.person_id)
 
     queryset = (
         Employee.objects
-        .filter(is_active=True)
+        .filter(
+            is_active=True,
+            person__is_active=True,
+        )
         .exclude(person_id__in=excluded)
         .select_related("person")
     )
 
+    # ============================================================
+    # BUSQUEDA POR NOMBRE / APELLIDO SIN IMPORTAR ORDEN
+    # ============================================================
+    terms = [term for term in search.split() if term]
+
+    name_query = Q()
+
+    for term in terms:
+        name_query &= (
+            Q(person__first_name__icontains=term) |
+            Q(person__second_name__icontains=term) |
+            Q(person__last_name_1__icontains=term) |
+            Q(person__last_name_2__icontains=term)
+        )
+
+    # ============================================================
+    # BUSQUEDA POR RUT / CODIGO / NOMBRE
+    # ============================================================
     query = (
-        Q(code__icontains=search)
-        | Q(person__first_name__icontains=search)
-        | Q(person__second_name__icontains=search)
-        | Q(person__last_name_1__icontains=search)
-        | Q(person__last_name_2__icontains=search)
-        | Q(person__dv__icontains=search)
+        Q(code__icontains=search) |
+        name_query
     )
 
-    if search.isdigit():
-        query |= Q(person__rut=int(search))
+    # RUT sin DV
+    clean_search = search.replace(".", "").replace("-", "")
 
-    queryset = queryset.filter(query).order_by("person__first_name", "person__last_name_1")[:30]
+    if clean_search.isdigit():
+        query |= Q(person__rut=int(clean_search))
+
+    # RUT completo, por ejemplo: 12345678-9
+    if "-" in search:
+        rut_part, dv_part = search.rsplit("-", 1)
+        rut_part = rut_part.replace(".", "").strip()
+        dv_part = dv_part.strip()
+
+        if rut_part.isdigit() and dv_part:
+            query |= Q(
+                person__rut=int(rut_part),
+                person__dv__iexact=dv_part,
+            )
+
+    queryset = (
+        queryset
+        .filter(query)
+        .distinct()
+        .order_by(
+            "person__first_name",
+            "person__last_name_1",
+            "id",
+        )[:30]
+    )
 
     return JsonResponse({
         "status": "ok",

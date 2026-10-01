@@ -31,6 +31,7 @@ urlpatterns = [
 
     path("registrations/",include("applications.inscripcion.registrations.urls")),
     path("loans/",include("applications.prestamos.loan.urls")),
+    path("inventory/",include("applications.inventario.inventory.urls")),
 
 ]
 

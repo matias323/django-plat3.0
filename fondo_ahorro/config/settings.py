@@ -47,7 +47,6 @@ INSTALLED_APPS = [
     "applications.apps",
     "applications.role",
 
-
     #devoluciones
     "applications.devoluciones.dev_solicitud",
     "applications.devoluciones.dev_consejo",
@@ -61,6 +60,9 @@ INSTALLED_APPS = [
 
     #prestamos
     "applications.prestamos.loan",
+
+    #inventario
+    "applications.inventario.inventory",
 
 ]
 

@@ -189,6 +189,7 @@
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Persona asignada</label>
                     <select name="assigned_person_id" id="productPerson" class="form-control">
+                        <option value=""></option>
                         {% if active_assignment %}
                             <option value="{{ active_assignment.person_id }}" selected>
                                 {{ assignment_name }}
@@ -370,7 +371,7 @@
             $('#productPerson').select2({
                 dropdownParent: $('#productModal'),
                 width: '100%',
-                placeholder: 'Buscar persona...',
+                placeholder: 'Sin asignar / Buscar persona...',
                 allowClear: true,
                 minimumInputLength: 2,
                 ajax: {
@@ -406,6 +407,10 @@
 
                             if (window.reloadInventoryInvoices) {
                                 window.reloadInventoryInvoices();
+                            }
+
+                            if (window.reloadInventoryOffices) {
+                                window.reloadInventoryOffices();
                             }
 
                             showMessage('Correcto', r.message, 'success');

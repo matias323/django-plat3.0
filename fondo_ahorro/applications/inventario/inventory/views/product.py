@@ -199,6 +199,14 @@ def product_save(request):
             raise ValueError("El producto que intenta modificar no existe.")
 
         previous_invoice_id = product.invoice_id if product else None
+        previous_use_start_date = product.use_start_date if product else None
+        previous_assignment = (
+            ProductAssignment.objects.select_for_update()
+            .filter(product=product, is_active=True)
+            .select_related("person")
+            .first()
+            if product else None
+        )
 
         subclass = Subclass.objects.filter(
             pk=int(request.POST.get("id_subclass", 0) or 0),
@@ -238,7 +246,15 @@ def product_save(request):
         fund_id = int(request.POST.get("id_fund", 0) or 0) or None
         invoice_id = int(request.POST.get("id_invoice", 0) or 0) or None
         acquisition_date = request.POST.get("acquisition_date") or date.today()
-        use_start_date = request.POST.get("use_start_date") or None
+        requested_use_start_date = request.POST.get("use_start_date") or None
+
+        # Una vez que el producto comenzó su uso, desasignarlo de una persona
+        # no debe borrar esa fecha ni detener su depreciación.
+        if product and previous_use_start_date and not requested_use_start_date:
+            use_start_date = previous_use_start_date
+        else:
+            use_start_date = requested_use_start_date
+
         book = int(request.POST.get("book", 0) or 0) or None
         observation = (request.POST.get("observation", "") or "").strip() or None
         status = int(request.POST.get("status", Product.STATUS_ACTIVE) or Product.STATUS_ACTIVE)
@@ -369,12 +385,20 @@ def product_save(request):
         product.is_active = status != Product.STATUS_INACTIVE
         audit_save(product, request.user)
 
-        ProductAssignment.objects.filter(product=product, is_active=True).update(is_active=False)
+        current_person_id = previous_assignment.person_id if previous_assignment else None
 
-        if person:
+        # Si la persona no cambió, conservamos la asignación existente y su fecha.
+        # Si cambia o queda vacía, cerramos la asignación anterior.
+        if previous_assignment and current_person_id != person_id:
+            previous_assignment.is_active = False
+            audit_save(previous_assignment, request.user)
+
+        # Si se asigna a una nueva persona, creamos una nueva asignación.
+        if person and current_person_id != person_id:
             assignment_date = date.today()
 
-            # No reinicia la depreciación al cambiar el producto de persona.
+            # La primera asignación inicia el uso. Si el producto ya había comenzado
+            # su vida útil anteriormente, conservamos la fecha original.
             if not product.use_start_date:
                 product.use_start_date = assignment_date
                 audit_save(product, request.user)
@@ -387,6 +411,9 @@ def product_save(request):
                 ),
                 request.user,
             )
+
+        # Si person_id == 0, el producto queda sin persona asignada. No se borra
+        # use_start_date: la depreciación debe continuar desde su fecha original.
 
         if uploaded:
             document = save_uploaded_document(

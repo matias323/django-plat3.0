@@ -349,7 +349,11 @@ def extraordinary_person_search(request):
     search = str(request.GET.get("q", "") or "").strip()
 
     if not search:
-        return JsonResponse({"status": "error", "message": "Ingrese un texto para buscar.", "results": []}, status=400)
+        return JsonResponse({
+            "status": "error",
+            "message": "Ingrese un texto para buscar.",
+            "results": [],
+        }, status=400)
 
     employees = Employee.objects.filter(is_active=True).order_by("id")
 
@@ -357,17 +361,45 @@ def extraordinary_person_search(request):
         Person.objects
         .filter(is_active=True)
         .annotate(
-            full_name=Trim(Concat(
-                Coalesce(F("first_name"), Value("")), Value(" "),
-                Coalesce(F("second_name"), Value("")), Value(" "),
-                Coalesce(F("last_name_1"), Value("")), Value(" "),
-                Coalesce(F("last_name_2"), Value("")),
+            rut_text=Concat(
+                Cast("rut", output_field=CharField()),
+                Value("-"),
+                F("dv"),
                 output_field=CharField(),
-            )),
-            rut_text=Concat(Cast("rut", output_field=CharField()), Value("-"), F("dv"), output_field=CharField()),
+            )
         )
-        .prefetch_related(Prefetch("employees", queryset=employees, to_attr="active_employees"))
-        .filter(Q(rut_text__icontains=search) | Q(full_name__icontains=search) | Q(employees__code__icontains=search))
+        .prefetch_related(
+            Prefetch(
+                "employees",
+                queryset=employees,
+                to_attr="active_employees",
+            )
+        )
+    )
+
+    # ============================================================
+    # BUSQUEDA GENERAL
+    # Cada palabra puede estar en cualquier parte del nombre.
+    # ============================================================
+    terms = [term for term in search.split() if term]
+
+    name_query = Q()
+
+    for term in terms:
+        name_query &= (
+            Q(first_name__icontains=term) |
+            Q(second_name__icontains=term) |
+            Q(last_name_1__icontains=term) |
+            Q(last_name_2__icontains=term)
+        )
+
+    queryset = (
+        queryset
+        .filter(
+            Q(rut_text__icontains=search) |
+            Q(employees__code__icontains=search) |
+            name_query
+        )
         .distinct()
         .order_by("first_name", "last_name_1", "id")[:30]
     )
@@ -376,6 +408,7 @@ def extraordinary_person_search(request):
 
     for person in queryset:
         employee = person.active_employees[0] if person.active_employees else None
+
         results.append({
             "id": person.id,
             "rut": _person_rut(person),
@@ -383,7 +416,10 @@ def extraordinary_person_search(request):
             "name": _person_name(person),
         })
 
-    return JsonResponse({"status": "ok", "results": results})
+    return JsonResponse({
+        "status": "ok",
+        "results": results,
+    })
 
 
 # ============================================================
