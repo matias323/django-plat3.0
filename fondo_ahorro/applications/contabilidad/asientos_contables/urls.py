@@ -14,7 +14,12 @@ from .views import (
     AsientosContablesBusquedaView,
     AsientosContablesBuscarView,
     LibroDiarioView,
-    LibroDiarioPDFView)
+    LibroDiarioPDFView,
+    LibroMayorView,
+    LibroMayorData,
+    LibroMayorExcel,
+    LibroDiarioExcel,
+    LibroMayorPDF)
 
 
 app_name = "asientos_contables" 
@@ -24,10 +29,16 @@ urlpatterns = [
     path("asiento_periodo/", AsientosContablesPeriodoView.as_view(), name="asiento_periodo"),
     path("busqueda/", AsientosContablesBusquedaView.as_view(), name="asiento_busqueda"),
     path("libro_diario/", LibroDiarioView.as_view(), name="libro_diario"),
+    path("libro_mayor/", LibroMayorView.as_view(), name="libro_mayor"),
     
     #pdf
     path("pdf/<int:pk>/", AsientoContablePDFView.as_view(), name="asiento_pdf"),
     path("libro_diario/pdf/", LibroDiarioPDFView.as_view(), name="libro_diario_pdf"),
+    path("libro_mayor/pdf/", LibroMayorPDF.as_view(), name="libro_mayor_pdf"),
+    
+    #excel
+    path("libro_diario/excel/", LibroDiarioExcel.as_view(), name="libro_diario_excel"),
+    path("libro_mayor/excel/", LibroMayorExcel.as_view(), name="libro_mayor_excel"),
     
     #peticiones
     path("asiento_periodo/all/", AsientosContablesPeriodoAllView.as_view(), name="asiento_periodo_all"),
@@ -40,4 +51,5 @@ urlpatterns = [
     path("busqueda/buscar/", AsientosContablesBuscarView.as_view(), name="asiento_busqueda_buscar"),
     path("buscar_persona/", AsientoPersonaSearchView.as_view(), name="buscar_persona"),
     path("contabilizar/", AsientoContableCreate.as_view(), name="contabilizar_asiento"),
+    path("libro_mayor/data/", LibroMayorData.as_view(), name="libro_mayor_data"),
 ]

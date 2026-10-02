@@ -2,7 +2,7 @@
 {% block content %}
     {% if user.is_authenticated %}
             <!-- mostrar catalogo cuentas -->
-            {% include "contabilidad/libro_diario/plantilla_libro_diario.html" %} 
+            {% include "contabilidad/libro_diario/libro_diario_template.html" %} 
             <!-- Token CSRF para las peticiones -->
         {% csrf_token %}
     {% endif %}

@@ -7,13 +7,13 @@ from django.views.decorators.csrf import csrf_exempt
 from http import HTTPStatus
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .services import AsientoContableServices
-from .services_pdf import AsientoContableServicePDF, LibroDiarioPDF
+from .services_reporte import ReporteService
 import json
 from .models.asientos_contables import AsientoContableTipo, AsientoContableEstado
 from applications.contabilidad.plan_cuentas.models import Cuentas
 from applications.contabilidad.periodo_contable.services import PeriodoContableServices
 from .utils import get_month_name
-from datetime import datetime
+from datetime import datetime, date
 
 
 # Create your views here.
@@ -41,7 +41,7 @@ class AsientosContablesView(TemplateView):
     
 # vista asientos periodo
 class AsientosContablesPeriodoView(TemplateView):
-    template_name = 'contabilidad/asientos_periodo/asiento_periodo_form.html'
+    template_name = 'contabilidad/asientos_periodo/asientos_periodo_form.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -57,7 +57,7 @@ class AsientosContablesPeriodoView(TemplateView):
     
 # vista busqueda de asientos
 class AsientosContablesBusquedaView(TemplateView):
-    template_name = 'contabilidad/asientos_busqueda/busqueda_form.html'
+    template_name = 'contabilidad/asientos_busqueda/asientos_busqueda_form.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -82,8 +82,28 @@ class LibroDiarioView(TemplateView):
         context["asientos_estados"] = AsientoContableEstado.estados()
         
         return context
+    
+#vista libro mayor
+class LibroMayorView(TemplateView):
+    template_name = 'contabilidad/libro_mayor/libro_mayor_form.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         
-
+        periodos = PeriodoContableServices.get_periodos_contables()
+        context["periodos"] = periodos
+        context["asientos_tipos"] = AsientoContableTipo.todos()
+        context["asientos_estados"] = AsientoContableEstado.estados()
+        context["catalogo_cuentas"] = Cuentas.get_catalogo_cuentas()
+        
+        return context
+    
+    
+    
+    
+    
+        
+#crear asiento contable
 class AsientoContableCreate(LoginRequiredMixin, View):
     def post(self, request):
         try:
@@ -160,6 +180,7 @@ class AsientosContablesPeriodoAllView(View):
             return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
             return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        
         
 #verificar si se puede editar el asiento y bloquear asiento
 class AsientoContableCheckView(View):
@@ -302,6 +323,7 @@ class AsientoContableQuitarNuloView(LoginRequiredMixin, View):
         except Exception as e:
             return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         
+        
 #validar asiento
 class AsientoContableValidateView(LoginRequiredMixin, View):
     def get(self, request, pk):
@@ -323,6 +345,7 @@ class AsientoContableValidateView(LoginRequiredMixin, View):
         except Exception as e:
             return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
         
+        
 #busqueda de asientos contables
 class AsientosContablesBuscarView(LoginRequiredMixin, View):
     def post(self, request):
@@ -330,23 +353,50 @@ class AsientosContablesBuscarView(LoginRequiredMixin, View):
         data = json.loads(request.body)
         
         numero = int(data.get("num", 0))
-        periodo = int(data.get("periodo"))
-        tipo = int(data.get("tipo"))
-        estado = int(data.get("estado"))
+        periodo = int(data.get("periodo"), 0)
+        tipo = int(data.get("tipo", 0))
+        estado = int(data.get("estado", 0))
         fechaDesde = data.get("fechaDesde")
         fechaHasta = data.get("fechaHasta")
+        cuenta = int(data.get("cuenta", 0))
         
         numero = int(numero) if numero > 0 else None
         periodo = int(periodo) if periodo > 0 else None
         tipo = int(tipo) if tipo > 0 else None
         estado = int(estado) if estado > 0 else None
+        cuenta = int(cuenta) if cuenta > 0 else None
         fechaDesde = datetime.strptime(fechaDesde, "%Y-%m-%d") if fechaDesde else None
         fechaHasta = datetime.strptime(fechaHasta, "%Y-%m-%d") if fechaHasta else None
         
-        asientos = AsientoContableServices.buscar_asientos(numero, periodo, tipo, estado, fechaDesde, fechaHasta)
+        asientos = AsientoContableServices.buscar_asientos(numero, periodo, tipo, estado, fechaDesde, fechaHasta, cuenta)
         return JsonResponse({"success":True, "data":asientos}, status=HTTPStatus.OK)
         
-        
+   
+#data libro mayor
+class LibroMayorData(LoginRequiredMixin, View):
+    def post(self, request):
+        try:
+            #post
+            data = json.loads(request.body)
+            
+            fecha_desde = data.get("fechaDesde")
+            fecha_hasta = data.get("fechaHasta")
+            periodo_id = int(data.get("periodo", 0))
+            cuenta_id = int(data.get("cuenta" , 0))
+             
+            periodo_id = int(periodo_id) if periodo_id > 0 else None
+            cuenta_id = int(cuenta_id) if cuenta_id > 0 else None
+            fecha_desde = date.fromisoformat(fecha_desde) if fecha_desde else None
+            fecha_hasta = date.fromisoformat(fecha_hasta) if fecha_hasta else None
+                
+            data = AsientoContableServices.libro_mayor(fecha_desde, fecha_hasta, periodo_id, cuenta_id)
+            
+            return JsonResponse({"success":True, "data":data}, status=HTTPStatus.OK)
+            
+        except ValueError as e:
+            return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as e:
+            return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)         
         
 #generar PDF ASIENTO CONTABLE
 class AsientoContablePDFView(LoginRequiredMixin, View):
@@ -361,12 +411,12 @@ class AsientoContablePDFView(LoginRequiredMixin, View):
             #validar usuario
             user = request.user
             
-            data = AsientoContableServices.asiento_pdf(pk)
+            data = AsientoContableServices.buscar_asientos(None, None, None, None, None, None, None, pk)
             
             if not data:
                 return HttpResponse("No es posible generar el asiento", status=HTTPStatus.BAD_REQUEST)
             
-            pdf = AsientoContableServicePDF.generate_asiento_pdf(data, user)
+            pdf = ReporteService.generate_asiento_pdf(data, user)
             
             response = HttpResponse(pdf, content_type='application/pdf')
             
@@ -379,6 +429,7 @@ class AsientoContablePDFView(LoginRequiredMixin, View):
         except Exception as e:
             return HttpResponse(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
     
+#generar PDF LIBRO DIARIO
 class LibroDiarioPDFView(LoginRequiredMixin, View):
     def post(self, request):
         try:
@@ -405,7 +456,7 @@ class LibroDiarioPDFView(LoginRequiredMixin, View):
             if not data:
                 return HttpResponse("No es posible generar el Libro diario", status=HTTPStatus.BAD_REQUEST)
             
-            pdf = LibroDiarioPDF.generate_libro_diario_pdf(data, user)
+            pdf = ReporteService.generate_libro_diario_pdf(data, user)
             
             response = HttpResponse(pdf, content_type='application/pdf')
             
@@ -417,8 +468,95 @@ class LibroDiarioPDFView(LoginRequiredMixin, View):
             return HttpResponse(str(e), status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
             return HttpResponse(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+    
+#generar libro diario excel
+class LibroDiarioExcel(LoginRequiredMixin, View):
+    def post(self, request):
+        #post
+        data = json.loads(request.body)
         
+        periodo = int(data.get("periodo"))
+        tipo = int(data.get("tipo"))
+        estado = int(data.get("estado"))
+        fechaDesde = data.get("fechaDesde")
+        fechaHasta = data.get("fechaHasta")
+        
+        #validar usuario
+        user = request.user
+        
+        periodo = int(periodo) if periodo > 0 else None
+        tipo = int(tipo) if tipo > 0 else None
+        estado = int(estado) if estado > 0 else None
+        fechaDesde = datetime.strptime(fechaDesde, "%Y-%m-%d") if fechaDesde else None
+        fechaHasta = datetime.strptime(fechaHasta, "%Y-%m-%d") if fechaHasta else None
+        
+        data = AsientoContableServices.buscar_asientos(None, periodo, tipo, estado, fechaDesde, fechaHasta)
+        response = ReporteService.libro_diario_excel(data)
+        
+        return response
 
+#generar libro mayor excel    
+class LibroMayorExcel(LoginRequiredMixin, View):
+    def post(self, request):
+        try:
+            #post
+            data = json.loads(request.body)
+            
+            fecha_desde = data.get("fechaDesde")
+            fecha_hasta = data.get("fechaHasta")
+            periodo_id = int(data.get("periodo", 0))
+            cuenta_id = int(data.get("cuenta" , 0))
+                
+            periodo_id = int(periodo_id) if periodo_id > 0 else None
+            cuenta_id = int(cuenta_id) if cuenta_id > 0 else None
+            fecha_desde = date.fromisoformat(fecha_desde) if fecha_desde else None
+            fecha_hasta = date.fromisoformat(fecha_hasta) if fecha_hasta else None
+            
+            data = AsientoContableServices.libro_mayor(fecha_desde, fecha_hasta, periodo_id, cuenta_id)
+            response = ReporteService.libro_mayor_excel(data)
+            
+            return response
+        
+            
+        except ValueError as e:
+            return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as e:
+            return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        
+#libro mayor pdf
+class LibroMayorPDF(LoginRequiredMixin, View):
+    def post(self, request):
+        try:
+            #validar usuario
+            user = request.user
+            
+            #post
+            data = json.loads(request.body)
+            
+            fecha_desde = data.get("fechaDesde")
+            fecha_hasta = data.get("fechaHasta")
+            periodo_id = int(data.get("periodo", 0))
+            cuenta_id = int(data.get("cuenta" , 0))
+                
+            periodo_id = int(periodo_id) if periodo_id > 0 else None
+            cuenta_id = int(cuenta_id) if cuenta_id > 0 else None
+            fecha_desde = date.fromisoformat(fecha_desde) if fecha_desde else None
+            fecha_hasta = date.fromisoformat(fecha_hasta) if fecha_hasta else None
+            
+            data = AsientoContableServices.libro_mayor(fecha_desde, fecha_hasta, periodo_id, cuenta_id)
+            pdf = ReporteService.libro_mayor_pdf(data, user)
+            
+            response = HttpResponse(pdf, content_type='application/pdf')
+                        
+            response['Content-Disposition'] = f'attachment; filename="libro_mayor.pdf"'
+
+            return response
+        
+            
+        except ValueError as e:
+            return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.BAD_REQUEST)
+        except Exception as e:
+            return JsonResponse({"success":False, "message":str(e)}, status=HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 

@@ -1,5 +1,7 @@
 from django.db import transaction
-from django.db.models import Q, Prefetch
+from collections import OrderedDict
+from django.db.models import Q, Prefetch, Sum, Value
+from django.db.models.functions import Coalesce
 from .models.asientos_contables import (
     AsientoContableCorrelativo, 
     AsientoContable, 
@@ -9,7 +11,7 @@ from .models.asientos_contables import (
     AsientoMovimientoAux,
     AsientoContableAprobacion,
     AsientoContableBloqueo)
-
+from applications.contabilidad.periodo_contable.models import PeriodoContable
 from core.models.person import Person
 from applications.contabilidad.plan_cuentas.models import Cuentas
 from applications.contabilidad.periodo_contable.services import PeriodoContableServices
@@ -793,32 +795,33 @@ class AsientoContableServices:
         
         return asiento
     
-    #generar pdf de asiento contable
-    @staticmethod
-    def asiento_pdf(pk):
+    #generar pdf de asiento contable MEJORAR URGENTE
+    # @staticmethod
+    # def asiento_pdf(pk): 
         
-        movimientos = (
-            AsientoMovimiento.objects.filter(is_active=True)
-            .select_related("account", "user_create", "user_create__person")
-            .prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True)
-                .select_related("person", "user_create", "user_create__person")))
-        )
+    #     movimientos = (
+    #         AsientoMovimiento.objects.filter(is_active=True)
+    #         .select_related("account", "user_create", "user_create__person")
+    #         .prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True)
+    #             .select_related("person", "user_create", "user_create__person")))
+    #     )
         
-        asiento = (AsientoContable.objects.select_related("status", "entry_type", "period", "user_create", "user_create__person")
-            .prefetch_related(Prefetch("movimientos", queryset=movimientos))
-            .filter(pk=pk, is_active=True, status=4)
-            .first()
-        )
+    #     asiento = (AsientoContable.objects.select_related("status", "entry_type", "period", "user_create", "user_create__person")
+    #         .prefetch_related(Prefetch("movimientos", queryset=movimientos))
+    #         .filter(pk=pk, is_active=True, status=4)
+    #         .first()
+    #     )
         
-        if not asiento:
-            return None
+    #     if not asiento:
+    #         return None
         
-        return asiento.asiento_to_dict()
+    #     return asiento.asiento_to_dict()
     
     #buscar asientos
     @staticmethod
-    def buscar_asientos(numero=None, periodo_id=None, tipo_id=None, estado_id=None, fecha_inicio=None, fecha_fin=None):
+    def buscar_asientos(numero=None, periodo_id=None, tipo_id=None, estado_id=None, fecha_inicio=None, fecha_fin=None, cuenta=None, asiento_id=None):
         filters = Q(is_active=True)
+        filters_movimientos = Q(is_active=True)
         
         if numero:
             filters &= Q(entry_number=numero)
@@ -832,6 +835,12 @@ class AsientoContableServices:
         if estado_id:
             filters &= Q(status=estado_id)
             
+        if cuenta:
+            filters_movimientos &= Q(account=cuenta)
+        
+        if asiento_id:
+            filters &= Q(pk=asiento_id)
+            
         if fecha_inicio and fecha_fin:
             filters &= Q(entry_date__range=[fecha_inicio, fecha_fin])
         elif fecha_inicio:
@@ -839,7 +848,7 @@ class AsientoContableServices:
         elif fecha_fin:
             filters &= Q(entry_date__lte=fecha_fin)
             
-        movimientos = (AsientoMovimiento.objects.filter(is_active=True)
+        movimientos = (AsientoMovimiento.objects.filter(filters_movimientos)
                        .select_related("account", "user_create", "user_create__person")
                        .prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True))))
             
@@ -848,7 +857,152 @@ class AsientoContableServices:
                     .prefetch_related(Prefetch("movimientos", queryset=movimientos))
                     .order_by("entry_number"))
         
+        if asientos.count() == 1:
+            return asientos.first().asiento_to_dict()
+        
         return [asiento.asiento_to_dict() for asiento in asientos]
+    
+    
+    #obtener data libro mayor
+    @staticmethod
+    def libro_mayor(fecha_desde=None, fecha_hasta=None, periodo_id=None, cuenta_id=None):
+        #obtener periodo si es seleccionado
+        periodo = None
+        if periodo_id:
+            periodo = PeriodoContable.objects.filter(pk=periodo_id).first()
+            
+            if not periodo:
+                raise ValueError("El periodo no existe")
+            
+        #determinar fechas
+        if periodo:
+            if not fecha_desde:
+                fecha_desde = periodo.start_date
+            
+            if not fecha_hasta:
+                fecha_hasta = periodo.end_date
+            
+            #si se selecciono periodo y rango de fechas
+            if fecha_desde < periodo.start_date:
+                raise ValueError("La fecha desde no puede ser menor al inicio del periodo")
+            
+            if fecha_hasta > periodo.end_date:
+                raise ValueError("La fecha hasta no puede ser mayor al final del periodo")
+        
+        #validar rangos de fecha
+        if not fecha_desde or not fecha_hasta:
+            raise ValueError("Debe indicar los rango de fechas o seleccionar un periodo contable.")
+        
+        if fecha_desde > fecha_hasta:
+            raise ValueError("La fecha inicial no puede ser mayor a la fecha final")
+        
+        #filtros movimientos
+        filtros_mov = {
+            "is_active": True,
+            "entry__is_active": True,
+            "entry__is_null": False,
+        }
+        
+        if cuenta_id:
+            cuenta = Cuentas.objects.filter(pk=cuenta_id, is_active=True).first()
+            
+            if not cuenta:
+                raise ValueError("La cuenta no existe")
+            
+            filtros_mov["account"] = cuenta
+            
+        #calcular saldo inicial
+        movimientos_anteriores = AsientoMovimiento.objects.filter(**filtros_mov, entry__entry_date__lt=fecha_desde).select_related("account")
+        
+        saldos_iniciales = movimientos_anteriores.values("account_id", "account__cuenta_tipo", "account__tratamiento_especial").annotate(total_debe=Coalesce(Sum("debit"), 0), total_haber=Coalesce(Sum("credit"), 0))
+        
+        
+        saldos_por_cuenta = {
+            item["account_id"]: (
+                item["total_debe"] - item["total_haber"] if item["cuenta_tipo"] in (1, 5) and item["tratamiento_especial"] == False else item["total_haber"] - item["total_debe"] 
+            ) for item in saldos_iniciales
+        }
+        
+        #movimientos rango de busqueda
+        movimientos = (AsientoMovimiento.objects.filter(**filtros_mov, entry__entry_date__gte=fecha_desde, entry__entry_date__lte=fecha_hasta)
+                       .select_related("account", "account__cuenta_tipo", "entry", "entry__status", "entry__entry_type", "entry__period", "entry__user_create", "entry__user_create__person")
+                       .prefetch_related(Prefetch("auxiliares", queryset=AsientoMovimientoAux.objects.filter(is_active=True)))
+                       .order_by("account__num_cuenta", "entry__entry_number", "entry__entry_date"))
+        
+        asientos = AsientoContable.objects.filter(is_active=True).prefetch_related(Prefetch("movimientos", queryset=movimientos)).order_by("entry_number")
+        
+        #agrupar por cuenta
+        cuentas_data = OrderedDict()
+        
+        for movimiento in movimientos:
+            cuenta = movimiento.account
+            cuenta_id_actual = cuenta.pk
+            
+            if cuenta_id_actual not in cuentas_data:
+                saldo_inicial = saldos_por_cuenta.get(cuenta_id_actual, 0)
+                
+                cuentas_data[cuenta_id_actual] = {
+                    "id" : cuenta.pk,
+                    "num_cuenta" : cuenta.num_cuenta,
+                    "cuenta_tipo" : cuenta.cuenta_tipo.descripcion,
+                    "cuenta_tipo_id" : cuenta.cuenta_tipo.id,
+                    "nombre" : cuenta.nombre,
+                    "saldo_inicial" : saldo_inicial,
+                    "total_debe" : 0,
+                    "total_haber" : 0,
+                    "saldo_final" : saldo_inicial,
+                    "fecha_desde" : fecha_desde,
+                    "fecha_hasta" : fecha_hasta,
+                    "movimientos" : []
+                }
+            
+            cuenta_data = cuentas_data[cuenta_id_actual]
+            
+            #calcular saldo del movimientos
+            debe = movimiento.debit or 0
+            haber = movimiento.credit or 0
+            
+            saldo_anterior = cuenta_data["saldo_final"]
+            
+            saldo_actual = (saldo_anterior + debe - haber)
+            
+            #informacion del asiento
+            asiento = movimiento.entry
+            
+            movimiento_data = {
+                "id" : movimiento.pk,
+                "fecha_asiento" : asiento.entry_date,
+                "debe" : debe,
+                "haber" : haber,
+                "saldo_anterior" : saldo_anterior,
+                "saldo" : saldo_actual,
+                "glosa" : movimiento.description,
+                "asiento": {
+                    "id" : asiento.pk,
+                    "numero_asiento" : asiento.entry_number,
+                    "numero_comprobante" : asiento.voucher_number,
+                    "fecha_asiento" : asiento.entry_date,
+                    "glosa" : asiento.description,
+                    "estado" : asiento.status.description,
+                    "tipo" : asiento.entry_type.description,
+                    "periodo" : {
+                        "id" : asiento.period.pk,
+                        "mes" : asiento.period.month,
+                        "year" : asiento.period.year
+                    },
+                },
+            }
+            
+            cuenta_data["movimientos"].append(movimiento_data)
+            
+            #actualizar totales
+            cuenta_data["total_debe"] += debe
+            cuenta_data["total_haber"] += haber
+            cuenta_data["saldo_final"] = saldo_actual
+        
+        return {
+            "cuentas" : list(cuentas_data.values())
+        }
     
     #obtener asientos contables del periodo activo
     @staticmethod

@@ -2,7 +2,7 @@
 {% block content %}
     {% if user.is_authenticated %}
             <!-- mostrar catalogo cuentas -->
-            {% include "contabilidad/asientos_busqueda/plantilla_busqueda.html" %} 
+            {% include "contabilidad/libro_mayor/libro_mayor_template.html" %} 
             <!-- Token CSRF para las peticiones -->
         {% csrf_token %}
     {% endif %}

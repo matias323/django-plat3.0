@@ -343,88 +343,136 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener('click', (e) => {
         if (e.target && e.target.closest('#btn-exportar-libro-diario')) {
             e.preventDefault();
-            exportarLibroDiarioCsv();
+            libroDiarioExcel();
         }
     });
+
+    const libroDiarioExcel = async () => {
+        try {
+            const response = await fetch("/contabilidad/asientos_contables/libro_diario/excel/",
+                {
+                    method: "POST",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest",
+                        'X-CSRFToken': csrftoken,
+                        'X-App-Request': 'true'
+                    },
+
+                    body: JSON.stringify({
+                        periodo,
+                        tipo,
+                        estado,
+                        fechaDesde,
+                        fechaHasta
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(
+                    "No fue posible generar el archivo Excel"
+                );
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "libro_diario.xlsx";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error(error);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: error.message,
+            });
+        } finally {
+            Swal.close();
+        }
+    }
 
     /**
      * Exportar el Libro Diario actual en formato CSV
      */
-    function exportarLibroDiarioCsv() {
-        const asientos = asientosData;
-        if (asientos.length === 0) {
-            alert('No hay registros para exportar con los filtros seleccionados.');
-            return;
-        }
+    // function exportarLibroDiarioCsv() {
+    //     const asientos = asientosData;
+    //     if (asientos.length === 0) {
+    //         alert('No hay registros para exportar con los filtros seleccionados.');
+    //         return;
+    //     }
 
-        const headers = [
-            'Numero Asiento',
-            'Numero de Comprobante',
-            'Fecha Asiento',
-            'Periodo Contable',
-            'Tipo Asiento',
-            'Moneda',
-            'Estado',
-            'Glosa General',
-            'Linea',
-            'Numero Cuenta',
-            'Nombre Cuenta',
-            'Doc Referencia',
-            'Glosa Detalle',
-            'Debe',
-            'Haber'
-        ];
+    //     const headers = [
+    //         'Numero Asiento',
+    //         'Numero de Comprobante',
+    //         'Fecha Asiento',
+    //         'Periodo Contable',
+    //         'Tipo Asiento',
+    //         'Moneda',
+    //         'Estado',
+    //         'Glosa General',
+    //         'Linea',
+    //         'Numero Cuenta',
+    //         'Nombre Cuenta',
+    //         'Doc Referencia',
+    //         'Glosa Detalle',
+    //         'Debe',
+    //         'Haber'
+    //     ];
 
-        const rows = [];
-        rows.push(headers.join(';'));
+    //     const rows = [];
+    //     rows.push(headers.join(';'));
 
-        asientos.forEach((a, index) => {
-            const asientoData = [
-                `"${a.numero_asiento || ''}"`,
-                `"${a.numero_comprobante || ''}"`,
-                `"${a.fecha_asiento || ''}"`,
-                `"${a.periodo.month_name} - ${a.periodo.year}"`,
-                `"${a.asiento_tipo || ''}"`,
-                `"${'CLP'}"`,
-                `"${a.asiento_estado || ''}"`,
-                `"${(a.glosa || '').replace(/"/g, '""')}"`,
-            ];
-            if (a.is_null) {
-                const movimientoData = ['ASIENTO NULO'];
-                const fullRow = [...asientoData, ...movimientoData];
-                rows.push(fullRow.join(';'));
-                rows.push('');
-                return;
-            }
-            (a.movimientos || []).forEach((m, idx) => {
-                const movimientoData = [  
-                    idx + 1,
-                    `"${m.cuenta.num_cuenta || ''}"`,
-                    `"${(m.cuenta.nombre || '').replace(/"/g, '""')}"`,
-                    `"${m.refDoc || ''}"`,
-                    `"${(m.glosa || '').replace(/"/g, '""')}"`,
-                    (Number(m.debe) || 0).toFixed(0),
-                    (Number(m.haber) || 0).toFixed(0)
-                ];
-                const fullRow = [...asientoData, ...movimientoData];
-                rows.push(fullRow.join(';'));
-            });
-            // 🔹 Agregar una fila vacía entre asientos (excepto después del último)
-            if (index < asientos.length - 1) {
-                rows.push('');
-            }
-        });
+    //     asientos.forEach((a, index) => {
+    //         const asientoData = [
+    //             `"${a.numero_asiento || ''}"`,
+    //             `"${a.numero_comprobante || ''}"`,
+    //             `"${a.fecha_asiento || ''}"`,
+    //             `"${a.periodo.month_name} - ${a.periodo.year}"`,
+    //             `"${a.asiento_tipo || ''}"`,
+    //             `"${'CLP'}"`,
+    //             `"${a.asiento_estado || ''}"`,
+    //             `"${(a.glosa || '').replace(/"/g, '""')}"`,
+    //         ];
+    //         if (a.is_null) {
+    //             const movimientoData = ['ASIENTO NULO'];
+    //             const fullRow = [...asientoData, ...movimientoData];
+    //             rows.push(fullRow.join(';'));
+    //             rows.push('');
+    //             return;
+    //         }
+    //         (a.movimientos || []).forEach((m, idx) => {
+    //             const movimientoData = [  
+    //                 idx + 1,
+    //                 `"${m.cuenta.num_cuenta || ''}"`,
+    //                 `"${(m.cuenta.nombre || '').replace(/"/g, '""')}"`,
+    //                 `"${m.refDoc || ''}"`,
+    //                 `"${(m.glosa || '').replace(/"/g, '""')}"`,
+    //                 (Number(m.debe) || 0).toFixed(0),
+    //                 (Number(m.haber) || 0).toFixed(0)
+    //             ];
+    //             const fullRow = [...asientoData, ...movimientoData];
+    //             rows.push(fullRow.join(';'));
+    //         });
+    //         // 🔹 Agregar una fila vacía entre asientos (excepto después del último)
+    //         if (index < asientos.length - 1) {
+    //             rows.push('');
+    //         }
+    //     });
 
-        const csvContent = '\uFEFF' + rows.join('\r\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', `Libro_Diario.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
+    //     const csvContent = '\uFEFF' + rows.join('\r\n');
+    //     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    //     const url = URL.createObjectURL(blob);
+    //     const link = document.createElement('a');
+    //     link.setAttribute('href', url);
+    //     link.setAttribute('download', `Libro_Diario.csv`);
+    //     document.body.appendChild(link);
+    //     link.click();
+    //     document.body.removeChild(link);
+    // }
 
     //capturar click btn pdf
     document.addEventListener('click', (e) => {
