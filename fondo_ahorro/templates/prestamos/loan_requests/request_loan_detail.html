@@ -1,0 +1,403 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitud de préstamo #{{ request_loan.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Solicitud de préstamo #{{ request_loan.id }}</h3>
+            <div class="text-muted">Revisión documental y resolución de la solicitud.</div>
+        </div>
+
+        <a href="{% url 'loan_requests:list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Volver
+        </a>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Funcionario</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="fw-bold fs-5 mb-3">{{ person_name }}</div>
+
+            <div class="row g-3">
+                <div class="col-md-4"><strong>Código:</strong> {{ request_loan.employee.code }}</div>
+                <div class="col-md-4"><strong>RUT:</strong> {{ person_rut }}</div>
+                <div class="col-md-4"><strong>Grado:</strong> {{ employee_grade|default:"-" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Datos de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4"><strong>Tipo préstamo:</strong> {{ request_loan.loan_type.name }}</div>
+                <div class="col-md-4"><strong>Concepto:</strong> {{ request_loan.type_concept.concept.name }}</div>
+                <div class="col-md-4"><strong>Fecha:</strong> {{ request_loan.request_date|date:"d-m-Y" }}</div>
+                <div class="col-md-4"><strong>Monto:</strong> $ {{ request_loan.loan_amount|floatformat:0 }}</div>
+                <div class="col-md-4"><strong>Plazo:</strong> {{ request_loan.term }} meses</div>
+                <div class="col-md-4">
+                    <strong>Estado:</strong>
+                    <span class="badge {% if request_loan.request.status.status_type|upper == 'APROBADO' %}bg-success{% elif request_loan.request.status.status_type|upper == 'RECHAZADO' %}bg-danger{% else %}bg-primary{% endif %}">
+                        {{ request_loan.request.status.status_type }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h4 class="mb-0">Documentos</h4>
+        {% if not is_final %}
+            <span class="text-muted small">Todos deben quedar aprobados para aprobar la solicitud.</span>
+        {% endif %}
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="documentsTable" class="table table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre Documento</th>
+                            <th>Archivo</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in document_rows %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ row.required.document_type.name }}</td>
+
+                            <td>
+                                {% if row.latest %}
+                                    {{ row.latest.document.document_name }}
+                                {% else %}
+                                    <span class="text-muted">Sin archivo</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if not row.latest %}
+                                    <span class="badge bg-secondary">Sin archivo</span>
+                                {% elif row.latest.status == "APPROVED" %}
+                                    <span class="badge bg-success">Aprobado</span>
+                                {% elif row.latest.status == "REJECTED" %}
+                                    <span class="badge bg-danger">Rechazado</span>
+                                    {% if row.latest.rejection_comment %}
+                                        <div class="small text-danger mt-1">{{ row.latest.rejection_comment }}</div>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center text-nowrap">
+                                {% if row.latest %}
+                                    <a href="{% url 'loan_requests:document_view' request_loan.id row.latest.id %}"
+                                       target="_blank"
+                                       class="btn btn-sm btn-info text-white">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if row.can_upload %}
+                                    <button type="button"
+                                            class="btn btn-sm btn-success btn-upload"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#uploadDocumentModal"
+                                            data-url="{% url 'loan_requests:document_upload' request_loan.id row.required.id %}"
+                                            data-name="{{ row.required.document_type.name }}">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                {% endif %}
+
+                                {% if row.can_validate %}
+                                    <form method="post"
+                                          class="d-inline"
+                                          action="{% url 'loan_requests:document_approve' request_loan.id row.latest.id %}">
+                                        {% csrf_token %}
+                                        <button class="btn btn-sm btn-success" title="Aprobar">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+
+                                    <button type="button"
+                                            class="btn btn-sm btn-danger btn-reject-document"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#rejectDocumentModal"
+                                            data-url="{% url 'loan_requests:document_reject' request_loan.id row.latest.id %}"
+                                            data-name="{{ row.required.document_type.name }}">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No existen documentos requeridos.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
+        {% if not is_final %}
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#rejectRequestModal">
+                <i class="bi bi-x-lg me-1"></i>
+                Rechazar solicitud
+            </button>
+
+            <form method="post"
+                  action="{% url 'loan_requests:approve' request_loan.id %}">
+                {% csrf_token %}
+
+                <button type="submit"
+                        class="btn btn-success"
+                        {% if not can_approve %}disabled{% endif %}>
+                    <i class="bi bi-check-lg me-1"></i>
+                    Aprobar solicitud
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h4 class="mb-0">Observaciones</h4>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#observationModal">
+            <i class="bi bi-plus-lg me-1"></i>
+            Agregar observación
+        </button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="observationsTable" class="table table-sm table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                            <th>Usuario</th>
+                            <th>Observación</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for relation in observations %}
+                        <tr>
+                            <td>{{ relation.created_at|date:"d-m-Y H:i" }}</td>
+                            <td>{{ relation.get_action_display }}</td>
+                            <td>{{ relation.observation.user }}</td>
+                            <td>{{ relation.observation.comment }}</td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">Sin observaciones.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADJUNTAR DOCUMENTO -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data" id="uploadDocumentForm">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Adjuntar documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3 fw-semibold" id="uploadDocumentName"></div>
+
+                    <label class="form-label">Archivo PDF</label>
+
+                    <input type="file"
+                           name="document"
+                           class="form-control"
+                           accept=".pdf,application/pdf"
+                           required>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-success">
+                        Adjuntar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RECHAZAR DOCUMENTO -->
+<div class="modal fade" id="rejectDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="rejectDocumentForm">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Rechazar documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3 fw-semibold" id="rejectDocumentName"></div>
+
+                    <label class="form-label">Motivo del rechazo</label>
+
+                    <textarea name="comment"
+                              class="form-control"
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        Rechazar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RECHAZAR SOLICITUD -->
+<div class="modal fade" id="rejectRequestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post"
+                  action="{% url 'loan_requests:reject' request_loan.id %}">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Rechazar solicitud</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <label class="form-label">Motivo del rechazo</label>
+
+                    <textarea name="comment"
+                              class="form-control"
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        Rechazar solicitud
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- OBSERVACION -->
+<div class="modal fade" id="observationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post"
+                  action="{% url 'loan_requests:add_observation' request_loan.id %}">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar observación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <label class="form-label">Observación</label>
+
+                    <textarea name="comment"
+                              class="form-control"
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary">
+                        Guardar observación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".btn-upload").forEach(button => {
+        button.addEventListener("click", function () {
+            document.getElementById("uploadDocumentForm").action = this.dataset.url;
+            document.getElementById("uploadDocumentName").textContent = this.dataset.name;
+        });
+    });
+
+    document.querySelectorAll(".btn-reject-document").forEach(button => {
+        button.addEventListener("click", function () {
+            document.getElementById("rejectDocumentForm").action = this.dataset.url;
+            document.getElementById("rejectDocumentName").textContent = this.dataset.name;
+        });
+    });
+});
+</script>
+{% endblock %}

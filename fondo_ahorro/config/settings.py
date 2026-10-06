@@ -60,6 +60,7 @@ INSTALLED_APPS = [
 
     #prestamos
     "applications.prestamos.loan",
+    "applications.prestamos.loan_requests",
 
     #inventario
     "applications.inventario.inventory",

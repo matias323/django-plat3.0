@@ -1,0 +1,238 @@
+<div class="modal-header">
+    <div>
+        <h5 class="modal-title mb-1">
+            Solicitud de préstamo #{{ request_loan.id }}
+        </h5>
+        <div class="text-muted small">
+            Revisión documental y resolución de la solicitud
+        </div>
+    </div>
+
+    <button type="button"
+            class="btn-close"
+            data-bs-dismiss="modal">
+    </button>
+</div>
+
+<div class="modal-body">
+
+    <!-- DATOS FUNCIONARIO -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">
+            <strong>Funcionario</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="fw-bold fs-5 mb-3">
+                {{ person_name }}
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Código</label>
+                    <div class="fw-semibold">{{ request_loan.employee.code }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">RUT</label>
+                    <div class="fw-semibold">{{ person_rut }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Grado</label>
+                    <div class="fw-semibold">{{ employee_grade|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DATOS SOLICITUD -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">
+            <strong>Datos de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Tipo de préstamo</label>
+                    <div class="fw-semibold">{{ request_loan.loan_type.name }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Concepto</label>
+                    <div class="fw-semibold">{{ request_loan.type_concept.concept.name }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Fecha solicitud</label>
+                    <div class="fw-semibold">{{ request_loan.request_date|date:"d-m-Y" }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Monto solicitado</label>
+                    <div class="fw-semibold">$ {{ request_loan.loan_amount|floatformat:0 }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Plazo</label>
+                    <div class="fw-semibold">{{ request_loan.term }} meses</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Estado</label>
+                    <div>
+                        <span class="badge {% if request_loan.request.status.status_type|upper == 'APROBADO' %}bg-success{% elif request_loan.request.status.status_type|upper == 'RECHAZADO' %}bg-danger{% else %}bg-primary{% endif %}">
+                            {{ request_loan.request.status.status_type }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENTOS -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <strong>Documentos</strong>
+
+            <span class="text-muted small">
+                {{ approved_documents_count }} de {{ required_documents_count }} aprobados
+            </span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Documento</th>
+                            <th>Archivo</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acción</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in document_rows %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ row.required.document_type.name }}</td>
+
+                            <td>
+                                {% if row.latest %}
+                                    {{ row.latest.document.document_name }}
+                                {% else %}
+                                    <span class="text-muted">Sin archivo</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if not row.latest %}
+                                    <span class="badge bg-secondary">Sin archivo</span>
+                                {% elif row.latest.status == "APPROVED" %}
+                                    <span class="badge bg-success">Aprobado</span>
+                                {% elif row.latest.status == "REJECTED" %}
+                                    <span class="badge bg-danger">Rechazado</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% endif %}
+                            </td>
+
+                            <td class="text-center text-nowrap">
+                                {% if row.latest %}
+                                    <a href="{% url 'loan_requests:document_view' request_loan.id row.latest.id %}"
+                                       target="_blank"
+                                       class="btn btn-sm btn-info text-white"
+                                       title="Ver documento">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if row.can_upload %}
+                                    <a href="{% url 'loan_requests:detail' request_loan.id %}"
+                                       class="btn btn-sm btn-success"
+                                       title="Adjuntar documento">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </a>
+                                {% endif %}
+
+                                {% if row.can_validate %}
+                                    <a href="{% url 'loan_requests:detail' request_loan.id %}"
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Revisar documento">
+                                        <i class="bi bi-check2-square"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No existen documentos requeridos.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- OBSERVACIONES -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <strong>Observaciones</strong>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                            <th>Usuario</th>
+                            <th>Observación</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for relation in observations %}
+                        <tr>
+                            <td>{{ relation.created_at|date:"d-m-Y H:i" }}</td>
+                            <td>{{ relation.get_action_display }}</td>
+                            <td>{{ relation.observation.user }}</td>
+                            <td>{{ relation.observation.comment }}</td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                                Sin observaciones.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal-footer">
+    <button type="button"
+            class="btn btn-outline-secondary"
+            data-bs-dismiss="modal">
+        Cerrar
+    </button>
+
+    <a href="{% url 'loan_requests:detail' request_loan.id %}"
+       class="btn btn-primary">
+        <i class="bi bi-box-arrow-up-right me-1"></i>
+        Gestionar solicitud
+    </a>
+</div>
