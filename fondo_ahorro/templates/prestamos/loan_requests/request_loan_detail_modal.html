@@ -82,11 +82,47 @@
                 <div class="col-md-4">
                     <label class="form-label text-muted mb-1">Estado</label>
                     <div>
-                        <span class="badge {% if request_loan.request.status.status_type|upper == 'APROBADO' %}bg-success{% elif request_loan.request.status.status_type|upper == 'RECHAZADO' %}bg-danger{% else %}bg-primary{% endif %}">
-                            {{ request_loan.request.status.status_type }}
-                        </span>
+                        {% if is_rejected %}
+                            <span class="badge bg-danger">Rechazado</span>
+                        {% elif request_loan.state %}
+                            <span class="badge {% if request_loan.state.is_paid_state or request_loan.state.is_approval_state %}bg-success{% else %}bg-primary{% endif %}">
+                                {{ request_loan.state.name }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">Sin estado</span>
+                        {% endif %}
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Estado de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-2 text-center">
+                {% for step in timeline %}
+                    <div class="col-6 col-md">
+                        <div class="request-step request-step-{{ step.state }}">
+                            <div class="request-step-icon">
+                                {% if step.state == "done" %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                {% elif step.state == "current" %}
+                                    <i class="bi bi-circle-fill"></i>
+                                {% elif step.state == "rejected" %}
+                                    <i class="bi bi-x-circle-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-circle"></i>
+                                {% endif %}
+                            </div>
+
+                            <div>{{ step.label }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -236,3 +272,39 @@
         Gestionar solicitud
     </a>
 </div>
+
+
+<style>
+.request-step{
+    min-height:86px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:10px 6px;
+    border-radius:10px;
+    border:1px solid var(--bs-border-color);
+    font-weight:600;
+}
+.request-step-icon{font-size:1.25rem}
+.request-step-done{
+    background:rgba(var(--bs-success-rgb),.12);
+    color:var(--bs-success);
+    border-color:rgba(var(--bs-success-rgb),.35);
+}
+.request-step-current{
+    background:rgba(var(--bs-primary-rgb),.12);
+    color:var(--bs-primary);
+    border-color:rgba(var(--bs-primary-rgb),.35);
+}
+.request-step-rejected{
+    background:rgba(var(--bs-danger-rgb),.12);
+    color:var(--bs-danger);
+    border-color:rgba(var(--bs-danger-rgb),.35);
+}
+.request-step-future{
+    background:var(--bs-tertiary-bg);
+    color:var(--bs-secondary-color);
+}
+</style>

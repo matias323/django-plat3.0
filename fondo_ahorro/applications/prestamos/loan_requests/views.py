@@ -13,6 +13,7 @@ from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_GET, require_POST
 
 from core.models.document import Document
@@ -39,6 +40,7 @@ from .models import (
     RequestLoanDocumentRequirement,
     RequestLoanObservation,
     RequestLoanRequiredDocument,
+    RequestLoanState,
 )
 
 
@@ -46,6 +48,23 @@ REQUEST_TYPE_LOAN = "Loan"
 REQUEST_STATUS_ENTERED = "INGRESADO"
 REQUEST_STATUS_APPROVED = "APROBADO"
 REQUEST_STATUS_REJECTED = "RECHAZADO"
+REQUEST_STATUS_PAID = "PAGADO"
+
+REQUEST_LOAN_STATE_ENTERED = "ENTERED"
+REQUEST_LOAN_STATE_LEGAL = "LEGAL_AREA"
+REQUEST_LOAN_STATE_COUNCIL_WAIT = "COUNCIL_WAIT"
+REQUEST_LOAN_STATE_COUNCIL_APPROVED = "COUNCIL_APPROVED"
+REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED = "COUNCIL_APPROVED_MODIFIED"
+REQUEST_LOAN_STATE_PAID = "PAID"
+
+DEFAULT_REQUEST_LOAN_STATES = (
+    {"code": REQUEST_LOAN_STATE_ENTERED, "name": "Ingresado", "sequence": 1, "is_approval_state": False, "is_paid_state": False},
+    {"code": REQUEST_LOAN_STATE_LEGAL, "name": "Área Legal", "sequence": 2, "is_approval_state": False, "is_paid_state": False},
+    {"code": REQUEST_LOAN_STATE_COUNCIL_WAIT, "name": "Espera Consejo", "sequence": 3, "is_approval_state": False, "is_paid_state": False},
+    {"code": REQUEST_LOAN_STATE_COUNCIL_APPROVED, "name": "Aprobado Consejo", "sequence": 4, "is_approval_state": True, "is_paid_state": False},
+    {"code": REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED, "name": "Aprobado Consejo con Modificaciones", "sequence": 4, "is_approval_state": True, "is_paid_state": False},
+    {"code": REQUEST_LOAN_STATE_PAID, "name": "Pagado", "sequence": 5, "is_approval_state": False, "is_paid_state": True},
+)
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
@@ -162,9 +181,64 @@ def _validate_pdf(uploaded_file):
         raise ValueError("El documento supera el tamaño máximo permitido de 10 MB.")
 
 
-def _request_is_final(request_loan):
+def _ensure_request_loan_states(user):
+    states = []
+
+    for config in DEFAULT_REQUEST_LOAN_STATES:
+        state = RequestLoanState.objects.filter(code=config["code"]).first()
+
+        if not state:
+            state = RequestLoanState(**config)
+            _save_with_user(state, user)
+        else:
+            changed = []
+
+            for field in ["name", "sequence", "is_approval_state", "is_paid_state"]:
+                if getattr(state, field) != config[field]:
+                    setattr(state, field, config[field])
+                    changed.append(field)
+
+            if not state.is_active:
+                state.is_active = True
+                changed.append("is_active")
+
+            if changed:
+                _save_with_user(state, user, changed)
+
+        states.append(state)
+
+    return states
+
+
+def _entered_request_loan_state(user):
+    _ensure_request_loan_states(user)
+
+    return RequestLoanState.objects.get(
+        code=REQUEST_LOAN_STATE_ENTERED,
+        is_active=True,
+    )
+
+
+def _assign_default_request_loan_state(request_loan, user):
+    if request_loan.state_id:
+        return request_loan.state
+
+    state = _entered_request_loan_state(user)
+    request_loan.state = state
+    _save_with_user(request_loan, user, ["state"])
+    return state
+
+
+def _request_is_rejected(request_loan):
     status = _normalize_spaces(request_loan.request.status.status_type).upper()
-    return status in {REQUEST_STATUS_APPROVED, REQUEST_STATUS_REJECTED}
+    return status == REQUEST_STATUS_REJECTED
+
+
+def _request_is_final(request_loan):
+    if _request_is_rejected(request_loan):
+        return True
+
+    return bool(request_loan.state and request_loan.state.is_paid_state)
 
 
 def _latest_document(required_document):
@@ -173,6 +247,238 @@ def _latest_document(required_document):
         "document__type_document",
         "validated_by",
     ).order_by("-id").first()
+
+
+def _approval_branch_name(request_loan):
+    if request_loan.state and request_loan.state.is_approval_state:
+        return request_loan.state.name
+
+    state_change = (
+        request_loan.observations
+        .filter(is_active=True, action=RequestLoanObservation.Action.STATE_CHANGED)
+        .select_related("observation")
+        .order_by("-id")
+        .first()
+    )
+
+    if not state_change or not state_change.observation:
+        return "Aprobación Consejo"
+
+    comment = state_change.observation.comment or ""
+    marker = "Estado anterior:"
+
+    if marker not in comment:
+        return "Aprobación Consejo"
+
+    previous_name = comment.split(marker, 1)[1].split(".", 1)[0].strip()
+    approval_names = set(
+        RequestLoanState.objects.filter(
+            is_active=True,
+            is_approval_state=True,
+        ).values_list("name", flat=True)
+    )
+
+    return previous_name if previous_name in approval_names else "Aprobación Consejo"
+
+
+def _request_timeline(request_loan):
+    states = list(
+        RequestLoanState.objects
+        .filter(is_active=True)
+        .order_by("sequence", "id")
+    )
+
+    if not states:
+        return []
+
+    current_state = request_loan.state
+    current_sequence = current_state.sequence if current_state else states[0].sequence
+    rejected = _request_is_rejected(request_loan)
+
+    groups = {}
+    for state in states:
+        groups.setdefault(state.sequence, []).append(state)
+
+    result = []
+
+    for sequence in sorted(groups):
+        group = groups[sequence]
+
+        if len(group) == 1:
+            label = group[0].name
+        elif current_state and current_state.sequence == sequence:
+            label = current_state.name
+        elif current_sequence > sequence:
+            label = _approval_branch_name(request_loan)
+        else:
+            label = "Aprobación Consejo"
+
+        state_value = "future"
+
+        if sequence < current_sequence:
+            state_value = "done"
+        elif sequence == current_sequence:
+            if rejected:
+                state_value = "rejected"
+                label = "Rechazado"
+            elif current_state and current_state.is_paid_state:
+                state_value = "done"
+            else:
+                state_value = "current"
+
+        result.append({
+            "sequence": sequence,
+            "label": label,
+            "state": state_value,
+        })
+
+    return result
+
+
+
+def _request_data_can_be_edited(request_loan):
+    if _request_is_rejected(request_loan):
+        return False
+
+    if not request_loan.state_id:
+        return False
+
+    return request_loan.state.code in {
+        REQUEST_LOAN_STATE_ENTERED,
+        REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED,
+    }
+
+
+def _sync_existing_loan_from_request(request, request_loan, loan):
+    """
+    Sincroniza el préstamo ya creado cuando una solicitud en
+    'Aprobado Consejo con Modificaciones' cambia sus datos.
+    Recalcula la tabla francesa y vuelve a generar los dividendos.
+    """
+    rate = loan.rate or _default_loan_rate()
+    collection_method = loan.collection_method or _default_collection_method()
+    installment_status = _default_installment_status()
+
+    amount = Decimal(request_loan.loan_amount)
+    term = int(request_loan.term)
+    simulation = _loan_simulation(
+        amount,
+        rate,
+        term,
+    )
+
+    loan.loan_type = request_loan.loan_type
+    loan.type_concept = request_loan.type_concept
+    loan.person = request_loan.employee.person
+    loan.loan_amount = amount
+    loan.interest_amount = simulation["interest_total"]
+    loan.principal_balance = amount
+    loan.interest_balance = simulation["interest_total"]
+    loan.term = term
+    loan.installments_paid = 0
+    loan.principal_paid = 0
+    loan.interest_paid = 0
+    loan.start_date = simulation["start_date"]
+    loan.end_date = simulation["end_date"]
+
+    _save_with_user(
+        loan,
+        request.user,
+        [
+            "loan_type",
+            "type_concept",
+            "person",
+            "loan_amount",
+            "interest_amount",
+            "principal_balance",
+            "interest_balance",
+            "term",
+            "installments_paid",
+            "principal_paid",
+            "interest_paid",
+            "start_date",
+            "end_date",
+        ],
+    )
+
+    # Los dividendos existentes corresponden a los valores anteriores.
+    # Se recrean completamente con los nuevos datos aprobados.
+    LoanInstallment.objects.filter(
+        loan=loan,
+    ).delete()
+
+    for row in simulation["schedule"]:
+        installment = LoanInstallment(
+            loan=loan,
+            collection_method=collection_method,
+            status=installment_status,
+            due_date=row["due_date"],
+            amount=row["amount"],
+            principal=row["principal"],
+            interest=row["interest"],
+            installment_number=row["installment_number"],
+        )
+        _save_with_user(
+            installment,
+            request.user,
+        )
+
+    return loan
+
+
+def _next_request_loan_states(request_loan):
+    """
+    Devuelve únicamente los estados permitidos desde el estado actual.
+
+    Flujo:
+    Ingresado -> Área Legal
+    Área Legal -> Espera Consejo
+    Espera Consejo -> Aprobado Consejo / Aprobado Consejo con Modificaciones
+    Cualquier aprobación -> Pagado
+    Pagado -> sin opciones
+    """
+    if not request_loan.state_id:
+        return RequestLoanState.objects.none()
+
+    current_state = request_loan.state
+
+    if current_state.is_paid_state:
+        return RequestLoanState.objects.none()
+
+    # Desde un estado de aprobación, solo se puede avanzar a Pagado.
+    if current_state.is_approval_state:
+        return (
+            RequestLoanState.objects
+            .filter(
+                is_active=True,
+                is_paid_state=True,
+            )
+            .order_by("sequence", "id")
+        )
+
+    # Para el resto, solo se permite avanzar al nivel inmediatamente siguiente.
+    next_sequence = (
+        RequestLoanState.objects
+        .filter(
+            is_active=True,
+            sequence__gt=current_state.sequence,
+        )
+        .order_by("sequence")
+        .values_list("sequence", flat=True)
+        .first()
+    )
+
+    if next_sequence is None:
+        return RequestLoanState.objects.none()
+
+    return (
+        RequestLoanState.objects
+        .filter(
+            is_active=True,
+            sequence=next_sequence,
+        )
+        .order_by("id")
+    )
 
 
 # ============================================================
@@ -321,6 +627,63 @@ def _loan_simulation(amount, rate, term):
     }
 
 
+def _create_loan_from_request(request, request_loan):
+    existing_loan = Loan.objects.filter(
+        request=request_loan.request
+    ).order_by("id").first()
+
+    if existing_loan:
+        return existing_loan, False
+
+    rate = _default_loan_rate()
+    collection_method = _default_collection_method()
+    loan_status = _default_loan_status()
+    installment_status = _default_installment_status()
+
+    amount = Decimal(request_loan.loan_amount)
+    term = int(request_loan.term)
+    simulation = _loan_simulation(amount, rate, term)
+
+    loan = Loan(
+        request=request_loan.request,
+        loan_type=request_loan.loan_type,
+        type_concept=request_loan.type_concept,
+        person=request_loan.employee.person,
+        collection_method=collection_method,
+        rate=rate,
+        unique_code="",
+        loan_amount=amount,
+        interest_amount=simulation["interest_total"],
+        principal_balance=amount,
+        interest_balance=simulation["interest_total"],
+        term=term,
+        installments_paid=0,
+        principal_paid=0,
+        interest_paid=0,
+        start_date=simulation["start_date"],
+        end_date=simulation["end_date"],
+        is_mortgage=False,
+        status=loan_status,
+        previous_loan=None,
+    )
+    _save_with_user(loan, request.user)
+
+    for row in simulation["schedule"]:
+        installment = LoanInstallment(
+            loan=loan,
+            collection_method=collection_method,
+            status=installment_status,
+            due_date=row["due_date"],
+            amount=row["amount"],
+            principal=row["principal"],
+            interest=row["interest"],
+            installment_number=row["installment_number"],
+        )
+        _save_with_user(installment, request.user)
+
+    return loan, True
+
+
 # ============================================================
 # LISTADO
 # ============================================================
@@ -339,6 +702,8 @@ def request_loan_datatable(request):
     except (TypeError, ValueError):
         draw, start, length = 1, 0, 10
 
+    _ensure_request_loan_states(request.user)
+    entered_state = _entered_request_loan_state(request.user)
     search = _normalize_spaces(request.GET.get("search[value]", ""))
 
     queryset = (
@@ -347,6 +712,7 @@ def request_loan_datatable(request):
             "request",
             "request__status",
             "request__request_type",
+            "state",
             "employee",
             "employee__person",
             "employee__grade",
@@ -374,6 +740,7 @@ def request_loan_datatable(request):
                 | Q(employee__person__last_name_2__icontains=token)
                 | Q(loan_type__name__icontains=token)
                 | Q(type_concept__concept__name__icontains=token)
+                | Q(state__name__icontains=token)
                 | Q(request__status__status_type__icontains=token)
             )
 
@@ -405,7 +772,7 @@ def request_loan_datatable(request):
             "loan_amount": float(item.loan_amount or 0),
             "term": item.term,
             "request_date": item.request_date.strftime("%d-%m-%Y"),
-            "status": item.request.status.status_type,
+            "status": ("Rechazado" if _request_is_rejected(item) else (item.state.name if item.state else entered_state.name)),
             "detail_url": reverse("loan_requests:detail", args=[item.id]),
             "detail_modal_url": reverse("loan_requests:detail_modal", args=[item.id]),
         })
@@ -511,6 +878,8 @@ def employee_search(request):
 # ============================================================
 @login_required
 def request_loan_create(request):
+    _ensure_request_loan_states(request.user)
+    entered_loan_state = _entered_request_loan_state(request.user)
     loan_types = LoanType.objects.filter(is_active=True).order_by("name", "id")
     requirements = (
         RequestLoanDocumentRequirement.objects
@@ -664,6 +1033,7 @@ def request_loan_create(request):
 
             request_loan = RequestLoan(
                 request=core_request,
+                state=entered_loan_state,
                 employee=employee,
                 loan_type=loan_type,
                 type_concept=type_concept,
@@ -787,10 +1157,13 @@ def request_loan_create(request):
 # ============================================================
 @login_required
 def request_loan_detail(request, pk):
+    _ensure_request_loan_states(request.user)
+
     request_loan = get_object_or_404(
         RequestLoan.objects.select_related(
             "request",
             "request__status",
+            "state",
             "employee",
             "employee__person",
             "employee__grade",
@@ -801,6 +1174,278 @@ def request_loan_detail(request, pk):
         pk=pk,
         is_active=True,
     )
+
+    _assign_default_request_loan_state(request_loan, request.user)
+
+    existing_loan = Loan.objects.filter(
+        request=request_loan.request
+    ).order_by("id").first()
+
+    action = request.POST.get("action") if request.method == "POST" else None
+
+    # ========================================================
+    # EDITAR DATOS GENERALES
+    # ========================================================
+    if action == "update_request":
+        if not _request_data_can_be_edited(request_loan):
+            messages.error(
+                request,
+                "Los datos de la solicitud solo pueden editarse en estado Ingresado o Aprobado Consejo con Modificaciones.",
+            )
+            return redirect("loan_requests:detail", pk=pk)
+
+        try:
+            employee_id = int(request.POST.get("employee_id", 0) or 0)
+            loan_type_id = int(request.POST.get("loan_type", 0) or 0)
+            type_concept_id = int(request.POST.get("type_concept", 0) or 0)
+            term = int(request.POST.get("term", 0) or 0)
+            amount_raw = str(request.POST.get("loan_amount", "") or "").strip()
+            request_date_raw = str(request.POST.get("request_date", "") or "").strip()
+
+            if employee_id <= 0:
+                raise ValueError("Debe seleccionar un funcionario.")
+            if loan_type_id <= 0:
+                raise ValueError("Debe seleccionar un tipo de préstamo.")
+            if type_concept_id <= 0:
+                raise ValueError("Debe seleccionar un concepto.")
+            if term <= 0:
+                raise ValueError("El plazo debe ser mayor a 0.")
+
+            try:
+                loan_amount = Decimal(amount_raw)
+            except (InvalidOperation, TypeError, ValueError):
+                raise ValueError("El monto solicitado no es válido.")
+
+            if loan_amount <= 0:
+                raise ValueError("El monto solicitado debe ser mayor a 0.")
+
+            request_date_value = parse_date(request_date_raw)
+
+            if not request_date_value:
+                raise ValueError("La fecha de solicitud no es válida.")
+
+            employee = (
+                Employee.objects
+                .select_related("person", "grade")
+                .filter(pk=employee_id, is_active=True)
+                .first()
+            )
+            if not employee:
+                raise ValueError("El funcionario seleccionado no existe o está inactivo.")
+
+            loan_type = LoanType.objects.filter(
+                pk=loan_type_id,
+                is_active=True,
+            ).first()
+            if not loan_type:
+                raise ValueError("El tipo de préstamo seleccionado no es válido.")
+
+            type_concept = (
+                LoanTypeConcept.objects
+                .filter(
+                    pk=type_concept_id,
+                    loan_type=loan_type,
+                    is_active=True,
+                    concept__is_active=True,
+                )
+                .select_related("loan_type", "concept")
+                .first()
+            )
+            if not type_concept:
+                raise ValueError(
+                    "El concepto seleccionado no corresponde al tipo de préstamo."
+                )
+
+            old_employee = _person_full_name(request_loan.employee.person)
+            old_type = request_loan.loan_type.name
+            old_concept = request_loan.type_concept.concept.name
+            old_amount = request_loan.loan_amount
+            old_term = request_loan.term
+            old_date = request_loan.request_date
+
+            with transaction.atomic():
+                request_loan.employee = employee
+                request_loan.loan_type = loan_type
+                request_loan.type_concept = type_concept
+                request_loan.loan_amount = loan_amount
+                request_loan.term = term
+                request_loan.request_date = request_date_value
+
+                _save_with_user(
+                    request_loan,
+                    request.user,
+                    [
+                        "employee",
+                        "loan_type",
+                        "type_concept",
+                        "loan_amount",
+                        "term",
+                        "request_date",
+                    ],
+                )
+
+                if (
+                    existing_loan
+                    and request_loan.state.code == REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED
+                ):
+                    _sync_existing_loan_from_request(
+                        request,
+                        request_loan,
+                        existing_loan,
+                    )
+
+                _create_observation(
+                    request,
+                    request_loan,
+                    RequestLoanObservation.Action.COMMENT,
+                    (
+                        "Datos de solicitud actualizados. "
+                        f"Funcionario: {old_employee} → {_person_full_name(employee.person)}. "
+                        f"Tipo: {old_type} → {loan_type.name}. "
+                        f"Concepto: {old_concept} → {type_concept.concept.name}. "
+                        f"Monto: ${old_amount:,.0f} → ${loan_amount:,.0f}. "
+                        f"Plazo: {old_term} → {term} meses. "
+                        f"Fecha: {old_date:%d-%m-%Y} → {request_date_value:%d-%m-%Y}."
+                        + (
+                            " El préstamo y sus dividendos fueron recalculados."
+                            if existing_loan
+                            and request_loan.state.code == REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED
+                            else ""
+                        )
+                    ),
+                )
+
+            messages.success(request, "Los datos de la solicitud fueron actualizados correctamente.")
+
+        except ValueError as error:
+            messages.error(request, str(error))
+        except Exception as error:
+            messages.error(request, f"No fue posible actualizar la solicitud: {error}")
+
+        return redirect("loan_requests:detail", pk=pk)
+
+    # ========================================================
+    # CAMBIAR ESTADO
+    # ========================================================
+    if action == "change_state":
+        if _request_is_final(request_loan):
+            messages.error(
+                request,
+                "La solicitud está finalizada y no permite nuevos cambios de estado.",
+            )
+            return redirect("loan_requests:detail", pk=pk)
+
+        try:
+            state_id = int(request.POST.get("request_state", 0) or 0)
+
+            new_state = RequestLoanState.objects.filter(
+                pk=state_id,
+                is_active=True,
+            ).first()
+
+            if not new_state:
+                raise ValueError("El estado seleccionado no es válido.")
+
+            old_state = request_loan.state
+
+            if not old_state:
+                raise ValueError(
+                    "La solicitud no tiene un estado actual válido."
+                )
+
+            allowed_state_ids = set(
+                _next_request_loan_states(
+                    request_loan
+                ).values_list(
+                    "id",
+                    flat=True,
+                )
+            )
+
+            if new_state.id not in allowed_state_ids:
+                raise ValueError(
+                    f"No es posible pasar de {old_state.name} a {new_state.name}."
+                )
+
+            if new_state.is_paid_state and not existing_loan:
+                raise ValueError(
+                    "La solicitud no puede pasar a Pagado antes de haber generado el préstamo."
+                )
+
+            created_loan = None
+            loan_created = False
+
+            with transaction.atomic():
+                request_loan.state = new_state
+                _save_with_user(request_loan, request.user, ["state"])
+
+                core_request = request_loan.request
+
+                if new_state.is_approval_state:
+                    approved_status = _get_or_create_request_status(
+                        REQUEST_STATUS_APPROVED,
+                        request.user,
+                    )
+                    core_request.status = approved_status
+                    _save_with_user(core_request, request.user, ["status"])
+
+                    created_loan, loan_created = _create_loan_from_request(
+                        request,
+                        request_loan,
+                    )
+
+                elif new_state.is_paid_state:
+                    paid_status = _get_or_create_request_status(
+                        REQUEST_STATUS_PAID,
+                        request.user,
+                    )
+                    core_request.status = paid_status
+                    _save_with_user(core_request, request.user, ["status"])
+
+                else:
+                    entered_status = _get_or_create_request_status(
+                        REQUEST_STATUS_ENTERED,
+                        request.user,
+                    )
+                    core_request.status = entered_status
+                    _save_with_user(core_request, request.user, ["status"])
+
+                _create_observation(
+                    request,
+                    request_loan,
+                    RequestLoanObservation.Action.STATE_CHANGED,
+                    (
+                        f"Estado modificado. "
+                        f"Estado anterior: {old_state.name if old_state else 'Sin estado'}. "
+                        f"Nuevo estado: {new_state.name}."
+                    ),
+                )
+
+                if loan_created and created_loan:
+                    _create_observation(
+                        request,
+                        request_loan,
+                        RequestLoanObservation.Action.REQUEST_APPROVED,
+                        (
+                            f"Solicitud aprobada por consejo. "
+                            f"Se creó el préstamo #{created_loan.id} "
+                            f"con {request_loan.term} dividendos."
+                        ),
+                    )
+
+            success_message = f"Estado actualizado a {new_state.name}."
+
+            if loan_created and created_loan:
+                success_message += f" Se creó el préstamo #{created_loan.id}."
+
+            messages.success(request, success_message)
+
+        except ValueError as error:
+            messages.error(request, str(error))
+        except Exception as error:
+            messages.error(request, f"No fue posible cambiar el estado: {error}")
+
+        return redirect("loan_requests:detail", pk=pk)
 
     required_documents = (
         request_loan.required_documents
@@ -836,7 +1481,17 @@ def request_loan_detail(request, pk):
         .order_by("-id")
     )
 
+    loan_types = LoanType.objects.filter(
+        is_active=True
+    ).order_by("name", "id")
+
+    request_states = _next_request_loan_states(
+        request_loan
+    )
+
     person = request_loan.employee.person
+    is_final = _request_is_final(request_loan)
+    has_loan = bool(existing_loan)
 
     context = {
         "request_loan": request_loan,
@@ -844,10 +1499,17 @@ def request_loan_detail(request, pk):
         "person_name": _person_full_name(person),
         "person_rut": _format_rut(person),
         "employee_grade": str(request_loan.employee.grade) if request_loan.employee.grade else "",
+        "loan_types": loan_types,
+        "request_states": request_states,
+        "has_next_state": request_states.exists(),
+        "timeline": _request_timeline(request_loan),
         "document_rows": document_rows,
         "observations": observations,
-        "can_approve": request_loan.can_be_approved() and not _request_is_final(request_loan),
-        "is_final": _request_is_final(request_loan),
+        "can_edit": _request_data_can_be_edited(request_loan),
+        "can_change_state": not is_final,
+        "has_loan": has_loan,
+        "is_final": is_final,
+        "is_rejected": _request_is_rejected(request_loan),
     }
 
     return render(
@@ -856,16 +1518,19 @@ def request_loan_detail(request, pk):
         context,
     )
 
+
 # ============================================================
 # DETALLE MODAL
 # ============================================================
 @login_required
 @require_GET
 def request_loan_detail_modal(request, pk):
+    _ensure_request_loan_states(request.user)
     request_loan = get_object_or_404(
         RequestLoan.objects.select_related(
             "request",
             "request__status",
+            "state",
             "employee",
             "employee__person",
             "employee__grade",
@@ -875,6 +1540,11 @@ def request_loan_detail_modal(request, pk):
         ),
         pk=pk,
         is_active=True,
+    )
+
+    _assign_default_request_loan_state(
+        request_loan,
+        request.user,
     )
 
     required_documents = (
@@ -937,10 +1607,8 @@ def request_loan_detail_modal(request, pk):
             "observations": observations,
             "required_documents_count": len(document_rows),
             "approved_documents_count": approved_documents,
-            "can_approve": (
-                request_loan.can_be_approved()
-                and not _request_is_final(request_loan)
-            ),
+            "timeline": _request_timeline(request_loan),
+            "is_rejected": _request_is_rejected(request_loan),
             "is_final": _request_is_final(request_loan),
         },
     )
@@ -1182,10 +1850,13 @@ def request_loan_document_reject(request, pk, document_id):
 def request_loan_approve(request, pk):
     try:
         with transaction.atomic():
+            _ensure_request_loan_states(request.user)
+
             request_loan = get_object_or_404(
                 RequestLoan.objects.select_for_update().select_related(
                     "request",
                     "request__status",
+                    "state",
                     "employee",
                     "employee__person",
                     "loan_type",
@@ -1196,91 +1867,71 @@ def request_loan_approve(request, pk):
                 is_active=True,
             )
 
+            _assign_default_request_loan_state(request_loan, request.user)
+
             if _request_is_final(request_loan):
                 raise ValueError("La solicitud ya se encuentra finalizada.")
 
-            if not request_loan.can_be_approved():
-                raise ValueError(
-                    "La solicitud no puede aprobarse hasta que todos los documentos requeridos estén adjuntos y aprobados."
-                )
-
-            existing_loan = Loan.objects.filter(request=request_loan.request).order_by("id").first()
-            if existing_loan:
-                raise ValueError(f"La solicitud ya generó el préstamo #{existing_loan.id}.")
-
-            # Valores fijos definidos por ID para este flujo.
-            # Tasa 1 = 4%, método 1 = Remuneración,
-            # estado préstamo 1 = Vigente, estado dividendo 1 = Pendiente.
-            rate = _default_loan_rate()
-            collection_method = _default_collection_method()
-            loan_status = _default_loan_status()
-            installment_status = _default_installment_status()
-
-            amount = Decimal(request_loan.loan_amount)
-            term = int(request_loan.term)
-            simulation = _loan_simulation(amount, rate, term)
-
-            loan = Loan(
-                request=request_loan.request,
-                loan_type=request_loan.loan_type,
-                type_concept=request_loan.type_concept,
-                person=request_loan.employee.person,
-                collection_method=collection_method,
-                rate=rate,
-                unique_code="",
-                loan_amount=amount,
-                interest_amount=simulation["interest_total"],
-                principal_balance=amount,
-                interest_balance=simulation["interest_total"],
-                term=term,
-                installments_paid=0,
-                principal_paid=0,
-                interest_paid=0,
-                start_date=simulation["start_date"],
-                end_date=simulation["end_date"],
-                is_mortgage=False,
-                status=loan_status,
-                previous_loan=None,
+            approval_state = (
+                RequestLoanState.objects
+                .filter(is_active=True, is_approval_state=True)
+                .order_by("sequence", "id")
+                .first()
             )
-            _save_with_user(loan, request.user)
 
-            for row in simulation["schedule"]:
-                installment = LoanInstallment(
-                    loan=loan,
-                    collection_method=collection_method,
-                    status=installment_status,
-                    due_date=row["due_date"],
-                    amount=row["amount"],
-                    principal=row["principal"],
-                    interest=row["interest"],
-                    installment_number=row["installment_number"],
-                )
-                _save_with_user(installment, request.user)
+            if not approval_state:
+                raise ValueError("No existe un estado de aprobación configurado.")
 
-            approved_status = _get_or_create_request_status(REQUEST_STATUS_APPROVED, request.user)
+            old_state = request_loan.state
+            request_loan.state = approval_state
+            _save_with_user(request_loan, request.user, ["state"])
+
+            approved_status = _get_or_create_request_status(
+                REQUEST_STATUS_APPROVED,
+                request.user,
+            )
+
             core_request = request_loan.request
             core_request.status = approved_status
             _save_with_user(core_request, request.user, ["status"])
 
+            loan, created = _create_loan_from_request(request, request_loan)
+
             _create_observation(
                 request,
                 request_loan,
-                RequestLoanObservation.Action.REQUEST_APPROVED,
-                f"Solicitud de préstamo aprobada. Se creó el préstamo #{loan.id} con {term} dividendos.",
+                RequestLoanObservation.Action.STATE_CHANGED,
+                (
+                    f"Estado modificado. "
+                    f"Estado anterior: {old_state.name if old_state else 'Sin estado'}. "
+                    f"Nuevo estado: {approval_state.name}."
+                ),
             )
+
+            if created:
+                _create_observation(
+                    request,
+                    request_loan,
+                    RequestLoanObservation.Action.REQUEST_APPROVED,
+                    (
+                        f"Solicitud aprobada por consejo. "
+                        f"Se creó el préstamo #{loan.id} "
+                        f"con {request_loan.term} dividendos."
+                    ),
+                )
 
         messages.success(
             request,
-            f"Solicitud aprobada correctamente. Se creó el préstamo #{loan.id}.",
+            f"Solicitud aprobada correctamente. Préstamo #{loan.id}.",
         )
 
     except ValueError as error:
         messages.error(request, str(error))
-
     except Exception as error:
         messages.error(request, f"No fue posible aprobar la solicitud: {error}")
 
     return redirect("loan_requests:detail", pk=pk)
+
 
 # ============================================================
 # RECHAZAR SOLICITUD
@@ -1308,6 +1959,15 @@ def request_loan_reject(request, pk):
             messages.error(request, "La solicitud ya se encuentra finalizada.")
             return redirect("loan_requests:detail", pk=pk)
 
+        if Loan.objects.filter(request=request_loan.request).exists():
+            messages.error(
+                request,
+                "La solicitud ya generó un préstamo y no puede rechazarse.",
+            )
+            return redirect("loan_requests:detail", pk=pk)
+
+        previous_status = request_loan.request.status.status_type
+
         rejected_status = _get_or_create_request_status(REQUEST_STATUS_REJECTED, request.user)
         core_request = request_loan.request
         core_request.status = rejected_status
@@ -1317,7 +1977,11 @@ def request_loan_reject(request, pk):
             request,
             request_loan,
             RequestLoanObservation.Action.REQUEST_REJECTED,
-            f"Solicitud de préstamo rechazada. Motivo: {comment}",
+            (
+                f"Solicitud de préstamo rechazada. "
+                f"Estado anterior: {previous_status}. "
+                f"Motivo: {comment}"
+            ),
         )
 
     messages.success(request, "Solicitud rechazada correctamente.")

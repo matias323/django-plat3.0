@@ -6,7 +6,27 @@ from core.models.document import Document, DocumentType
 from core.models.employee import Employee
 from core.models.observation import Observation
 from core.models.request import Request
-from applications.prestamos.loan.models.loan import LoanType, LoanTypeConcept, LoanRate
+from applications.prestamos.loan.models.loan import LoanType, LoanTypeConcept
+
+
+# ============================================================
+# ESTADOS DE SOLICITUD DE PRÉSTAMO
+# ============================================================
+class RequestLoanState(BaseModel):
+    code = models.CharField(verbose_name="Código", max_length=50, unique=True)
+    name = models.CharField(verbose_name="Nombre", max_length=100)
+    sequence = models.PositiveSmallIntegerField(verbose_name="Orden", default=1)
+    is_approval_state = models.BooleanField(verbose_name="Estado de aprobación", default=False)
+    is_paid_state = models.BooleanField(verbose_name="Estado pagado", default=False)
+
+    class Meta:
+        db_table = "request_loan_states"
+        verbose_name = "Estado de solicitud de préstamo"
+        verbose_name_plural = "Estados de solicitudes de préstamos"
+        ordering = ["sequence", "id"]
+
+    def __str__(self):
+        return self.name
 
 
 # ============================================================
@@ -19,6 +39,16 @@ class RequestLoan(BaseModel):
         db_column="id_request",
         on_delete=models.PROTECT,
         related_name="loan_request",
+    )
+
+    state = models.ForeignKey(
+        RequestLoanState,
+        verbose_name="Estado",
+        db_column="id_state",
+        on_delete=models.PROTECT,
+        related_name="loan_requests",
+        null=True,
+        blank=True,
     )
 
     employee = models.ForeignKey(
@@ -254,6 +284,7 @@ class RequestLoanObservation(BaseModel):
         DOCUMENT_REJECTED = "DOCUMENT_REJECTED", "Documento rechazado"
         REQUEST_APPROVED = "REQUEST_APPROVED", "Solicitud aprobada"
         REQUEST_REJECTED = "REQUEST_REJECTED", "Solicitud rechazada"
+        STATE_CHANGED = "STATE_CHANGED", "Estado modificado"
         COMMENT = "COMMENT", "Observación"
 
     request_loan = models.ForeignKey(

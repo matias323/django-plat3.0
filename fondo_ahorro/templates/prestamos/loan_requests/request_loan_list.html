@@ -356,62 +356,40 @@ document.addEventListener(
 
 
                     {
-                        data:
-                            "status",
+                        
+                        data: "status",
 
-                        render:
-                            function (data) {
+                        render: function (data) {
 
-                                const value =
-                                    String(
-                                        data || ""
-                                    ).toUpperCase();
+                            const value = String(
+                                data || ""
+                            ).trim().toUpperCase();
 
-                                let cls =
-                                    "bg-secondary";
+                            let cls = "bg-secondary";
 
+                            if (
+                                value === "APROBADO" ||
+                                value === "APROBADO CONSEJO" ||
+                                value === "APROBADO CONSEJO CON MODIFICACIONES"
+                            ) {
+                                cls = "bg-info";
 
-                                if (
-                                    value ===
-                                    "APROBADO"
-                                ) {
+                            } else if (value === "PAGADO") {
+                                cls = "bg-success";
 
-                                    cls =
-                                        "bg-success";
+                            } else if (value === "RECHAZADO") {
+                                cls = "bg-danger";
 
-                                } else if (
-                                    value ===
-                                    "RECHAZADO"
-                                ) {
-
-                                    cls =
-                                        "bg-danger";
-
-                                } else if (
-                                    value ===
-                                    "INGRESADO"
-                                ) {
-
-                                    cls =
-                                        "bg-primary";
-
-                                }
-
-
-                                return `
-                                    <span class="
-                                        badge
-                                        ${cls}
-                                        badge-status
-                                    ">
-                                        ${escapeHtml(
-                                            data || ""
-                                        )}
-                                    </span>
-                                `;
-
+                            } else {
+                                cls = "bg-primary";
                             }
 
+                            return `
+                                <span class="badge ${cls}">
+                                    ${escapeHtml(data || "")}
+                                </span>
+                            `;
+                        }
                     },
 
 
