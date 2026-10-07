@@ -1457,21 +1457,43 @@ def request_loan_detail(request, pk):
     document_rows = []
 
     for required in required_documents:
-        latest = _latest_document(required)
+        documents = list(
+            required.documents
+            .filter(is_active=True)
+            .select_related(
+                "document",
+                "document__type_document",
+                "validated_by",
+            )
+            .order_by("-id")
+        )
+
+        approved_count = sum(
+            1
+            for item in documents
+            if item.status == RequestLoanDocument.Status.APPROVED
+        )
+
+        pending_count = sum(
+            1
+            for item in documents
+            if item.status == RequestLoanDocument.Status.PENDING
+        )
+
+        rejected_count = sum(
+            1
+            for item in documents
+            if item.status == RequestLoanDocument.Status.REJECTED
+        )
 
         document_rows.append({
             "required": required,
-            "latest": latest,
-            "has_document": latest is not None,
-            "can_upload": (
-                not _request_is_final(request_loan)
-                and (latest is None or latest.status == RequestLoanDocument.Status.REJECTED)
-            ),
-            "can_validate": (
-                not _request_is_final(request_loan)
-                and latest is not None
-                and latest.status == RequestLoanDocument.Status.PENDING
-            ),
+            "documents": documents,
+            "documents_count": len(documents),
+            "approved_count": approved_count,
+            "pending_count": pending_count,
+            "rejected_count": rejected_count,
+            "can_upload": not _request_is_final(request_loan),
         })
 
     observations = (
@@ -1555,30 +1577,54 @@ def request_loan_detail_modal(request, pk):
     )
 
     document_rows = []
+    total_documents = 0
     approved_documents = 0
+    pending_documents = 0
+    rejected_documents = 0
 
     for required in required_documents:
-        latest = _latest_document(required)
+        documents = list(
+            required.documents
+            .filter(is_active=True)
+            .select_related(
+                "document",
+                "document__type_document",
+                "validated_by",
+            )
+            .order_by("-id")
+        )
 
-        if latest and latest.status == RequestLoanDocument.Status.APPROVED:
-            approved_documents += 1
+        approved_count = sum(
+            1
+            for item in documents
+            if item.status == RequestLoanDocument.Status.APPROVED
+        )
+
+        pending_count = sum(
+            1
+            for item in documents
+            if item.status == RequestLoanDocument.Status.PENDING
+        )
+
+        rejected_count = sum(
+            1
+            for item in documents
+            if item.status == RequestLoanDocument.Status.REJECTED
+        )
+
+        total_documents += len(documents)
+        approved_documents += approved_count
+        pending_documents += pending_count
+        rejected_documents += rejected_count
 
         document_rows.append({
             "required": required,
-            "latest": latest,
-            "has_document": latest is not None,
-            "can_upload": (
-                not _request_is_final(request_loan)
-                and (
-                    latest is None
-                    or latest.status == RequestLoanDocument.Status.REJECTED
-                )
-            ),
-            "can_validate": (
-                not _request_is_final(request_loan)
-                and latest is not None
-                and latest.status == RequestLoanDocument.Status.PENDING
-            ),
+            "documents": documents,
+            "documents_count": len(documents),
+            "approved_count": approved_count,
+            "pending_count": pending_count,
+            "rejected_count": rejected_count,
+            "can_upload": not _request_is_final(request_loan),
         })
 
     observations = (
@@ -1605,8 +1651,10 @@ def request_loan_detail_modal(request, pk):
             ),
             "document_rows": document_rows,
             "observations": observations,
-            "required_documents_count": len(document_rows),
+            "total_documents_count": total_documents,
             "approved_documents_count": approved_documents,
+            "pending_documents_count": pending_documents,
+            "rejected_documents_count": rejected_documents,
             "timeline": _request_timeline(request_loan),
             "is_rejected": _request_is_rejected(request_loan),
             "is_final": _request_is_final(request_loan),
@@ -1635,15 +1683,6 @@ def request_loan_document_upload(request, pk, required_id):
         request_loan=request_loan,
         is_active=True,
     )
-
-    latest = _latest_document(required)
-
-    if latest and latest.status != RequestLoanDocument.Status.REJECTED:
-        messages.error(
-            request,
-            "Solo puede adjuntar un nuevo archivo si no existe uno o si el último fue rechazado.",
-        )
-        return redirect("loan_requests:detail", pk=pk)
 
     uploaded_file = request.FILES.get("document")
 
@@ -1748,12 +1787,6 @@ def request_loan_document_approve(request, pk, document_id):
             messages.error(request, "La solicitud está finalizada.")
             return redirect("loan_requests:detail", pk=pk)
 
-        latest = _latest_document(relation.required_document)
-
-        if not latest or latest.id != relation.id:
-            messages.error(request, "Solo puede validarse la última versión del documento.")
-            return redirect("loan_requests:detail", pk=pk)
-
         if relation.status != RequestLoanDocument.Status.PENDING:
             messages.error(request, "El documento ya fue procesado.")
             return redirect("loan_requests:detail", pk=pk)
@@ -1811,12 +1844,6 @@ def request_loan_document_reject(request, pk, document_id):
             messages.error(request, "La solicitud está finalizada.")
             return redirect("loan_requests:detail", pk=pk)
 
-        latest = _latest_document(relation.required_document)
-
-        if not latest or latest.id != relation.id:
-            messages.error(request, "Solo puede rechazarse la última versión del documento.")
-            return redirect("loan_requests:detail", pk=pk)
-
         if relation.status != RequestLoanDocument.Status.PENDING:
             messages.error(request, "El documento ya fue procesado.")
             return redirect("loan_requests:detail", pk=pk)
@@ -1838,7 +1865,7 @@ def request_loan_document_reject(request, pk, document_id):
             f"Documento rechazado: {relation.required_document.document_type.name}. Motivo: {comment}",
         )
 
-    messages.success(request, "Documento rechazado. Ahora puede adjuntarse una nueva versión.")
+    messages.success(request, "Documento rechazado correctamente.")
     return redirect("loan_requests:detail", pk=pk)
 
 
