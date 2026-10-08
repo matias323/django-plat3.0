@@ -343,10 +343,12 @@ def _request_data_can_be_edited(request_loan):
     if not request_loan.state_id:
         return False
 
-    return request_loan.state.code in {
-        REQUEST_LOAN_STATE_ENTERED,
-        REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED,
-    }
+    # buscamos si es el primer paso del flujo (secuencia 1), así evitamos dependencia de los nombres
+    if request_loan.state.sequence == 1:
+        return True
+
+    # usamos constante definida para estado de "modificaciones"
+    return request_loan.state.code == REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED
 
 
 def _sync_existing_loan_from_request(request, request_loan, loan):
@@ -772,7 +774,13 @@ def request_loan_datatable(request):
             "loan_amount": float(item.loan_amount or 0),
             "term": item.term,
             "request_date": item.request_date.strftime("%d-%m-%Y"),
-            "status": ("Rechazado" if _request_is_rejected(item) else (item.state.name if item.state else entered_state.name)),
+
+            # se envía nombre real y no solo el texto hardcodeado, adjuntamos los boolean para que el front tome desición de diseño (color)
+            "status_name": ("Rechazado" if _request_is_rejected(item) else (item.state.name if item.state else entered_state.name)),
+            "is_rejected": _request_is_rejected(item),
+            "is_approval_state": item.state.is_approval_state if item.state else False,
+            "is_paid_state": item.state.is_paid_state if item.state else False,
+
             "detail_url": reverse("loan_requests:detail", args=[item.id]),
             "detail_modal_url": reverse("loan_requests:detail_modal", args=[item.id]),
         })
