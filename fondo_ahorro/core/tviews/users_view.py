@@ -19,15 +19,15 @@ class UserCreateView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('core:user_list')
 
     def form_valid(self, form):
-        # Guardamos el formulario pasando el usuario actual para la auditoría (BaseModel)
+        # Ahora el formulario aceptará este argumento sin problemas
         self.object = form.save(commit=True, user_audit=self.request.user)
+        
         messages.success(self.request, "Usuario creado exitosamente con sus roles y permisos asignados.")
-        return super().form_valid(form)
+        return redirect(self.success_url)
 
     def form_invalid(self, form):
         messages.error(self.request, "Por favor corrige los errores en el formulario de creación.")
         return super().form_invalid(form)
-
 
 class UserListView(LoginRequiredMixin, ListView):
     model = User

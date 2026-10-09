@@ -32,8 +32,8 @@ class AdminPersonProfileForm(forms.ModelForm):
             'birth_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
 
+
 class AdminUserCreationForm(forms.ModelForm):
-    # Campos de la Persona
     rut = forms.IntegerField(label="RUT (sin dígito verificador)", widget=forms.NumberInput(attrs={'class': 'form-control'}))
     dv = forms.CharField(label="Dígito Verificador", max_length=1, widget=forms.TextInput(attrs={'class': 'form-control'}))
     first_name = forms.CharField(label="Primer Nombre", max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -43,11 +43,9 @@ class AdminUserCreationForm(forms.ModelForm):
     birth_date = forms.DateField(label="Fecha de Nacimiento", widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}))
     person_type = forms.ModelChoiceField(queryset=PersonType.objects.all(), label="Tipo de Persona", required=False, widget=forms.Select(attrs={'class': 'form-select'}))
 
-    # Campos de Autenticación de Usuario
     email = forms.EmailField(label="Correo Electrónico", widget=forms.EmailInput(attrs={'class': 'form-control'}))
     password = forms.CharField(label="Contraseña", widget=forms.PasswordInput(attrs={'class': 'form-control'}))
     
-    # Campo para múltiples roles
     roles = forms.ModelMultipleChoiceField(
         queryset=Role.objects.filter(is_active=True),
         required=False,
@@ -71,8 +69,8 @@ class AdminUserCreationForm(forms.ModelForm):
     def save(self, commit=True, user_audit=None):
         cleaned_data = self.cleaned_data
         
-        # 1. Creamos el objeto Person
-        person = Person.objects.create(
+        # 1. Creamos el objeto Person (Hereda de BaseModel, sí acepta user=...)
+        person = Person(
             rut=cleaned_data['rut'],
             dv=cleaned_data['dv'].upper(),
             first_name=cleaned_data['first_name'],
@@ -81,56 +79,55 @@ class AdminUserCreationForm(forms.ModelForm):
             last_name_2=cleaned_data.get('last_name_2'),
             birth_date=cleaned_data['birth_date'],
             person_type=cleaned_data.get('person_type'),
-            user_create=user_audit,
-            user_update=user_audit
         )
+        if commit:
+            person.save(user=user_audit)
 
-        # 2. Creamos el objeto User asociado a la persona y encriptamos la contraseña
+        # 2. Creamos el objeto User (Hereda de AbstractUser, NO acepta user= en el save)
         user = User(
             username=cleaned_data['username'],
             email=cleaned_data['email'],
             person=person,
             is_active=True,
-            # user_create=user_audit,
-            # user_update=user_audit
         )
         user.set_password(cleaned_data['password'])
         if commit:
-            user.save()
+            user.save() # <-- Se llama de forma estándar sin argumentos extra
 
         # 3. Asignación de Roles y Propagación Automática de UserPermission
         roles_seleccionados = cleaned_data.get('roles', [])
         if roles_seleccionados and commit:
-            # Buscamos el permiso por defecto (ej: ID 1 o el primero disponible)
             permiso_default = Permission.objects.filter(id=1).first() or Permission.objects.first()
 
             for role in roles_seleccionados:
-                # A. Creamos la relación RoleUser
-                RoleUser.objects.create(
+                # A. Creamos la relación RoleUser (Hereda de BaseModel, sí acepta user=...)
+                role_user = RoleUser(
                     user=user,
                     role=role,
                     is_active=True,
-                    user_create=user_audit,
-                    user_update=user_audit
                 )
+                role_user.save(user=user_audit)
 
-                # B. Propagación automática de UserPermission para todas las Apps de este rol
+                # B. Propagación automática de UserPermission (Hereda de BaseModel, sí acepta user=...)
                 if permiso_default:
                     apps_del_rol = RoleApp.objects.filter(role=role, is_active=True).values_list('app_id', flat=True)
                     for app_id in apps_del_rol:
-                        UserPermission.objects.get_or_create(
+                        user_perm, created = UserPermission.objects.get_or_create(
                             user=user,
                             app_id=app_id,
                             role=role,
                             defaults={
                                 'permission': permiso_default,
                                 'is_active': True,
-                                'user_create': user_audit,
-                                'user_update': user_audit
                             }
                         )
+                        if not created:
+                            user_perm.save(user=user_audit)
 
         return user
+
+
+
 class AdminUserRolesForm(forms.Form):
     """Formulario para gestionar los roles asignados al usuario (RoleUser)"""
     roles = forms.ModelMultipleChoiceField(
