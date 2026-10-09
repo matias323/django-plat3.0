@@ -36,8 +36,16 @@ class User(AbstractUser):
         return self.password.lower().strip()
 
     def validate_password(self, password):
-        return self.get_password() == str(password).lower().strip()
-
+        from django.contrib.auth.hashers import check_password
+        # 1. Intentar validar usando el verificador seguro de hashes de Django
+        if check_password(password, self.password):
+            return True
+        
+        # 2. (Opcional por seguridad/migración) Soporte temporal si queda alguna en texto plano
+        if self.password and self.password.lower().strip() == str(password).lower().strip():
+            return True
+            
+        return False
     @classmethod
     def get_active_session(cls,user):
         """Función auxiliar para obtener la sesión activa del usuario."""

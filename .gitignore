@@ -8,6 +8,10 @@ env/
 db.sqlite3
 *.pyc
 
+*.pdf
+
+media/*
+
 #estilos
 bootstrap*
 staticfiles*
