@@ -29,6 +29,8 @@ urlpatterns = [
     path('contabilidad/plan_cuentas/', include('applications.contabilidad.plan_cuentas.urls'),name="plan_cuentas"),
     path('contabilidad/periodo_contable/', include('applications.contabilidad.periodo_contable.urls'),name="periodo_contable"),
     path('contabilidad/asientos_contables/', include('applications.contabilidad.asientos_contables.urls'),name="asientos_contables"),
+    
+    path('depositos/', include('applications.depositos.urls'),name="depositos"),
 
     path("registrations/",include("applications.inscripcion.registrations.urls")),
 

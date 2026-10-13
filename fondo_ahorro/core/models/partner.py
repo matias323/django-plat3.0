@@ -11,6 +11,7 @@ class PartnerContributionType(BaseModel):
     description = models.CharField(verbose_name="Descripción", max_length=255, null=False, blank=False)
     discount_code = models.CharField(verbose_name="Código Descuento", max_length=100, null=True, blank=True)
     state = models.IntegerField(verbose_name="Estado", default=1)
+    comment = models.TextField(verbose_name="Observaciones", null=True, blank=True)
 
     class Meta:
         db_table = "core_partner_contribution_type"
@@ -49,6 +50,18 @@ class Partner(BaseModel):
 
     def __str__(self):
         return f"{self.id} - {self.person}"
+    
+    def get_ahorros(self):
+        return [
+            {
+                "id" : contrib.id,
+                "contribution_type_id" : contrib.contribution_type.id,
+                "description" : contrib.contribution_type.description,
+                "comment" : contrib.contribution_type.comment,
+                "amount" : contrib.amount 
+            }
+            for contrib in self.contributions.select_related("contribution_type").all()
+        ]
 
 
 # ============================================================
@@ -274,3 +287,54 @@ class PartnerMovement(BaseModel):
 
     def __str__(self):
         return f"{self.movement_number} - {self.partner} - {self.amount}"
+    
+# ============================================================
+# SOCIO APORTE
+class PartnerContribution(BaseModel):
+    partner = models.ForeignKey(
+        Partner,
+        verbose_name="Socio",
+        db_column="id_partner",
+        on_delete=models.PROTECT,
+        related_name="contributions",
+        null=False,
+        blank=False,
+    )
+
+    contribution_type = models.ForeignKey(
+        PartnerContributionType,
+        verbose_name="Tipo de Aporte",
+        db_column="id_contribution_type",
+        on_delete=models.PROTECT,
+        related_name="contributions",
+        null=False,
+        blank=False,
+    )
+
+    amount = models.DecimalField(verbose_name="Monto", max_digits=15, decimal_places=2, null=False, blank=False)
+    
+    class Meta:
+        db_table = "core_partner_contribution"
+        verbose_name = "Aporte de Socio"
+        verbose_name_plural = "Aportes de Socios"
+        ordering = ["id"]
+        unique_together = ("partner", "contribution_type")
+        
+    
+        
+
+# ============================================================
+# SOCIO DEPOSITO INCREMENTO AHORRO
+class PartnerIncrementDeposit(BaseModel):
+    partner = models.ForeignKey(Partner, verbose_name="Socio", db_column="id_partner", on_delete=models.PROTECT, related_name="increment_deposits", null=False, blank=False)
+    amount = models.PositiveBigIntegerField(verbose_name="Monto", null=False, blank=False)
+    contribution_type = models.ForeignKey(PartnerContributionType, verbose_name="Tipo de Aporte", db_column="id_contribution_type", on_delete=models.PROTECT, related_name="increment_deposits", null=False, blank=False)    
+    
+    class Meta:
+        db_table = "core_partner_increment"
+        verbose_name = "Socio Deposito"
+        verbose_name_plural = "Socios Depositos"
+        ordering = ["id"]
+        
+    def __str__(self):
+        return f"{self.partner} - {self.amount}"

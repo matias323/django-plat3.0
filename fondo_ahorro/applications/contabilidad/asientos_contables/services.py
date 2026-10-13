@@ -35,17 +35,28 @@ class AsientoContableServices:
     #buscar persona tiempo real
     @staticmethod
     def search_persons(search):
-        search = search.strip()
+        search = search.strip() 
         
         if len(search) < 2:
             return []
         
-        personas = Person.objects.filter(is_active = True).filter(
-            Q(first_name__icontains=search) 
-            | Q(last_name_1__icontains=search)
-            | Q(last_name_2__icontains=search)
-            | Q(rut__icontains=search)
-        ).select_related("person_type").order_by("first_name", "last_name_1")[:10]
+        #separamos la busqueda en caso que contenga mas de un termino
+        term = search.split()
+        
+        #personas activas
+        queryset = Person.objects.filter(is_active= True)
+        
+        #recorremos la busqueda
+        for t in term:
+            queryset = queryset.filter(
+                Q(first_name__icontains=t) 
+                | Q(last_name_1__icontains=t)
+                | Q(last_name_2__icontains=t)
+                | Q(rut__icontains=t)
+            )
+        
+        #aplicamos el select related
+        personas = queryset.select_related("person_type").order_by("first_name", "last_name_1")[:10]
         
         return [
             {
@@ -56,6 +67,7 @@ class AsientoContableServices:
             }
             for p in personas
         ]
+        
             
     
     #crear encabezado asiento
