@@ -1,0 +1,136 @@
+:root,
+[data-bs-theme="light"],
+[data-bs-theme="dark"] {
+    --bs-primary: #007328;
+    --bs-primary-rgb: 0, 115, 40;
+}
+
+/* =========================
+   BOTONES
+   ========================= */
+
+.btn-primary {
+    --bs-btn-color: #fff;
+    --bs-btn-bg: #007328;
+    --bs-btn-border-color: #007328;
+
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #005f21;
+    --bs-btn-hover-border-color: #005f21;
+
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #004f1b;
+    --bs-btn-active-border-color: #004f1b;
+
+    --bs-btn-disabled-color: #fff;
+    --bs-btn-disabled-bg: #007328;
+    --bs-btn-disabled-border-color: #007328;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #007328;
+    --bs-btn-border-color: #007328;
+
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #007328;
+    --bs-btn-hover-border-color: #007328;
+
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #007328;
+    --bs-btn-active-border-color: #007328;
+}
+
+/* =========================
+   TEXTOS PRIMARY
+   ========================= */
+
+.text-primary {
+    color: #007328 !important;
+}
+
+.bg-primary {
+    background-color: #007328 !important;
+}
+
+.border-primary {
+    border-color: #007328 !important;
+}
+
+/* =========================
+   TABS
+   ========================= */
+
+.nav-tabs {
+    --bs-nav-tabs-link-active-color: #007328;
+    --bs-nav-tabs-link-hover-border-color: #dee2e6 #dee2e6 #dee2e6;
+    --bs-nav-tabs-link-active-border-color: #dee2e6 #dee2e6 #fff;
+}
+
+.nav-tabs .nav-link {
+    color: #007328;
+}
+
+.nav-tabs .nav-link:hover,
+.nav-tabs .nav-link:focus {
+    color: #005f21;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007328;
+    font-weight: 600;
+}
+
+/* =========================
+   NAVBAR / LINKS
+   ========================= */
+
+.nav-link {
+    color: #007328;
+}
+
+.nav-link:hover,
+.nav-link:focus {
+    color: #005f21;
+}
+
+/* =========================
+   PAGINACIÓN
+   ========================= */
+
+.pagination {
+    --bs-pagination-color: #007328;
+    --bs-pagination-hover-color: #005f21;
+    --bs-pagination-focus-color: #005f21;
+    --bs-pagination-active-bg: #007328;
+    --bs-pagination-active-border-color: #007328;
+}
+
+/* =========================
+   FORMULARIOS
+   ========================= */
+
+.form-check-input:checked {
+    background-color: #007328;
+    border-color: #007328;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #57a872;
+    box-shadow: 0 0 0 .25rem rgba(0, 115, 40, .25);
+}
+
+/* =========================
+   Detalles Fondo
+   ========================= */
+.mi-zona { /* ¿Que Zona? */
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 115, 40, 0.28) 0%,
+        rgba(0, 115, 40, 0.10) 10%,
+        transparent 15%,
+        transparent 85%,
+        rgba(0, 115, 40, 0.10) 90%,
+        rgba(0, 115, 40, 0.28) 100%
+    );
+}

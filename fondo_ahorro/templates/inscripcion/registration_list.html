@@ -39,18 +39,32 @@
     /* ========================================== */
 </style>
 
+<style>
+    .loan-header {
+        border: 1px solid #cfcfcf;
+        background: linear-gradient(
+            to right,
+            #ffffff00 0%,
+            #ffffff00 35%,
+            #007328 70%,
+            #007328 100%
+        );
+        color: #212529;
+    }
+</style>
+
 <div class="container-fluid py-4">
 
     <!-- TÍTULO -->
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm mb-4 loan-header">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h3 class="mb-1">Solicitudes de inscripción</h3>
+                    <h3 class="mb-1"><i class="bi bi-file-earmark-person-fill text-primary"></i> Solicitudes de inscripción</h3>
                     <div class="text-muted">Administración de solicitudes de ingreso y reingreso de socios.</div>
                 </div>
 
-                <button type="button" class="btn btn-primary" id="btnNewRegistration">
+                <button type="button" class="btn btn-light" id="btnNewRegistration">
                     <i class="bi bi-plus-lg me-1"></i> Nueva solicitud
                 </button>
             </div>
@@ -321,7 +335,7 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn btn-success" id="btnSaveRegistration" disabled>
+                <button type="button" class="btn btn-primary" id="btnSaveRegistration" disabled>
                     <i class="bi bi-floppy me-1"></i> Guardar solicitud
                 </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -392,9 +406,9 @@ document.addEventListener("DOMContentLoaded", function () {
                     if (!value) return "-";
                     const statusCode = String(row.status_code || "").toLowerCase();
                     let className = "bg-secondary";
-                    if (statusCode === "pending") className = "bg-warning text-dark";
-                    if (statusCode === "approved") className = "bg-success";
-                    if (statusCode === "rejected") className = "bg-danger";
+                    if (statusCode === "ingresado") className = "bg-warning text-dark";
+                    if (statusCode === "aprobado") className = "bg-success";
+                    if (statusCode === "rechazado") className = "bg-danger";
                     return `
                         <span class="badge ${className}">
                             ${escapeHtml(value)}
@@ -748,9 +762,9 @@ document.addEventListener("DOMContentLoaded", function () {
                                 const statusCode = String(document.status_code || "").toLowerCase();
                                 let badgeClass = "bg-secondary";
 
-                                if (statusCode === "pending") badgeClass = "bg-warning text-dark";
-                                if (statusCode === "approved") badgeClass = "bg-success";
-                                if (statusCode === "rejected") badgeClass = "bg-danger";
+                                if (statusCode === "pendiente") badgeClass = "bg-warning text-dark";
+                                if (statusCode === "aprobado") badgeClass = "bg-success";
+                                if (statusCode === "rechazado") badgeClass = "bg-danger";
 
                                 const managementButtons = statusCode === "pending"
                                     ? `
