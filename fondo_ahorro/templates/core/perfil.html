@@ -1,0 +1,217 @@
+{% extends 'base.html' %} 
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        
+        <!-- Cabecera de la página -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h3 mb-0 text-body-emphasis"><i class="bi bi-person-circle me-2"></i>Mi Perfil</h2>
+            </div>
+            {% if active_session %}
+            <div class="card bg-body-tertiary border-0 shadow-sm px-3 py-2">
+                <span class="small text-muted">Rol actual: <strong>{{ active_session.role.name }}</strong></span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tarjeta contenedora con Pestañas (Tabs) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-body-tertiary border-bottom px-4 pt-3">
+                <ul class="nav nav-tabs card-header-tabs" id="profileTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-pane" type="button" role="tab" aria-controls="info-pane" aria-selected="true">
+                            <i class="bi bi-person-lines-fill me-1"></i> Información Personal
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="role-tab" data-bs-toggle="tab" data-bs-target="#role-pane" type="button" role="tab" aria-controls="role-pane" aria-selected="false">
+                            <i class="bi bi-shield-lock-fill me-1"></i> Cambio de Rol
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="password-tab" data-bs-toggle="tab" data-bs-target="#password-pane" type="button" role="tab" aria-controls="password-pane" aria-selected="false">
+                            <i class="bi bi-key-fill me-1"></i> Contraseña
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="tab-content" id="profileTabsContent">
+                    
+                    <!-- ========================================== -->
+                    <!-- 1. PESTAÑA: INFORMACIÓN PERSONAL -->
+                    <!-- ========================================== -->
+                    <div class="tab-pane fade show active" id="info-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+                        <h5 class="card-title text-body mb-3"><i class="bi bi-pencil-square text-primary me-2"></i></h5>
+                        
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <!-- Campo oculto para identificar la acción en la vista -->
+                            <input type="hidden" name="action" value="update_profile">
+
+                            <div class="row g-3">
+                                <!-- Datos del Usuario -->
+                                {% comment %} <div class="col-md-12">
+                                    <h6 class="text-secondary text-uppercase fs-7 fw-bold mt-2 border-bottom pb-1">Credenciales de Usuario</h6>
+                                </div> {% endcomment %}
+                                <div class="col-md-6">
+                                    <label for="{{ profile_form.username.id_for_label }}" class="form-label">Nombre de Usuario</label>
+                                    {{ profile_form.username }}
+                                    {% if profile_form.username.errors %}
+                                        <div class="text-danger small mt-1">{{ profile_form.username.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ profile_form.email.id_for_label }}" class="form-label">Correo Electrónico</label>
+                                    {{ profile_form.email }}
+                                    {% if profile_form.email.errors %}
+                                        <div class="text-danger small mt-1">{{ profile_form.email.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Datos de la Persona -->
+                                <div class="col-md-12 mt-4">
+                                    <h6 class="text-secondary text-uppercase fs-7 fw-bold border-bottom pb-1">Datos Personales</h6>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ person_form.first_name.id_for_label }}" class="form-label">Primer Nombre</label>
+                                    {{ person_form.first_name }}
+                                    {% if person_form.first_name.errors %}
+                                        <div class="text-danger small mt-1">{{ person_form.first_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ person_form.second_name.id_for_label }}" class="form-label">Segundo Nombre</label>
+                                    {{ person_form.second_name }}
+                                    {% if person_form.second_name.errors %}
+                                        <div class="text-danger small mt-1">{{ person_form.second_name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ person_form.last_name_1.id_for_label }}" class="form-label">Primer Apellido</label>
+                                    {{ person_form.last_name_1 }}
+                                    {% if person_form.last_name_1.errors %}
+                                        <div class="text-danger small mt-1">{{ person_form.last_name_1.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ person_form.last_name_2.id_for_label }}" class="form-label">Segundo Apellido</label>
+                                    {{ person_form.last_name_2 }}
+                                    {% if person_form.last_name_2.errors %}
+                                        <div class="text-danger small mt-1">{{ person_form.last_name_2.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="{{ person_form.birth_date.id_for_label }}" class="form-label">Fecha de Nacimiento</label>
+                                    {{ person_form.birth_date }}
+                                    {% if person_form.birth_date.errors %}
+                                        <div class="text-danger small mt-1">{{ person_form.birth_date.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="col-12 mt-4 text-end">
+                                    <button type="submit" class="btn btn-primary px-4">
+                                        <i class="bi bi-check-circle me-1"></i> Guardar Cambios
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- ========================================== -->
+                    <!-- 2. PESTAÑA: CAMBIO DE ROL -->
+                    <!-- ========================================== -->
+                    <div class="tab-pane fade" id="role-pane" role="tabpanel" aria-labelledby="role-tab" tabindex="0">
+                        <h5 class="card-title text-body mb-2"><i class="bi bi-arrow-repeat text-success me-2"></i>Cambiar rol actual</h5>
+                        {% comment %} <p class="text-secondary small mb-4">
+                            Selecciona uno de los roles autorizados para tu usuario en la aplicación actual. Al cambiarlo, los permisos de escritura y navegación se adaptarán de inmediato.
+                        </p> {% endcomment %}
+                        <br>
+
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="change_role">
+
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-8">
+                                    <label for="{{ role_form.role.id_for_label }}" class="form-label fw-semibold">Roles Disponibles</label>
+                                    {{ role_form.role }}
+                                    {% if role_form.role.errors %}
+                                        <div class="text-danger small mt-1">{{ role_form.role.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-arrow-repeat me-1"></i> Cambiar Rol
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- ========================================== -->
+                    <!-- 3. PESTAÑA: CAMBIO DE CONTRASEÑA -->
+                    <!-- ========================================== -->
+                    <div class="tab-pane fade" id="password-pane" role="tabpanel" aria-labelledby="password-tab" tabindex="0">
+                        <h5 class="card-title text-body mb-2"><i class="bi bi-shield-exclamation text-warning me-2"></i>Actualizar Contraseña</h5>
+                        <p class="text-secondary small mb-4">Asegúrate de usar una contraseña segura que contenga letras, números y símbolos.</p>
+
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="change_password">
+
+                            <div class="row g-3">
+                                {% for field in password_form %}
+                                    <div class="col-12">
+                                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                        <!-- Renderizamos el widget con clase de bootstrap por defecto si no la trae -->
+                                        {% if field.name == 'old_password' or field.name == 'new_password1' or field.name == 'new_password2' or field.name == 'old_password' %}
+                                            <!-- Django por defecto pinta los campos de PasswordChangeForm sin form-control, se los inyectamos renderizándolos o con atributos en el form de Django, pero aquí se verán bien si usas widgets -->
+                                        {% endif %}
+                                        {{ field }}
+                                        {% if field.help_text %}
+                                            <div class="form-text small">{{ field.help_text|safe }}</div>
+                                        {% endif %}
+                                        {% if field.errors %}
+                                            <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+
+                                <div class="col-12 mt-4 text-end">
+                                    <button type="submit" class="btn btn-warning px-4 text-dark fw-semibold">
+                                        <i class="bi bi-lock-fill me-1"></i> Actualizar Contraseña
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Asegurar que los inputs generados por Django form reciban las clases de Bootstrap nativas si no se especificaron en Python
+        const formControls = document.querySelectorAll('input[type="text"], input[type="email"], input[type="password"], input[type="date"], select');
+        formControls.forEach(element => {
+            if (!element.classList.contains('form-control') && !element.classList.contains('form-select')) {
+                if (element.tagName === 'SELECT') {
+                    element.classList.add('form-select');
+                } else {
+                    element.classList.add('form-control');
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

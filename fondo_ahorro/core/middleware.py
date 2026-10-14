@@ -28,12 +28,22 @@ class ActiveAppSessionMiddleware:
             "login",
             "logout",
             "register",
+            "perfil",
+
         }:
             return None
 
         # ====================================================
         # USUARIO NO AUTENTICADO
         if not request.user.is_authenticated:
+            # logout(request)
+            
+            # messages.error(
+            #     request,
+            #     "Tu sesión expiró. Debes iniciar sesión nuevamente.",
+            # )
+
+            # return redirect("core:login") ???
             return None
 
         # ====================================================
@@ -149,9 +159,16 @@ class ActiveAppSessionMiddleware:
             request.method == "GET"
             and isinstance(current_app, App)
             and session
-            and session.app != current_app
+            # and session.app != current_app
         ):
             session.app = current_app
             session.save(update_fields=["app"])
+
+
+
+        # para saber el rol en el html creamos el user_session en la request-
+        #entonces ahora en el html podemos hacer {{request.user_sesison.role.name}} -> "Desarrollo".
+
+        request.user_session = session
 
         return None
