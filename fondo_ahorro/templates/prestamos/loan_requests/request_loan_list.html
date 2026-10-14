@@ -356,42 +356,30 @@ document.addEventListener(
 
 
                     {
-                        
-                        data: "status",
+                        // para de data : "status" a data : null, así el render recibe todo el objeto 'row' con los boolean de view.py
+                        data: null,
+                        render: function (data, type, row) {
 
-                        render: function (data) {
+                            let cls = "bg-secondary"; // color por defecto
 
-                            const value = String(
-                                data || ""
-                            ).trim().toUpperCase();
-
-                            let cls = "bg-secondary";
-
-                            if (
-                                value === "APROBADO" ||
-                                value === "APROBADO CONSEJO" ||
-                                value === "APROBADO CONSEJO CON MODIFICACIONES"
-                            ) {
-                                cls = "bg-info";
-
-                            } else if (value === "PAGADO") {
-                                cls = "bg-success";
-
-                            } else if (value === "RECHAZADO") {
+                            // leemos propiedades de la tabla RequestLoanState
+                            if ( row.is_rejected ) {
                                 cls = "bg-danger";
-
-                            } else {
+                            } else if ( row.is_paid_state ) {
+                                cls = "bg-success";
+                            } else if ( row.is_approval_state ) {
+                                cls = "bg-info text-dark";
+                            } else if ( row.status_name !== "Sin Estado" ) {
                                 cls = "bg-primary";
                             }
 
                             return `
                                 <span class="badge ${cls}">
-                                    ${escapeHtml(data || "")}
+                                    ${escapeHtml(row.status_name || "")}
                                 </span>
                             `;
                         }
                     },
-
 
                     {
                         data: null,
