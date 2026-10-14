@@ -126,11 +126,9 @@
 .mi-zona { /* ¿Que Zona? */
     background: linear-gradient(
         to bottom,
-        rgba(0, 115, 40, 0.28) 0%,
-        rgba(0, 115, 40, 0.10) 10%,
         transparent 15%,
-        transparent 85%,
-        rgba(0, 115, 40, 0.10) 90%,
+        transparent 90%,
+        rgba(0, 115, 40, 0.10) 95%,
         rgba(0, 115, 40, 0.28) 100%
     );
 }
