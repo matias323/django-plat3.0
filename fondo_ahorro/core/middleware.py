@@ -24,7 +24,9 @@ class ActiveAppSessionMiddleware:
 
         # ====================================================
         # RUTAS QUE NO DEBEN VALIDAR LA SESIÓN DE APLICACIÓN
-        if resolver and resolver.app_name == "core" and resolver.url_name in {
+        # if resolver and resolver.app_name == "core" and resolver.url_name in {
+        if resolver  and resolver.url_name in {
+
             "login",
             "logout",
             "register",
@@ -57,7 +59,7 @@ class ActiveAppSessionMiddleware:
             return None
 
         # ====================================================
-        # SESIÓN ACTIVA DEL SISTEMA
+        # SESIÓN ACTIVA DEL SISTEMA (Esto da error cuando nunca a tenido session xdd usuario nuevo...)
         session = User.get_active_session(request.user)
 
         if not session:

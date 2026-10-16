@@ -3,7 +3,9 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 
-from core.models.user import User
+from core.models.user import User, UserPermission
+from core.models.session import Session
+
 
 from core.forms.loginForm import LoginForm
 
@@ -52,7 +54,20 @@ class LoginView(TemplateView):
                     )
                     return self.render_to_response({"form": form})
 
+                usr_permission = UserPermission.objects.filter(user=user).first()
+                session = Session.objects.get_or_create(
+                    closed_at = None, 
+                    user=user, 
+                    app=usr_permission.app, 
+                    role= usr_permission.role, 
+                    permission = usr_permission.permission
+                )
+                
                 login(request, user)
+
+                request.user_session = session
+
+
                 return redirect("core:home")
             else:
                 messages.error(request, "Usuario no existe con RUT indicado.("+rut+")")
