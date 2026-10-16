@@ -184,6 +184,15 @@
                             {% endif %}
                         </div>
                     </div>
+                    
+                    <!-- Mostrar asignación actual -->
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Responsable actual</label>
+                        <div class="form-control bg-body-tertiary text-primary fw-semibold">
+                            <i class="bi bi-person-badge-fill me-1"></i>
+                            {{ current_assignment|default:"Sin asignar" }}
+                        </div>
+                    </div>
                 </div>
 
                 {% if has_loan and can_edit %}
@@ -489,6 +498,18 @@
          ACCIONES
     ============================================================ -->
     <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
+
+        <!-- Visible solo para jefaturas -->
+        {% if not is_final and can_assign %}
+        <button type="button"
+                class="btn btn-info text-white"
+                data-bs-toggle="modal"
+                data-bs-target="#assignModal">
+            <i class="bi bi-person-lines-fill me-1"></i>
+            Asignar responsable
+        </button>
+        {% endif %}
+
         {% if not is_final %}
             {% if not has_loan %}
             <button type="button"
@@ -702,6 +723,59 @@
                     <button type="submit" class="btn btn-primary">
                         Guardar observación
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ASIGNAR PERSONA Y ÁREA -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="assign_group">
+
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">Asignar solicitud</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Área de destino</label>
+                        <select name="assignment_area" class="form-select" required>
+                            <option value="" selected disabled>Seleccione un área...</option>
+                            <option value="Área Jurídica">Área Jurídica</option>
+                            <option value="Área de Préstamos">Área de Préstamos</option>
+                            <option value="Abogados">Abogados</option>
+                            <option value="Directorio">Directorio</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Funcionario responsable</label>
+                        <select name="assignment_employee" class="form-select" required>
+                            <option value="" selected disabled>Seleccione un funcionario...</option>
+                            {% for emp in active_employees %}
+                                <option value="{{ emp.id }}">
+                                    {{ emp.person.first_name }} {{ emp.person.last_name_1 }} {% if emp.person.last_name_2 %}{{ emp.person.last_name_2 }}{% endif %} (Cód: {{ emp.code|default:"-" }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-text mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Solo las jefaturas autorizadas pueden reasignar casos. Esta acción quedará registrada en el historial.
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info text-white">Confirmar asignación</button>
                 </div>
             </form>
         </div>
