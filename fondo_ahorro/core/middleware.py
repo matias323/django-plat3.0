@@ -25,6 +25,13 @@ class ActiveAppSessionMiddleware:
         # ====================================================
         # RUTAS QUE NO DEBEN VALIDAR LA SESIÓN DE APLICACIÓN
         # if resolver and resolver.app_name == "core" and resolver.url_name in {
+
+        
+
+
+
+
+
         if resolver  and resolver.url_name in {
 
             "login",
@@ -34,6 +41,30 @@ class ActiveAppSessionMiddleware:
 
         }:
             return None
+
+
+        session = User.get_active_session(request.user)
+                
+        if not session:
+            # if request.headers.get("X-App-Request") == "true":
+            #     return JsonResponse(
+            #         {
+            #             "success": False,
+            #             "message": "Sesión no válida o expirada.",
+            #         },
+            #         status=401,
+            #     )
+
+            logout(request)
+
+            messages.error(
+                request,
+                "Tu sesión expiró. Debes iniciar sesión nuevamente.",
+            )
+
+            return redirect("core:login")
+
+
 
         # ====================================================
         # USUARIO NO AUTENTICADO
@@ -59,7 +90,7 @@ class ActiveAppSessionMiddleware:
             return None
 
         # ====================================================
-        # SESIÓN ACTIVA DEL SISTEMA (Esto da error cuando nunca a tenido session xdd usuario nuevo...)
+        # SESIÓN ACTIVA DEL SISTEMA (Esto da error cuando nunca a tenido session xdd usuario nuevo... )
         session = User.get_active_session(request.user)
 
         if not session:
