@@ -48,8 +48,8 @@
             to right,
             #ffffff00 0%,
             #ffffff00 35%,
-            #007328 70%,
-            #007328 100%
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
         );
         color: #212529;
     }
@@ -868,7 +868,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         totalText.textContent = formatCLP(total);
         differenceText.textContent = formatCLP(difference);
-        differenceText.classList.toggle("text-success", difference === 0);
+        differenceText.classList.toggle("text-primary", difference === 0);
         differenceText.classList.toggle("text-danger", difference !== 0);
 
         if (button) {

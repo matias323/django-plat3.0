@@ -1,6 +1,47 @@
 <style>
     #maintenanceContent .table td, #maintenanceContent .table th { vertical-align: middle; }
     #maintenanceContent .nav-link { font-weight: 600; }
+
+        /* ----------------------------------------------------------
+        1. NAVEGACIÓN Y TABLAS
+        ---------------------------------------------------------- */
+
+        .inventory-page .nav-tabs .nav-link {
+            font-weight: 600;
+        }
+
+        .inventory-page .table th,
+        .inventory-page .table td {
+            vertical-align: middle;
+        }
+
+        .inventory-page .table th {
+            white-space: nowrap;
+        }
+
+        /* ----------------------------------------------------------
+        2. CABECERAS DE TABLAS
+        Se adaptan automáticamente al tema activo.
+        ---------------------------------------------------------- */
+
+        .inventory-page {
+            --inventory-header-bg: #e9ecef;
+            --inventory-header-color: #212529;
+            --inventory-header-border: #ced4da;
+        }
+
+        [data-bs-theme="dark"] .inventory-page {
+            --inventory-header-bg: #343a40;
+            --inventory-header-color: #ffffff;
+            --inventory-header-border: #495057;
+        }
+
+        .inventory-page .table thead th {
+            background-color: var(--inventory-header-bg) !important;
+            color: var(--inventory-header-color) !important;
+            border-color: var(--inventory-header-border) !important;
+            font-weight: 600;
+        }
 </style>
 {% if permission_denied %}
     <div class="modal-header">
@@ -44,40 +85,124 @@
         </ul>
         <div class="tab-content mt-3">
             <div class="tab-pane fade show active" id="assetClassPane">
-                <button class="btn btn-success mb-3 btn-new-maintenance"
-                        data-type="asset_class">Nueva clase de activo</button>
-                <table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Nombre</th><th>Estado</th><th style="width:130px;">Acciones</th></tr></thead><tbody>{% for row in asset_classes %}<tr><td>{{ row.name }}</td><td>{% if row.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-maintenance"
-        data-type="asset_class"
-        data-id="{{ row.id }}"
-        data-name="{{ row.name|escapejs }}"
-        data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table>
+                <button class="btn btn-primary mb-3 btn-new-maintenance" data-type="asset_class">Nueva clase de activo</button>
+                <table class="table inventory-page table-bordered table-striped maintenance-table">
+                    <thead class="">
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th style="width:130px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in asset_classes %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td>
+                                {% if row.is_active %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td><button class="btn btn-sm btn-primary btn-edit-maintenance" data-type="asset_class" data-id="{{ row.id }}" data-name="{{ row.name|escapejs }}" data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             <div class="tab-pane fade" id="classPane">
-                <button class="btn btn-success mb-3 btn-new-maintenance" data-type="class">Nueva clase</button>
-                <table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Nombre</th><th>Estado</th><th style="width:130px;">Acciones</th></tr></thead><tbody>{% for row in classes %}<tr><td>{{ row.name }}</td><td>{% if row.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-maintenance"
-        data-type="class"
-        data-id="{{ row.id }}"
-        data-name="{{ row.name|escapejs }}"
-        data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table>
+                <button class="btn btn-primary mb-3 btn-new-maintenance" data-type="class">Nueva clase</button>
+                <table class="table inventory-page table-bordered table-striped maintenance-table">
+                    <thead class="">
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                            <th style="width:130px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in classes %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td>
+                            {% if row.is_active %}
+                                <span class="badge bg-success">Activo</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactivo</span>
+                            {% endif %}
+                            </td>
+                            <td><button class="btn btn-sm btn-primary btn-edit-maintenance" data-type="class" data-id="{{ row.id }}" data-name="{{ row.name|escapejs }}" data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
             <div class="tab-pane fade" id="subclassPane">
-                <button class="btn btn-success mb-3 btn-new-maintenance" data-type="subclass">Nueva subclase</button>
-                <div class="table-responsive"><table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Subclase</th><th>Clase</th><th>Clase de activo</th><th>Cuenta contable</th><th>N° Cuenta</th><th>Vida útil</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{% for row in subclasses %}<tr><td>{{ row.obj.name }}</td><td>{{ row.obj.inventory_class.name }}</td><td>{{ row.obj.asset_class.name }}</td><td>{{ row.account_name }}</td><td>{{ row.account_number }}</td><td>{{ row.obj.useful_life_years }} años</td><td>{% if row.obj.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-subclass"
-        data-id="{{ row.obj.id }}"
-        data-name="{{ row.obj.name|escapejs }}"
-        data-life="{{ row.obj.useful_life_years }}"
-        data-class="{{ row.obj.inventory_class_id }}"
-        data-asset-class="{{ row.obj.asset_class_id }}"
-        data-account="{{ row.obj.accounting_account_id|default:'' }}"
-        data-active="{% if row.obj.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table></div>
+                <button class="btn btn-primary mb-3 btn-new-maintenance" data-type="subclass">Nueva subclase</button>
+                <div class="table-responsive">
+                    <table class="table inventory-page table-bordered table-striped maintenance-table">
+                        <thead class="">
+                            <tr>
+                                <th>Subclase</th>
+                                <th>Clase</th>
+                                <th>Clase de activo</th>
+                                <th>Cuenta contable</th>
+                                <th>N° Cuenta</th>
+                                <th>Vida útil</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in subclasses %}
+                            <tr>
+                                <td>{{ row.obj.name }}</td>
+                                <td>{{ row.obj.inventory_class.name }}</td>
+                                <td>{{ row.obj.asset_class.name }}</td>
+                                <td>{{ row.account_name }}</td>
+                                <td>{{ row.account_number }}</td>
+                                <td>{{ row.obj.useful_life_years }} años</td>
+                                <td>
+                                    {% if row.obj.is_active %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td><button class="btn btn-sm btn-primary btn-edit-subclass" data-id="{{ row.obj.id }}" data-name="{{ row.obj.name|escapejs }}" data-life="{{ row.obj.useful_life_years }}" data-class="{{ row.obj.inventory_class_id }}" data-asset-class="{{ row.obj.asset_class_id }}" data-account="{{ row.obj.accounting_account_id|default:'' }}" data-active="{% if row.obj.is_active %}1{% else %}0{% endif %}">Editar</button></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             <div class="tab-pane fade" id="officePane">
-                <button class="btn btn-success mb-3 btn-new-maintenance" data-type="office">Nueva oficina</button>
-                <table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Oficina</th><th>Estado</th><th style="width:130px;">Acciones</th></tr></thead><tbody>{% for row in offices %}<tr><td>{{ row.name }}</td><td>{% if row.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-maintenance"
-        data-type="office"
-        data-id="{{ row.id }}"
-        data-name="{{ row.name|escapejs }}"
-        data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table>
+                <button class="btn btn-primary mb-3 btn-new-maintenance" data-type="office">Nueva oficina</button>
+                <table class="table inventory-page table-bordered table-striped maintenance-table">
+                    <thead class="">
+                        <tr>
+                            <th>Oficina</th>
+                            <th>Estado</th>
+                            <th style="width:130px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in offices %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td>
+                                {% if row.is_active %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Inactivo</span>
+                                {% endif %}
+                            </td>
+                            <td><button class="btn btn-sm btn-primary btn-edit-maintenance" data-type="office" data-id="{{ row.id }}" data-name="{{ row.name|escapejs }}" data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -87,37 +212,51 @@
     <div class="modal fade" id="maintenanceEditModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><form id="maintenanceForm">{% csrf_token %}<div class="modal-header"><h5 class="modal-title" id="maintenanceEditTitle">Editar registro</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
         <input type="hidden" name="type" id="maintenanceType"><input type="hidden" name="id" id="maintenanceId">
         <div class="mb-3">
-            <label class="form-label">Nombre</label><input type="text"
-       name="name"
-       id="maintenanceName"
-       class="form-control"
-       required>
+            <label class="form-label">Nombre</label>
+            <input type="text" name="name" id="maintenanceName" class="form-control" required>
         </div>
         <div class="subclass-field mb-3">
-            <label class="form-label">Vida útil años</label><input type="number"
-       name="useful_life_years"
-       id="maintenanceLife"
-       class="form-control"
-       min="1">
+            <label class="form-label">Vida útil años</label>
+            <input type="number" name="useful_life_years" id="maintenanceLife" class="form-control" min="1">
         </div>
-        <div class="subclass-field mb-3"><label class="form-label">Clase</label><select name="inventory_class" id="maintenanceClass" class="form-control"><option value="">Seleccione</option>{% for row in classes %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}</select></div>
-        <div class="subclass-field mb-3"><label class="form-label">Clase de activo</label><select name="asset_class" id="maintenanceAssetClass" class="form-control"><option value="">Seleccione</option>{% for row in asset_classes %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}</select></div>
-        <div class="subclass-field mb-3"><label class="form-label">Cuenta contable asociada</label><select name="accounting_account"
-        id="maintenanceAccount"
-        class="form-control"><option value="">Seleccione</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.number }} - {{ account.name }}</option>{% endfor %}</select></div>
+        <div class="subclass-field mb-3">
+            <label class="form-label">Clase</label>
+            <select name="inventory_class" id="maintenanceClass" class="form-control">
+                <option value="">Seleccione</option>
+                {% for row in classes %}
+                    <option value="{{ row.id }}">{{ row.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="subclass-field mb-3">
+            <label class="form-label">Clase de activo</label>
+            <select name="asset_class" id="maintenanceAssetClass" class="form-control">
+                <option value="">Seleccione</option>
+                {% for row in asset_classes %}
+                    <option value="{{ row.id }}">{{ row.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="subclass-field mb-3">
+            <label class="form-label">Cuenta contable asociada</label>
+            <select name="accounting_account" id="maintenanceAccount" class="form-control">
+                <option value="">Seleccione</option>
+                {% for account in accounts %}
+                    <option value="{{ account.id }}">{{ account.number }} - {{ account.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="mb-3">
-            <label class="form-label">Estado</label><select name="is_active"
-        id="maintenanceActive"
-        class="form-control">
+            <label class="form-label">Estado</label>
+            <select name="is_active" id="maintenanceActive" class="form-control">
                 <option value="1">Activo</option>
                 <option value="0">Inactivo</option>
             </select>
         </div>
         </div>
         <div class="modal-footer">
-            <button type="submit" class="btn btn-primary">Guardar</button><button type="button"
-        class="btn btn-secondary"
-        data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         </div>
         </form>
         </div>
