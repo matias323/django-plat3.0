@@ -26,12 +26,6 @@ class ActiveAppSessionMiddleware:
         # RUTAS QUE NO DEBEN VALIDAR LA SESIÓN DE APLICACIÓN
         # if resolver and resolver.app_name == "core" and resolver.url_name in {
 
-        
-
-
-
-
-
         if resolver  and resolver.url_name in {
 
             "login",
@@ -46,14 +40,6 @@ class ActiveAppSessionMiddleware:
         session = User.get_active_session(request.user)
                 
         if not session:
-            # if request.headers.get("X-App-Request") == "true":
-            #     return JsonResponse(
-            #         {
-            #             "success": False,
-            #             "message": "Sesión no válida o expirada.",
-            #         },
-            #         status=401,
-            #     )
 
             logout(request)
 

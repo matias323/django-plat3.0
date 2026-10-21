@@ -39,6 +39,8 @@ urlpatterns = [
 
     
     path("apps/",include("applications.apps.urls")),
+    path("role/",include("applications.role.urls")),
+
 
 
 ]

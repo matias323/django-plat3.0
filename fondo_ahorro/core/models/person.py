@@ -74,7 +74,16 @@ class Person(BaseModel):
         return self.first_name+' '+self.last_name_1 +' '+self.last_name_2 +' -> '+self.person_type.description
 
     def get_rut(self):
-        return str(self.rut)+'-'+self.dv
+        if not self.rut:
+            return ""
+        
+        try:
+            # 3. Formatear el cuerpo con puntos de miles usando formato numérico
+            cuerpo_formateado = f"{int(self.rut):,}".replace(",", ".")
+            return f"{cuerpo_formateado}-{self.dv}"
+        except ValueError:
+            # Retorna el valor original limpio si el cuerpo no es numérico
+            return str(self.rut)+self.dv
 
     def get_full_name(self):
             return self.first_name+' '+self.second_name+' '+self.last_name_1+' '+self.last_name_2

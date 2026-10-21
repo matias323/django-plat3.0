@@ -30,7 +30,7 @@ class User(AbstractUser):
     )
 
     def __str__(self):
-        return self.username +" - "+self.person.get_full_name()
+        return self.person.get_rut() +" - "+self.person.get_full_name()
 
     def get_password(self):
         return self.password.lower().strip()
