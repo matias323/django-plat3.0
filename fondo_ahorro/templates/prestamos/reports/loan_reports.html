@@ -11,8 +11,8 @@
             to right,
             #ffffff00 0%,
             #ffffff00 35%,
-            #007328 70%,
-            #007328 100%
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
         );
         color: #212529;
     }
@@ -141,7 +141,7 @@
                     </div>
 
                     <div class="col-md-3 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportPortfolio"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportPortfolio"
                                 data-export-url="{% url 'loan:report_portfolio_excel' %}">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>
@@ -174,7 +174,7 @@
                     </div>
 
                     <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportUnpaid"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportUnpaid"
                                 data-export-url="{% url 'loan:report_unpaid_excel' %}">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>
@@ -205,7 +205,7 @@
                     </div>
 
                     <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportPaid"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportPaid"
                                 data-export-url="{% url 'loan:report_paid_excel' %}">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>
@@ -238,7 +238,7 @@
                     </div>
 
                     <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportInterest"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportInterest"
                                 data-export-url="{% url 'loan:report_interest_excel' %}" data-require-dates="1">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>

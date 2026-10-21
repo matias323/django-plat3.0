@@ -14,8 +14,8 @@
             to right,
             #ffffff00 0%,
             #ffffff00 35%,
-            #007328 70%,
-            #007328 100%
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
         );
         color: #212529;
     }
@@ -55,7 +55,7 @@
                     Reversados
                 </button>
 
-                <button type="button" class="btn btn-nav btn-primary payment-filter" data-filter="all">
+                <button type="button" class="btn btn-nav btn-info payment-filter" data-filter="all">
                     Todos
                 </button>
             </div>
@@ -470,7 +470,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (row.can_approve) {
                         buttons.push(`
-                            <button type="button" class="btn btn-sm btn-success btn-payment-action"
+                            <button type="button" class="btn btn-sm btn-primary btn-payment-action"
                                     data-id="${row.id}" data-mode="approve"
                                     data-payment-type="${escapeHtml(row.payment_type)}"
                                     data-amount="${escapeHtml(row.amount)}" title="Aprobar">
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (row.can_approve_reversal) {
                         buttons.push(`
-                            <button type="button" class="btn btn-sm btn-success btn-payment-reversal-decision"
+                            <button type="button" class="btn btn-sm btn-primary btn-payment-reversal-decision"
                                     data-id="${row.id}" data-mode="approve" title="Aprobar reversa">
                                 <i class="bi bi-check-circle"></i>
                             </button>
@@ -604,7 +604,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (mode === "approve") {
             actionTitle.textContent = `Aprobar pago #${paymentId}`;
-            submitButton.className = "btn btn-success";
+            submitButton.className = "btn btn-primary";
             submitButton.textContent = "Aprobar pago";
             reason.placeholder = "Observación opcional";
 
@@ -701,7 +701,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (mode === "approve") {
             actionTitle.textContent = `Aprobar reversa del pago #${paymentId}`;
             reason.placeholder = "Observación opcional";
-            submitButton.className = "btn btn-success";
+            submitButton.className = "btn btn-primary";
             submitButton.textContent = "Aprobar reversa";
         } else {
             actionTitle.textContent = `Rechazar reversa del pago #${paymentId}`;
