@@ -5,6 +5,7 @@ from pathlib import Path
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import get_user_model
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import CharField, F, Prefetch, Q, Value
@@ -41,7 +42,11 @@ from .models import (
     RequestLoanObservation,
     RequestLoanRequiredDocument,
     RequestLoanState,
+    RequestLoanAssignment,
 )
+
+# Importamos la tabla intermedia de roles
+from applications.role.models import Role, RoleUser
 
 
 REQUEST_TYPE_LOAN = "Loan"
@@ -281,58 +286,41 @@ def _approval_branch_name(request_loan):
     return previous_name if previous_name in approval_names else "Aprobación Consejo"
 
 
-def _request_timeline(request_loan):
-    states = list(
-        RequestLoanState.objects
-        .filter(is_active=True)
-        .order_by("sequence", "id")
-    )
+def _get_progress_data(request_loan):
+    """
+    Calcula el porcentaje de progeso y el color de la barra visual
+    dependiendo del estado actual de la solcitus
+    -Daniel
+    """
 
-    if not states:
-        return []
+    if not request_loan.state:
+        return {"percentage": 0, "color": "bg-secondary", "label": "Sin Estado"}
 
-    current_state = request_loan.state
-    current_sequence = current_state.sequence if current_state else states[0].sequence
-    rejected = _request_is_rejected(request_loan)
+    state = request_loan.state
+    label = state.name
 
-    groups = {}
-    for state in states:
-        groups.setdefault(state.sequence, []).append(state)
+    if _request_is_rejected(request_loan) or "Rechaz" in label.upper():
+        return {"percentage": 100, "color": "bg-danger", "label": label}
 
-    result = []
+    if "Efecto" in label.upper() or "Anulad" in label.upper():
+        return {"percentage": 100, "color": "bg-secondary", "label": label}
+    
+    if state.is_paid_state:
+        return {"percentage": 100, "color": "bg-succes", "label": label}
 
-    for sequence in sorted(groups):
-        group = groups[sequence]
+    max_state = RequestLoanState.objects.filter(
+        is_active=True,
+        sequence__isnull=False
+    ).order_by('-sequence').first()
 
-        if len(group) == 1:
-            label = group[0].name
-        elif current_state and current_state.sequence == sequence:
-            label = current_state.name
-        elif current_sequence > sequence:
-            label = _approval_branch_name(request_loan)
-        else:
-            label = "Aprobación Consejo"
+    max_sequence = max_state.sequence if max_state and max_state.sequence else 1
+    current_sequence = state.sequence or 1
 
-        state_value = "future"
+    percentage = int ((current_sequence/max_sequence) * 100) if max_sequence > 0 else 100
 
-        if sequence < current_sequence:
-            state_value = "done"
-        elif sequence == current_sequence:
-            if rejected:
-                state_value = "rejected"
-                label = "Rechazado"
-            elif current_state and current_state.is_paid_state:
-                state_value = "done"
-            else:
-                state_value = "current"
+    percentage = max(15, min(percentage, 95))
 
-        result.append({
-            "sequence": sequence,
-            "label": label,
-            "state": state_value,
-        })
-
-    return result
+    return {"percentage": percentage, "color": "bg-primary", "label": label}
 
 
 
@@ -347,7 +335,7 @@ def _request_data_can_be_edited(request_loan):
 
     # Si la solicitud ya está pagada, no se modifica
     if request_loan.state.is_paid_state:
-        return True
+        return False
 
     # Para el resto de casos (por ahora), si se permite modificar
     return True
@@ -432,57 +420,33 @@ def _sync_existing_loan_from_request(request, request_loan, loan):
 
 def _next_request_loan_states(request_loan):
     """
-    Devuelve únicamente los estados permitidos desde el estado actual.
+    Permite avanzar o volver en los estados permitidos basándonos en la configuración de
+    allowed_next_states y is_anytime_state.
 
     Flujo:
-    Ingresado -> Área Legal
-    Área Legal -> Espera Consejo
-    Espera Consejo -> Aprobado Consejo / Aprobado Consejo con Modificaciones
-    Cualquier aprobación -> Pagado
-    Pagado -> sin opciones
+    Ingresado -> Envia Validación de Documentos -> En Espera de Consejo 
+    -> Consejo Asignado -> Aprobado por Consejo -> Validado para Escrituración
+    -> Espera Oficio de Pago -> Envío a Pago -> Pagado
+
+    En cualquier momento puede quedar con el estado: "Rechazado" o "Sin Efecto"
     """
     if not request_loan.state_id:
         return RequestLoanState.objects.none()
 
     current_state = request_loan.state
 
+    # Si está pagado, se cierra el flujo
     if current_state.is_paid_state:
         return RequestLoanState.objects.none()
 
-    # Desde un estado de aprobación, solo se puede avanzar a Pagado.
-    if current_state.is_approval_state:
-        return (
-            RequestLoanState.objects
-            .filter(
-                is_active=True,
-                is_paid_state=True,
-            )
-            .order_by("sequence", "id")
-        )
+    allowed_states = current_state.allowed_next_states.filter(is_active=True)
 
-    # Para el resto, solo se permite avanzar al nivel inmediatamente siguiente.
-    next_sequence = (
-        RequestLoanState.objects
-        .filter(
-            is_active=True,
-            sequence__gt=current_state.sequence,
-        )
-        .order_by("sequence")
-        .values_list("sequence", flat=True)
-        .first()
-    )
+    anytime_states = RequestLoanState.objects.filter(
+        is_active=True,
+        is_anytime_state=True
+    ).exclude(id=current_state.id)
 
-    if next_sequence is None:
-        return RequestLoanState.objects.none()
-
-    return (
-        RequestLoanState.objects
-        .filter(
-            is_active=True,
-            sequence=next_sequence,
-        )
-        .order_by("id")
-    )
+    return (allowed_states | anytime_states).distinct().order_by("sequence", "name")
 
 
 # ============================================================
@@ -1455,33 +1419,58 @@ def request_loan_detail(request, pk):
 
     # Indicamos cuales son los ID que pueden asignar o deribar responsabilidades a personas
     # En este caso, las jefaturas deriban a sus áreas.
-    can_assign = request.user.groups.filter(name__in=["Jefe Prestamos", "Jefe Contabilidad"]).exists()
+    can_assign = request.user.roleuser_set.filter(
+        role_id__in=[6, 10],
+        is_active=True,
+    ).exists()
+
+    ASSIGNMENT_PREFIX = "Solicitud asignada a: "
 
     if action == "assign_group":
         if not can_assign:
-            message.error(request,  "No tiene permisos para asignar solicitudes.")
-            return redirect("loan_request:detail", pk=pk)
+            messages.error(request,  "No tiene permisos para asignar solicitudes.")
+            return redirect("loan_requests:detail", pk=pk)
 
-        employee_id = request.POST.get("assigment_employee")
-        area_name = _normalize_spaces(request.POST.get("assigment_area"))
+        responsible_id = request.POST.get("assignment_responsible")
+        area_name = _normalize_spaces(request.POST.get("assignment_area"))
 
-        if employee_id and area_name:
-            assigned_emp = Employee.objects.filter(pk=employee_id, is_active=True).select_related("person").first()
-            if assigned_emp:
-                emp_name = _person_full_name(assigned_emp.person)
-                _create_observation(
-                    request,
-                    request_loan,
-                    RequestLoanObservation.Action.COMMENT,
-                    f"Solicitud asignada a: {emp_name} ({area_name}).",
-                )
-                message.success(request, f"Solicitud asignada correctamente a {emp_name} ({area_name}).")
+        if responsible_id and area_name:
+            User = get_user_model()
+            assigned_user = User.objects.filter(pk=responsible_id, is_active=True).select_related("person").first()
+
+            if assigned_user:
+                user_name = _person_full_name(assigned_user.person) if hasattr(assigned_user, 'person') else assigned_user.username
+                
+                with transaction.atomic():
+                    RequestLoanAssignment.objects.filter(
+                        request_loan=request_loan,
+                        is_current=True
+                    ).update(is_current=False)
+
+                    assignment = RequestLoanAssignment(
+                        request_loan=request_loan,
+                        responsible=assigned_user,
+                        area_name=area_name,
+                        assigned_by=request.user,
+                        is_current=True
+                    )
+
+                    _save_with_user(assignment, request.user)
+
+                    _create_observation(
+                        request,
+                        request_loan,
+                        RequestLoanObservation.Action.COMMENT,
+                        f"Solicitud asignada formalmente a: {user_name} ({area_name}).",
+                    )
+                
+                messages.success(request, f"Solicitud asignada correctamente a {user_name} ({area_name}).")
             else:
-                message.error(request, "El trabajador seleccionado no es válido.")
+                messages.error(request, "El trabajador seleccionado no es válido.")
         else:
-            message.error(request, "Debe seleccionar un área y un responsable.")
+            messages.error(request, "Debe seleccionar un área y un responsable.")
         
-        return redirect("loan_request:detail", pk=pk)
+        return redirect("loan_requests:detail", pk=pk)
 
     required_documents = (
         request_loan.required_documents
@@ -1547,33 +1536,74 @@ def request_loan_detail(request, pk):
         request_loan
     )
 
-    # Se lee asignación de persona y área
-    assigment_obs = (
-        request_loan.observations
-        .filter(
-            is_active = True,
-            observation__comment__startswith = "Solicitud asignada a: "
-            )
-            .select_related("observation")
-            .order_by("-id")
-            .first()
+    # Consultamos directamente la tabla de asignaciones para saber quién la tiene ahora
+    current_assignment_obj = (
+        RequestLoanAssignment.objects
+        .filter(request_loan=request_loan, is_current=True, is_active=True)
+        .select_related("responsible", "responsible__person")
+        .first()
     )
 
-    current_assigment = "Sin asignar"
-    if assigment_obs and assigment_obs.comment:
-        current_assigment = (
-            assigment_obs.observation.comment
-            .replace("icitud asignada a: ", "")
-            .strip()
-            .rstrip(".")
-        )
+    # Lógica blindada: Verificamos que exista la asignación Y que el usuario no sea nulo
+    if current_assignment_obj:
+        if current_assignment_obj.responsible:
+            # Validamos si el usuario tiene una ficha de Persona asociada
+            if hasattr(current_assignment_obj.responsible, 'person'):
+                emp_full_name = _person_full_name(current_assignment_obj.responsible.person)
+            else:
+                emp_full_name = current_assignment_obj.responsible.username
 
-    active_employees = (
-        Employee.objects
-        .filter(is_active = True)
+            current_assignment = f"{emp_full_name} ({current_assignment_obj.area_name})"
+        else:
+            # Si el responsable es nulo (por culpa de la migración que hicimos)
+            current_assignment = f"Usuario no definido ({current_assignment_obj.area_name})"
+    else:
+        current_assignment = "Sin asignar"
+
+    # 1. Poblar select de "Áreas"
+    assignable_roles = list(Role.objects.filter(is_active=True).exclude(
+        Q(name__istartswith="Jefe") | Q(name__iexact="Socio") | Q(name__iexact="Admin")
+    ).order_by("name"))
+
+    todas_las_areas = [r.name for r in assignable_roles]
+
+    # 2. Buscar roles de cada usuario y mapearlos
+    assignable_role_users = RoleUser.objects.filter(
+        role__in=assignable_roles,
+        is_active=True
+    ).select_related('role')
+
+    user_roles_map = {}
+    
+    for ru in assignable_role_users:
+        if ru.user_id not in user_roles_map:
+            user_roles_map[ru.user_id]= []
+        user_roles_map[ru.user_id].append(ru.role.name)
+
+    admin_user_ids = list(RoleUser.objects.filter(
+        role__name__iexact = "Admin",
+        is_active=True
+    ).values_list('user_id', flat=True))
+
+    all_allowed_user_ids = set(list(user_roles_map.keys()) + admin_user_ids)
+
+    User = get_user_model()
+    active_platform_users_qs = (
+        User.objects
+        .filter(is_active=True, id__in=all_allowed_user_ids)
         .select_related("person")
-        .order_by("person__first_name", "person__last_name_1")
+        .order_by("person__first_name", "person__last_name_1", "id")
     )
+
+    assignable_users = []
+    for u in active_platform_users_qs:
+        # El comodín: Si el usuario es Admin, le permitimos todas las áreas
+        if u.id in admin_user_ids:
+            u.areas_asignadas = ",".join(todas_las_areas)
+        else:
+            u.areas_asignadas = ",".join(user_roles_map.get(u.id, []))
+            
+        assignable_users.append(u)
 
     person = request_loan.employee.person
     is_final = _request_is_final(request_loan)
@@ -1588,7 +1618,7 @@ def request_loan_detail(request, pk):
         "loan_types": loan_types,
         "request_states": request_states,
         "has_next_state": request_states.exists(),
-        "timeline": _request_timeline(request_loan),
+        "progress": _get_progress_data(request_loan),
         "document_rows": document_rows,
         "observations": observations,
         "can_edit": _request_data_can_be_edited(request_loan),
@@ -1597,8 +1627,9 @@ def request_loan_detail(request, pk):
         "is_final": is_final,
         "is_rejected": _request_is_rejected(request_loan),
         "can_assign": can_assign,
-        "current_assigment": current_assigment,
-        "active_employees": active_employees,
+        "current_assignment": current_assignment,
+        "assignable_users": assignable_users,
+        "assignable_roles": assignable_roles,
     }
 
     return render(
@@ -1722,7 +1753,7 @@ def request_loan_detail_modal(request, pk):
             "approved_documents_count": approved_documents,
             "pending_documents_count": pending_documents,
             "rejected_documents_count": rejected_documents,
-            "timeline": _request_timeline(request_loan),
+            "progress": _get_progress_data(request_loan),
             "is_rejected": _request_is_rejected(request_loan),
             "is_final": _request_is_final(request_loan),
         },

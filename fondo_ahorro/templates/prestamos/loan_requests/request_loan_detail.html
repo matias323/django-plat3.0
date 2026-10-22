@@ -207,6 +207,39 @@
                     </div>
                 {% endif %}
 
+                {% if can_edit or can_assign and not is_final %}
+                    <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
+                        
+                        {% if not is_final and can_assign %}
+                            <button type="button"
+                                    class="btn btn-info text-white"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#assignModal">
+                                <i class="bi bi-person-lines-fill me-1"></i>
+                                Asignar responsable
+                            </button>
+                        {% endif %}
+
+                        {% if can_edit %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i>
+                                Guardar cambios
+                            </button>
+                        {% endif %}
+
+                    </div>
+                {% endif %}
+                <!-- Visible solo para jefaturas -->
+                <!-- {% if not is_final and can_assign %}
+                <button type="button"
+                        class="btn btn-info text-white"
+                        data-bs-toggle="modal"
+                        data-bs-target="#assignModal">
+                    <i class="bi bi-person-lines-fill me-1"></i>
+                    Asignar responsable
+                </button>
+                {% endif %}
+
                 {% if can_edit %}
                     <div class="d-flex justify-content-end mt-3">
                         <button type="submit" class="btn btn-primary">
@@ -214,7 +247,7 @@
                             Guardar cambios
                         </button>
                     </div>
-                {% endif %}
+                {% endif %} -->
             </div>
         </div>
     </form>
@@ -279,34 +312,24 @@
     </div>
 
     <!-- ============================================================
-         LINEA DE TIEMPO
+         BARRA DE PROGRESO
     ============================================================ -->
     <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <strong>Estado de la solicitud</strong>
-        </div>
-
-        <div class="card-body">
-            <div class="row g-2 text-center">
-                {% for step in timeline %}
-                    <div class="col-6 col-md">
-                        <div class="request-step request-step-{{ step.state }}">
-                            <div class="request-step-icon">
-                                {% if step.state == "done" %}
-                                    <i class="bi bi-check-circle-fill"></i>
-                                {% elif step.state == "current" %}
-                                    <i class="bi bi-circle-fill"></i>
-                                {% elif step.state == "rejected" %}
-                                    <i class="bi bi-x-circle-fill"></i>
-                                {% else %}
-                                    <i class="bi bi-circle"></i>
-                                {% endif %}
-                            </div>
-
-                            <div>{{ step.label }}</div>
-                        </div>
-                    </div>
-                {% endfor %}
+        <div class="card-body py-4">
+            <div class="text-center mb-3">
+                <span class="text-muted d-block small mb-1">Estado de la solicitud</span>
+                <strong class="fs-4">{{ progress.label }}</strong>
+            </div>
+            
+            <div class="progress" style="height: 25px; border-radius: 15px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated {{ progress.color }}" 
+                     role="progressbar" 
+                     style="width: {{ progress.percentage }}%; font-weight: bold; font-size: 14px;" 
+                     aria-valuenow="{{ progress.percentage }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ progress.percentage }}%
+                </div>
             </div>
         </div>
     </div>
@@ -498,18 +521,6 @@
          ACCIONES
     ============================================================ -->
     <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
-
-        <!-- Visible solo para jefaturas -->
-        {% if not is_final and can_assign %}
-        <button type="button"
-                class="btn btn-info text-white"
-                data-bs-toggle="modal"
-                data-bs-target="#assignModal">
-            <i class="bi bi-person-lines-fill me-1"></i>
-            Asignar responsable
-        </button>
-        {% endif %}
-
         {% if not is_final %}
             {% if not has_loan %}
             <button type="button"
@@ -733,7 +744,8 @@
 <div class="modal fade" id="assignModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post">
+            <!-- Apuntamos explícitamente a la vista de detalle -->
+            <form method="post" action="{% url 'loan_requests:detail' request_loan.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="assign_group">
 
@@ -746,22 +758,24 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Área de destino</label>
-                        <select name="assignment_area" class="form-select" required>
+                        <!-- Le agregamos el id="assignmentAreaSelect" -->
+                        <select name="assignment_area" id="assignmentAreaSelect" class="form-select" required>
                             <option value="" selected disabled>Seleccione un área...</option>
-                            <option value="Área Jurídica">Área Jurídica</option>
-                            <option value="Área de Préstamos">Área de Préstamos</option>
-                            <option value="Abogados">Abogados</option>
-                            <option value="Directorio">Directorio</option>
+                            {% for role in assignable_roles %}
+                                <option value="{{ role.name }}">{{ role.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Funcionario responsable</label>
-                        <select name="assignment_employee" class="form-select" required>
-                            <option value="" selected disabled>Seleccione un funcionario...</option>
-                            {% for emp in active_employees %}
-                                <option value="{{ emp.id }}">
-                                    {{ emp.person.first_name }} {{ emp.person.last_name_1 }} {% if emp.person.last_name_2 %}{{ emp.person.last_name_2 }}{% endif %} (Cód: {{ emp.code|default:"-" }})
+                        <label class="form-label">Usuario responsable</label>
+                        <!-- Le agregamos el id="assignmentEmployeeSelect" -->
+                        <select name="assignment_responsible" id="assignmentEmployeeSelect" class="form-select" required>
+                            <option value="" selected disabled>Seleccione un área primero...</option>
+                            {% for u in assignable_users %}
+                                <!-- Ocultamos por defecto y le inyectamos la variable de áreas -->
+                                <option value="{{ u.id }}" data-areas="{{ u.areas_asignadas }}" class="d-none">
+                                    {{ u.person.first_name }} {{ u.person.last_name_1 }} (Usuario: {{ u.username|default:"-" }})
                                 </option>
                             {% endfor %}
                         </select>
@@ -843,6 +857,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const employeeSearchUrl = "{% url 'loan_requests:employee_search' %}";
     const conceptsUrl = "{% url 'loan_requests:concepts' %}";
+
+    const areaSelect = document.getElementById("assignmentAreaSelect");
+    const employeeSelect = document.getElementById("assignmentEmployeeSelect");
 
     function escapeHtml(value){
         const div = document.createElement("div");
@@ -1038,6 +1055,35 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("rejectDocumentName").textContent = this.dataset.name;
         });
     });
+    
+    if (areaSelect && employeeSelect) {
+        // Guardamos todas las opciones originales que tienen áreas asignadas
+        const allEmployees = Array.from(employeeSelect.querySelectorAll("option[data-areas]"));
+
+        areaSelect.addEventListener("change", function () {
+            const selectedArea = this.value;
+
+            // Limpiamos el selector de funcionarios
+            employeeSelect.innerHTML = '<option value="" selected disabled>Seleccione un funcionario...</option>';
+
+            // Solo agregamos a los funcionarios cuya área asignada coincida con la elegida
+            let matchCount = 0;
+            allEmployees.forEach(opt => {
+                const areas = opt.getAttribute("data-areas") || "";
+                if (areas.split(",").includes(selectedArea)) {
+                    // Le quitamos el d-none por si lo tenía
+                    opt.classList.remove("d-none");
+                    employeeSelect.appendChild(opt);
+                    matchCount++;
+                }
+            });
+
+            // Si nadie de esa área tiene registro en la tabla de Empleados
+            if (matchCount === 0) {
+                employeeSelect.innerHTML = '<option value="" selected disabled>No hay funcionarios registrados en esta área</option>';
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
