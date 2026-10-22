@@ -24,8 +24,11 @@ urlpatterns = [
 
     #apps-urls
     path('', include('core.urls'),name="core"),
+
+    #Devolucion
     path('devolucion/solicitud/', include('applications.devoluciones.dev_solicitud.urls'),name="dev_solicitud"),
     path('devolucion/consejo/', include('applications.devoluciones.dev_consejo.urls'),name="dev_consejo"),
+    
     path('contabilidad/plan_cuentas/', include('applications.contabilidad.plan_cuentas.urls'),name="plan_cuentas"),
     path('contabilidad/periodo_contable/', include('applications.contabilidad.periodo_contable.urls'),name="periodo_contable"),
 
@@ -33,6 +36,10 @@ urlpatterns = [
     path("loans/",include("applications.prestamos.loan.urls")),
     path("loan_requests/",include("applications.prestamos.loan_requests.urls")),
     path("inventory/",include("applications.inventario.inventory.urls")),
+
+    
+    path("apps/",include("applications.apps.urls")),
+
 
 ]
 

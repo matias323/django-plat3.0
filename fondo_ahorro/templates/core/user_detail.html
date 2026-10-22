@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        
+        <!-- Cabecera -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h3 mb-0 text-body-emphasis">
+                    <i class="bi bi-person-gear me-2 text-primary"></i>Administrar Usuario: {{ target_user.username }}
+                </h2>
+                <p class="text-secondary small mb-0">RUT: {{ target_user.person.get_rut }} | Nombre: {{ target_user.person.get_full_name }}</p>
+            </div>
+            <div>
+                <a href="{% url 'core:user_list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Volver al Listado
+                </a>
+            </div>
+        </div>
+
+        <!-- Pestañas (Tabs) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-body-tertiary border-bottom px-4 pt-3">
+                <ul class="nav nav-tabs card-header-tabs" id="adminUserTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-semibold" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-pane" type="button" role="tab">
+                            <i class="bi bi-person-lines-fill me-1"></i> Información Personal
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles-pane" type="button" role="tab">
+                            <i class="bi bi-shield-shaded me-1"></i> Asignación de Roles
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-semibold" id="password-tab" data-bs-toggle="tab" data-bs-target="#password-pane" type="button" role="tab">
+                            <i class="bi bi-key-fill me-1"></i> Seguridad / Contraseña
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="tab-content" id="adminUserTabsContent">
+                    
+                    <!-- 1. PESTAÑA: INFORMACIÓN PERSONAL -->
+                    <div class="tab-pane fade show active" id="info-pane" role="tabpanel" tabindex="0">
+                        <h5 class="card-title text-body mb-3"><i class="bi bi-pencil-square text-primary me-2"></i>Actualizar Datos</h5>
+                        
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_info">
+
+                            <div class="row g-3">
+                                <div class="col-md-12"><h6 class="text-secondary text-uppercase fs-7 fw-bold mt-2 border-bottom pb-1">Credenciales</h6></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Nombre de Usuario</label>
+                                    {{ profile_form.username }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Correo Electrónico</label>
+                                    {{ profile_form.email }}
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-check form-switch mt-2">
+                                        {{ profile_form.is_active }}
+                                        <label class="form-check-label fw-semibold text-success" for="{{ profile_form.is_active.id_for_label }}">Usuario Activo en el Sistema</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-12 mt-4"><h6 class="text-secondary text-uppercase fs-7 fw-bold border-bottom pb-1">Datos Personales</h6></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Primer Nombre</label>
+                                    {{ person_form.first_name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Segundo Nombre</label>
+                                    {{ person_form.second_name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Primer Apellido</label>
+                                    {{ person_form.last_name_1 }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Segundo Apellido</label>
+                                    {{ person_form.last_name_2 }}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Fecha de Nacimiento</label>
+                                    {{ person_form.birth_date }}
+                                </div>
+
+                                <div class="col-12 mt-4 text-end">
+                                    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-check-circle me-1"></i> Guardar Información</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 2. PESTAÑA: ASIGNACIÓN DE ROLES -->
+                    <div class="tab-pane fade" id="roles-pane" role="tabpanel" tabindex="0">
+                        <h5 class="card-title text-body mb-2"><i class="bi bi-shield-check text-success me-2"></i>Gestionar Roles del Usuario</h5>
+                        <p class="text-secondary small mb-4">Selecciona los roles que este usuario mantendrá activos en el sistema (puedes marcar varios).</p>
+
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_roles">
+
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    {{ roles_form.roles }}
+                                </div>
+                                <div class="col-12 mt-4 text-end">
+                                    <button type="submit" class="btn btn-success px-4"><i class="bi bi-shield-fill-check me-1"></i> Actualizar Roles</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 3. PESTAÑA: CAMBIO DE CONTRASEÑA -->
+                    <div class="tab-pane fade" id="password-pane" role="tabpanel" tabindex="0">
+                        <h5 class="card-title text-body mb-2"><i class="bi bi-key text-warning me-2"></i>Cambiar Contraseña de Usuario</h5>
+                        <p class="text-secondary small mb-4">Como administrador, puedes asignar una nueva contraseña directamente sin requerir la clave anterior.</p>
+
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="change_password">
+
+                            <div class="row g-3">
+                                {% for field in password_form %}
+                                    <div class="col-12">
+                                        <label class="form-label">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% if field.help_text %}
+                                            <div class="form-text small text-muted">{{ field.help_text|safe }}</div>
+                                        {% endif %}
+                                        {% if field.errors %}
+                                            <div class="text-danger small mt-1">{{ field.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+
+                                <div class="col-12 mt-4 text-end">
+                                    <button type="submit" class="btn btn-warning text-dark fw-semibold px-4"><i class="bi bi-lock-fill me-1"></i> Establecer Nueva Contraseña</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

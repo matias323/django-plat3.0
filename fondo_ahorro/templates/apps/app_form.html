@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        
+        <!-- Cabecera de la sección -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h3 mb-0 text-body-emphasis">
+                    <i class="bi bi-window-stack me-2 text-primary"></i>
+                    {% if form.instance.pk %}Editar Aplicación{% else %}Nueva Aplicación{% endif %}
+                </h2>
+                <p class="text-secondary small mb-0">
+                    {% if form.instance.pk %}
+                        Modifica los datos de la aplicación.
+                    {% else %}
+                        Registra una nueva aplicación.
+                    {% endif %}
+                </p>
+            </div>
+            <div>
+                <a href="{% url 'apps:list' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i> Volver al Listado
+                </a>
+            </div>
+        </div>
+
+        <!-- Tarjeta del Formulario -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-4">
+                
+                <form method="POST" class="needs-validation" novalidate>
+                    {% csrf_token %}
+
+                    <div class="row g-3">
+                        
+                        <!-- Nombre de la Aplicación -->
+                        <div class="col-md-12">
+                            <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">Nombre de Aplicación <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- URL / View Name -->
+                        <div class="col-md-12">
+                            <label for="{{ form.url.id_for_label }}" class="form-label fw-semibold">URL / View Name <span class="text-danger">*</span></label>
+                            {{ form.url }}
+                            <div class="form-text small">Indica el nombre de la ruta o namespace de Django (ej. <code>core:home</code> o <code>apps:list</code>).</div>
+                            {% if form.url.errors %}
+                                <div class="text-danger small mt-1">{{ form.url.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Aplicación Padre y Orden -->
+                        <div class="col-md-6">
+                            <label for="{{ form.father_app.id_for_label }}" class="form-label fw-semibold">Aplicación Padre</label>
+                            {{ form.father_app }}
+                            <div class="form-text small">Déjalo vacío si es un menú principal.</div>
+                            {% if form.father_app.errors %}
+                                <div class="text-danger small mt-1">{{ form.father_app.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="{{ form.order.id_for_label }}" class="form-label fw-semibold">Orden de Visualización <span class="text-danger">*</span></label>
+                            {{ form.order }}
+                            {% if form.order.errors %}
+                                <div class="text-danger small mt-1">{{ form.order.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Roles permitidos (Campo personalizado del formulario) -->
+                        <div class="col-md-12 mt-3">
+                            <label for="{{ form.roles.id_for_label }}" class="form-label fw-semibold">Roles con Acceso Inicial</label>
+                            {{ form.roles }}
+                            <div class="form-text small">Selecciona los roles que tendrán acceso automático a esta aplicación (se propagarán los permisos iniciales).</div>
+                            {% if form.roles.errors %}
+                                <div class="text-danger small mt-1">{{ form.roles.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Checkboxes: Tiene Hijas y Estado Activo -->
+                        <div class="col-md-12 mt-3">
+                            <div class="p-3 bg-body-tertiary rounded-3 border">
+                                <div class="form-check form-switch mb-2">
+                                    {{ form.has_daughter }}
+                                    <label class="form-check-label fw-semibold" for="{{ form.has_daughter.id_for_label }}">
+                                        ¿Tiene sub-aplicaciones (Hijas)?
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label fw-semibold text-success" for="{{ form.is_active.id_for_label }}">
+                                        Aplicación Activa
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="col-12 mt-4 d-flex justify-content-between align-items-center">
+                            <a href="{% url 'apps:list' %}" class="btn btn-secondary px-4">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="bi bi-check-circle me-1"></i> 
+                                {% if form.instance.pk %}Guardar Cambios{% else %}Crear Aplicación{% endif %}
+                            </button>
+                        </div>
+
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

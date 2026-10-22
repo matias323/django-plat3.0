@@ -12,10 +12,10 @@
     {% if request.user_session %}
       {{request.user_session.app.name|default:'Ingresar'}} 
     {% endif %}
-    {% if request.resolver_match.url_name == 'login'  %}
+    {% if request.resolver_match.url_name == 'login' %}
       Ingresar
     {% endif %}
-    {% if request.resolver_match.url_name == 'registration'  %}
+    {% if request.resolver_match.url_name == 'registration' %}
       Registro
     {% endif %}
     | FAH
@@ -197,7 +197,7 @@
 
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="mi-zona">
   {% include "includes/nav.html" %}
 
   <main class="container py-4">
@@ -222,7 +222,11 @@
     </div>
   </footer>
 
+<!-- Bootstrap -->
 <script src="{% static 'core/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js' %}"></script>
+<link href="{% static 'core/bootstrap-5.3.8-dist/css/bootstrap.min.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/theme.css' %}" rel="stylesheet">
+
 <!-- sweet alert -->
 <script src="{% static 'core/sweet-alert/sweetalert2.all.min.js' %}"></script>
 

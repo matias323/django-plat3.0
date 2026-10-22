@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h3 mb-0 text-body-emphasis"><i class="bi bi-people-fill me-2 text-primary"></i>Gestión de Usuarios</h2>
+                <p class="text-secondary small mb-0">Listado general de usuarios registrados en el sistema.</p>
+            </div>
+            <div>
+                <!-- Botón para ir a crear nuevo usuario -->
+                <a href="{% url 'core:user_create' %}" class="btn btn-primary">
+                    <i class="bi bi-person-plus-fill me-1"></i> Nuevo Usuario
+                </a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead >
+                            <tr>
+                                <th class="ps-4">Usuario</th>
+                                <th>Nombre Completo</th>
+                                <th>RUT</th>
+                                <th>Correo Electrónico</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-end pe-4">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in object_list %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-body">
+                                    <i class="bi bi-person-circle text-secondary me-1"></i> {{ u.username }}
+                                </td>
+                                <td>{{ u.person.get_full_name }}</td>
+                                <td><code>{{ u.person.get_rut }}</code></td>
+                                <td>{{ u.email|default:"No registrado" }}</td>
+                                <td class="text-center">
+                                    {% if u.is_active %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'core:user_detail' u.pk %}" class="btn btn-sm btn-outline-primary" title="Gestionar Usuario y Roles">
+                                        <i class="bi bi-gear-fill me-1"></i> Administrar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-secondary">No hay usuarios registrados.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
