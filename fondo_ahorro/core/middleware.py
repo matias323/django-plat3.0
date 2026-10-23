@@ -13,8 +13,9 @@ class ActiveAppSessionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Mantenemos el lazy object seguro por si se usa en templates
         request.user_session = SimpleLazyObject(
-            lambda: User.get_active_session(request.user)
+            lambda: User.get_active_session(request.user) if request.user.is_authenticated else None
         )
 
         return self.get_response(request)
@@ -24,68 +25,41 @@ class ActiveAppSessionMiddleware:
 
         # ====================================================
         # RUTAS QUE NO DEBEN VALIDAR LA SESIÓN DE APLICACIÓN
-        # if resolver and resolver.app_name == "core" and resolver.url_name in {
-
-        if resolver  and resolver.url_name in {
-
+        # ====================================================
+        if resolver and resolver.url_name in {
             "login",
             "logout",
             "register",
             "perfil",
-
         }:
             return None
 
-
-        session = User.get_active_session(request.user)
-                
         # ====================================================
         # USUARIO NO AUTENTICADO
-        if not request.user.is_authenticated or not session:
-       
-            logout(request)
-            
-            messages.error(
-                request,
-                "Tu sesión expiró. Debes iniciar sesión nuevamente.",
-            )
-
-            return redirect("core:login")
-
-
         # ====================================================
-        # SUPERUSUARIO
-        # if request.user.is_superuser:
-        #     return None
+        if not request.user.is_authenticated:
+            return None  # Deja que el decorador @login_required o el flujo normal maneje la redirección si es necesario
+
+        # Obtenemos la sesión activa de forma segura
+        session = User.get_active_session(request.user)
+
+        if not session:
+            # Si el usuario está autenticado pero no tiene sesión activa, 
+            # puedes redirigirlo a una vista de selección de app o dejarlo pasar a home/perfil
+            # Dependiendo de tu lógica, aquí podrías evitar hacer logout forzoso si es un usuario nuevo.
+            # Por ahora lo manejamos de forma amigable:
+            return None 
 
         # ====================================================
         # DJANGO ADMIN
+        # ====================================================
         if resolver and resolver.app_name == "admin" and request.user.is_superuser:
             return None
 
         # ====================================================
-        # SESIÓN ACTIVA DEL SISTEMA (Esto da error cuando nunca a tenido session xdd usuario nuevo... )
-
-        # ====================================================
         # APLICACIÓN ACTUAL
+        # ====================================================
         current_app = App.get_app_by_request(request)
-
-        # if not current_app:
-        #     if request.headers.get("X-App-Request") == "true":
-        #         return JsonResponse(
-        #             {
-        #                 "success": False,
-        #                 "message": "No tienes permisos para acceder a este recurso.",
-        #             },
-        #             status=403,
-        #         )
-
-        #     messages.error(
-        #         request,
-        #         "No tienes permisos para acceder.",
-        #     )
-
-        #     return redirect("core:home")
 
         app_target = (
             current_app
@@ -93,13 +67,12 @@ class ActiveAppSessionMiddleware:
             else session.app
         )
 
-        # # ============================================================
-        # # VALIDACIÓN DE ESCRITURA
+        # ============================================================
+        # VALIDACIÓN DE ESCRITURA
+        # ============================================================
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            resolver = request.resolver_match
             role = getattr(session, "role", None)
 
-            # ============================================================
             # EXCEPCIONES DE AUTOSERVICIO
             is_partner_registration_create = (
                 role
@@ -110,7 +83,7 @@ class ActiveAppSessionMiddleware:
                 and request.method == "POST"
             )
 
-            if not is_partner_registration_create:
+            if not is_partner_registration_create and app_target:
                 user_permission = (
                     UserPermission.objects
                     .filter(
@@ -135,24 +108,16 @@ class ActiveAppSessionMiddleware:
                         "No tienes permisos para realizar cambios.",
                     )
 
-                    return redirect(app_target.url)
+                    return redirect(getattr(app_target, "url", "core:home"))
 
         # ====================================================
         # ACTUALIZAR APP ACTIVA
-        if (
-            request.method == "GET"
-            # and isinstance(current_app, App)
-            # and session
-            # and session.app != current_app
-        ):
+        # ====================================================
+        if request.method == "GET" and current_app and session.app != current_app:
             session.app = current_app
             session.save(update_fields=["app"])
 
-
-
-        # para saber el rol en el html creamos el user_session en la request-
-        #entonces ahora en el html podemos hacer {{request.user_sesison.role.name}} -> "Desarrollo".
-
+        # Inyectamos la sesión real (ya no lazy) para el ciclo de la vista y templates
         request.user_session = session
 
         return None
