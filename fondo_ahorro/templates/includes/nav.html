@@ -50,7 +50,11 @@
                         <ul class="dropdown-menu shadow-sm">
                           {% for grand_app in sub_app.allowed_daughters %}
                             <li>
-                              <a class="dropdown-item d-flex align-items-center gap-2" href="{% url grand_app.url %}">
+                              {% if grand_app.url == '#' %}
+                                <a class="dropdown-item d-flex align-items-center gap-2" href="#">
+                              {% else %}
+                                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url grand_app.url %}">
+                              {% endif %}
                                 <i class="bi bi-chevron-right fs-6"></i> {{ grand_app.name }}
                               </a>
                             </li>
@@ -71,8 +75,15 @@
             {% else %}
               <!-- Nivel 1: App Padre directa (Sin hijas) -->
               <li class="nav-item me-3">
-                <a class="nav-link fw-medium d-flex align-items-center gap-2" href="{% url app.url %}">
+                {% if app.url == '#' %}
+                  <a class="nav-link fw-medium d-flex align-items-center gap-2" href="#">
+                {% elif app.is_active == false %}
+                  {% comment "" %}<a class="nav-link fw-medium d-flex align-items-center gap-2" href="#">{% endcomment %}
+                {% else %}
+                  <a class="nav-link fw-medium d-flex align-items-center gap-2" href="{% url app.url %}">
                   <i class="bi bi-house-door fs-5"></i> {{ app.name }}
+                {% endif %}
+
                 </a>
               </li>
             {% endif %}

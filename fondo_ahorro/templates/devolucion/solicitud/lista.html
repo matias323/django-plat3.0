@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container-fluid py-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h3 class="mb-1">
+                <i class="bi bi-arrow-counterclockwise text-primary me-2"></i>
+                Solicitudes de devolución
+            </h3>
+            <p class="text-body-secondary mb-0">Gestión de devoluciones de aportes</p>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="btnNuevaDevolucion">
+            <i class="bi bi-plus-circle me-1"></i>Nueva devolución
+        </button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-body"><strong>Solicitudes registradas</strong></div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="devolucionesTable" class="table table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>N.º</th>
+                            <th>Motivo</th>
+                            <th class="text-center">Estado</th>
+                            <th>Fecha de creación</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'devolucion/solicitud/modal_detalle.html' %}
+
+<!-- Modal incluido directamente para que su JavaScript funcione al cargar la página. -->
+<div class="modal fade" id="devolucionCrearModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            {% include 'devolucion/solicitud/modal.html' %}
+        </div>
+    </div>
+</div>
+
+<style>
+    #devolucionesTable th { white-space: nowrap; }
+    #devolucionesTable td { vertical-align: middle; }
+    #devolucionCrearModal .modal-dialog { max-height: calc(100vh - 40px); }
+    #devolucionCrearModal .modal-content { max-height: calc(100vh - 40px); }
+    #devolucionCrearModal .section-title {
+        font-weight: 700;
+        text-align: center;
+        color: var(--bs-emphasis-color);
+        margin-bottom: 1rem;
+    }
+    .swal2-container { z-index: 20000 !important; }
+</style>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modalElement = document.getElementById('devolucionCrearModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement, { focus: false });
+
+    function escapeHtml(value) {
+        return $('<div>').text(value ?? '').html();
+    }
+
+    const table = $('#devolucionesTable').DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: false,
+        autoWidth: false,
+        scrollX: true,
+        pageLength: 10,
+        order: [[0, 'desc']],
+
+        ajax: {
+            url: "{% url 'devolucion:datatable' %}",
+            type: 'GET',
+            error: function (xhr) {
+                console.error('Error al consultar devoluciones:', xhr.responseText);
+                if (window.AppSwalError) {
+                    AppSwalError('Error', 'No se pudieron cargar las solicitudes de devolución.');
+                } else if (window.Swal) {
+                    Swal.fire('Error', 'No se pudieron cargar las solicitudes.', 'error');
+                }
+            }
+        },
+
+        columns: [
+            { data: 'id' },
+            { data: 'motivo', render: value => escapeHtml(value || '—') },
+            {
+                data: 'estado',
+                className: 'text-center',
+                render: function (value, type) {
+                    if (type !== 'display') return value;
+
+                    const text = String(value || 'Sin estado');
+                    const name = text.toLowerCase();
+                    let color = 'primary';
+
+                    if (name.includes('rechaz')) color = 'danger';
+                    else if (name.includes('pagad')) color = 'success';
+                    else if (name.includes('aprobad')) color = 'info';
+                    else if (name === 'sin estado') color = 'secondary';
+
+                    return `<span class="badge bg-${color}">${escapeHtml(text)}</span>`;
+                }
+            },
+            { data: 'fecha', render: value => escapeHtml(value || '—') },
+            {
+                data: 'id',
+                searchable: false,
+                orderable: false,
+                className: 'text-center',
+                render: value => `<button type="button" class="btn btn-sm btn-outline-primary btn-detalle-devolucion" data-id="${Number(value)}"><i class="bi bi-eye"></i></button>`
+            }
+        ],
+
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json'
+        }
+    });
+
+    document.getElementById('btnNuevaDevolucion').addEventListener('click', function () {
+        modal.show();
+        document.getElementById('devoBuscarFuncionario').focus();
+    });
+
+    // Podrá utilizarse después de guardar una devolución.
+    window.recargarDevoluciones = function () {
+        table.ajax.reload(null, false);
+    };
+});
+</script>
+{% endblock %}

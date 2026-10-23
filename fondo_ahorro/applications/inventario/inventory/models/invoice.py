@@ -44,7 +44,7 @@ class Invoice(BaseModel):
     status = models.PositiveSmallIntegerField(verbose_name="Estado", choices=STATUS_CHOICES, default=STATUS_CURRENT)
 
     class Meta:
-        db_table = "inventory_invoice"
+        db_table = "inventario_factura"
         verbose_name = "Factura"
         verbose_name_plural = "Facturas"
         ordering = ["-invoice_date", "-id"]
@@ -76,7 +76,7 @@ class InvoiceDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "inventory_invoice_document"
+        db_table = "inventario_factura_documento"
         verbose_name = "Documento de factura"
         verbose_name_plural = "Documentos de factura"
         ordering = ["-id"]
