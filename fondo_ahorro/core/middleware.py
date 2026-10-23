@@ -39,10 +39,12 @@ class ActiveAppSessionMiddleware:
 
         session = User.get_active_session(request.user)
                 
-        if not session:
-
+        # ====================================================
+        # USUARIO NO AUTENTICADO
+        if not request.user.is_authenticated or not session:
+       
             logout(request)
-
+            
             messages.error(
                 request,
                 "Tu sesión expiró. Debes iniciar sesión nuevamente.",
@@ -51,55 +53,18 @@ class ActiveAppSessionMiddleware:
             return redirect("core:login")
 
 
-
-        # ====================================================
-        # USUARIO NO AUTENTICADO
-        if not request.user.is_authenticated:
-            # logout(request)
-            
-            # messages.error(
-            #     request,
-            #     "Tu sesión expiró. Debes iniciar sesión nuevamente.",
-            # )
-
-            # return redirect("core:login") ???
-            return None
-
         # ====================================================
         # SUPERUSUARIO
-        if request.user.is_superuser:
-            return None
+        # if request.user.is_superuser:
+        #     return None
 
         # ====================================================
         # DJANGO ADMIN
-        if resolver and resolver.app_name == "admin":
+        if resolver and resolver.app_name == "admin" and request.user.is_superuser:
             return None
 
         # ====================================================
         # SESIÓN ACTIVA DEL SISTEMA (Esto da error cuando nunca a tenido session xdd usuario nuevo... )
-        session = User.get_active_session(request.user)
-
-        if not session:
-            if request.headers.get("X-App-Request") == "true":
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": "Sesión no válida o expirada.",
-                    },
-                    status=401,
-                )
-
-            # El usuario sigue autenticado en Django pero su
-            # sesión interna ya no existe. Cerramos la sesión
-            # Django para evitar el bucle /login/ -> /login/.
-            logout(request)
-
-            messages.error(
-                request,
-                "Tu sesión expiró. Debes iniciar sesión nuevamente.",
-            )
-
-            return redirect("core:login")
 
         # ====================================================
         # APLICACIÓN ACTUAL
@@ -176,8 +141,8 @@ class ActiveAppSessionMiddleware:
         # ACTUALIZAR APP ACTIVA
         if (
             request.method == "GET"
-            and isinstance(current_app, App)
-            and session
+            # and isinstance(current_app, App)
+            # and session
             # and session.app != current_app
         ):
             session.app = current_app
