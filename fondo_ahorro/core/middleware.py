@@ -70,72 +70,72 @@ class ActiveAppSessionMiddleware:
         # APLICACIÓN ACTUAL
         current_app = App.get_app_by_request(request)
 
-        if not current_app:
-            if request.headers.get("X-App-Request") == "true":
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": "No tienes permisos para acceder a este recurso.",
-                    },
-                    status=403,
-                )
+        # if not current_app:
+        #     if request.headers.get("X-App-Request") == "true":
+        #         return JsonResponse(
+        #             {
+        #                 "success": False,
+        #                 "message": "No tienes permisos para acceder a este recurso.",
+        #             },
+        #             status=403,
+        #         )
 
-            messages.error(
-                request,
-                "No tienes permisos para acceder.",
-            )
+        #     messages.error(
+        #         request,
+        #         "No tienes permisos para acceder.",
+        #     )
 
-            return redirect("core:home")
+        #     return redirect("core:home")
 
-        app_target = (
-            current_app
-            if isinstance(current_app, App)
-            else session.app
-        )
+        # app_target = (
+        #     current_app
+        #     if isinstance(current_app, App)
+        #     else session.app
+        # )
 
-        # ============================================================
-        # VALIDACIÓN DE ESCRITURA
-        if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            resolver = request.resolver_match
-            role = getattr(session, "role", None)
+        # # ============================================================
+        # # VALIDACIÓN DE ESCRITURA
+        # if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
+        #     resolver = request.resolver_match
+        #     role = getattr(session, "role", None)
 
-            # ============================================================
-            # EXCEPCIONES DE AUTOSERVICIO
-            is_partner_registration_create = (
-                role
-                and getattr(role, "is_partner", False)
-                and resolver
-                and resolver.app_name == "registrations"
-                and resolver.url_name == "create"
-                and request.method == "POST"
-            )
+        #     # ============================================================
+        #     # EXCEPCIONES DE AUTOSERVICIO
+        #     is_partner_registration_create = (
+        #         role
+        #         and getattr(role, "is_partner", False)
+        #         and resolver
+        #         and resolver.app_name == "registrations"
+        #         and resolver.url_name == "create"
+        #         and request.method == "POST"
+        #     )
 
-            if not is_partner_registration_create:
-                user_permission = (
-                    UserPermission.objects
-                    .filter(
-                        user=request.user,
-                        app=app_target,
-                        role=session.role,
-                        is_active=True,
-                    )
-                    .select_related("permission")
-                    .first()
-                )
+        #     if not is_partner_registration_create:
+        #         user_permission = (
+        #             UserPermission.objects
+        #             .filter(
+        #                 user=request.user,
+        #                 app=app_target,
+        #                 role=session.role,
+        #                 is_active=True,
+        #             )
+        #             .select_related("permission")
+        #             .first()
+        #         )
 
-                if not user_permission or user_permission.permission_id != 2:
-                    if request.headers.get("X-App-Request") == "true":
-                        return JsonResponse({
-                            "success": False,
-                            "message": "No tienes permisos para modificar en esta aplicación.",
-                        }, status=403)
+        #         if not user_permission or user_permission.permission_id != 2:
+        #             if request.headers.get("X-App-Request") == "true":
+        #                 return JsonResponse({
+        #                     "success": False,
+        #                     "message": "No tienes permisos para modificar en esta aplicación.",
+        #                 }, status=403)
 
-                    messages.error(
-                        request,
-                        "No tienes permisos para realizar cambios.",
-                    )
+        #             messages.error(
+        #                 request,
+        #                 "No tienes permisos para realizar cambios.",
+        #             )
 
-                    return redirect("core:home")
+        #             return redirect(app_target.url)
 
         # ====================================================
         # ACTUALIZAR APP ACTIVA
