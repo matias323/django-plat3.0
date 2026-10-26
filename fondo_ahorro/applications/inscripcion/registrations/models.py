@@ -8,7 +8,7 @@ class RegistrationType(BaseModel):
     type = models.CharField(max_length=100)
 
     class Meta:
-        db_table = "registration_type"
+        db_table = "inscripcion_tipo"
         verbose_name = "Tipo de inscripción"
         verbose_name_plural = "Tipos de inscripción"
 
@@ -53,7 +53,7 @@ class Registration(BaseModel):
     )
 
     class Meta:
-        db_table = "registration"
+        db_table = "inscripcion"
         verbose_name = "Solicitud de inscripción"
         verbose_name_plural = "Solicitudes de inscripción"
 
@@ -62,7 +62,7 @@ class RegistrationDocumentStatus(BaseModel):
     status_type = models.CharField(max_length=100)
 
     class Meta:
-        db_table = "registration_document_status"
+        db_table = "inscripcion_documento_estado"
         verbose_name = "Estado de documento"
         verbose_name_plural = "Estados de documentos"
 
@@ -91,7 +91,7 @@ class RegistrationDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "registration_document"
+        db_table = "inscripcion_documento"
         verbose_name = "Documento de inscripción"
         verbose_name_plural = "Documentos de inscripción"
 
@@ -114,7 +114,7 @@ class RegistrationObservation(BaseModel):
     )
 
     class Meta:
-        db_table = "registration_observation"
+        db_table = "inscripcion_observacion"
         verbose_name = "Observación de inscripción"
         verbose_name_plural = "Observaciones de inscripción"
 

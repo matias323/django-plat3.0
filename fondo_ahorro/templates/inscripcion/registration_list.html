@@ -385,7 +385,18 @@ document.addEventListener("DOMContentLoaded", function () {
         serverSide: true,
         ajax: {
             url: "{% url 'registrations:datatable' %}",
-            type: "GET"
+            type: "GET",
+            headers: {
+                "X-App-Request": "true"
+            },
+            dataType: "json",
+            error: function(xhr, status, error) {
+                console.error("Error DataTables Inscripciones");
+                console.error("HTTP:", xhr.status);
+                console.error("Estado:", status);
+                console.error("Error:", error);
+                console.error("Respuesta:", xhr.responseText);
+            }
         },
         columns: [
             { data: "id" },

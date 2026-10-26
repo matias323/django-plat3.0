@@ -13,7 +13,7 @@ class Office(BaseModel):
     name = models.CharField(verbose_name="Oficina", max_length=255, null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_office"
+        db_table = "inventario_oficina"
         verbose_name = "Oficina"
         verbose_name_plural = "Oficinas"
         ordering = ["name"]
@@ -37,7 +37,7 @@ class OfficePerson(BaseModel):
     assignment_date = models.DateField(verbose_name="Fecha", null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_office_person"
+        db_table = "inventario_oficina_persona"
         verbose_name = "Persona de oficina"
         verbose_name_plural = "Personas de oficina"
         constraints = [models.UniqueConstraint(fields=["office", "person"], name="uq_inventory_office_person")]
@@ -57,6 +57,6 @@ class OfficeProduct(BaseModel):
     )
 
     class Meta:
-        db_table = "inventory_office_product"
+        db_table = "inventario_oficina_producto"
         verbose_name = "Producto de oficina"
         verbose_name_plural = "Productos de oficina"

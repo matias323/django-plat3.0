@@ -63,7 +63,7 @@ class Product(BaseModel):
     status = models.PositiveSmallIntegerField(verbose_name="Estado", choices=STATUS_CHOICES, default=STATUS_ACTIVE)
 
     class Meta:
-        db_table = "inventory_product"
+        db_table = "inventario_producto"
         verbose_name = "Producto"
         verbose_name_plural = "Productos"
         ordering = ["role_number"]
@@ -87,7 +87,7 @@ class ProductAssignment(BaseModel):
     assignment_date = models.DateField(verbose_name="Fecha asignación", null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_product_assignment"
+        db_table = "inventario_producto_asignado"
         verbose_name = "Asignación de producto"
         verbose_name_plural = "Asignaciones de productos"
         ordering = ["-assignment_date", "-id"]
@@ -107,7 +107,7 @@ class ProductDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "inventory_product_document"
+        db_table = "inventario_producto_documento"
         verbose_name = "Documento de producto"
         verbose_name_plural = "Documentos de producto"
         ordering = ["-id"]
