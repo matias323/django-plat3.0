@@ -1,0 +1,550 @@
+<style>
+    #devolucionDetalleModal .modal-content {
+        border: 0;
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+
+    #devolucionDetalleModal .modal-header {
+        border-bottom: 1px solid var(--bs-border-color);
+        padding: 1.15rem 1.5rem;
+        background: linear-gradient(110deg, rgba(13, 110, 253, .09), transparent 75%);
+    }
+
+    #devolucionDetalleModal .modal-body {
+        padding: 1.25rem;
+        background: var(--bs-tertiary-bg);
+    }
+
+    #devolucionDetalleModal .dd-card {
+        border: 1px solid var(--bs-border-color-translucent);
+        border-radius: .85rem;
+        background: var(--bs-body-bg);
+        box-shadow: 0 .2rem .8rem rgba(0, 0, 0, .035);
+        margin-bottom: 1.1rem;
+    }
+
+    #devolucionDetalleModal .dd-card-header {
+        display: flex;
+        align-items: center;
+        gap: .7rem;
+        padding: .95rem 1.2rem;
+        border-bottom: 1px solid var(--bs-border-color-translucent);
+    }
+
+    #devolucionDetalleModal .dd-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        flex-shrink: 0;
+        border-radius: .65rem;
+        color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), .10);
+        font-size: 1.1rem;
+    }
+
+    #devolucionDetalleModal .dd-card-title {
+        margin: 0;
+        font-weight: 650;
+        font-size: 1rem;
+    }
+
+    #devolucionDetalleModal .dd-card-body { padding: 1.2rem; }
+    #devolucionDetalleModal .dd-field-label { font-size: .82rem; font-weight: 600; margin-bottom: .35rem; }
+
+    #devolucionDetalleModal .dd-readonly {
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-body-color);
+        border-color: var(--bs-border-color);
+        opacity: 1;
+    }
+
+    #devolucionDetalleModal .dd-readonly:focus { box-shadow: none; }
+
+    #devolucionDetalleModal .dd-field-icon {
+        width: 2.65rem;
+        justify-content: center;
+        color: var(--bs-secondary-color);
+        background: var(--bs-secondary-bg);
+    }
+
+    #devolucionDetalleModal .dd-status {
+        min-height: 38px;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    #devolucionDetalleModal .dd-total {
+        background: rgba(var(--bs-success-rgb), .07);
+        border: 1px solid rgba(var(--bs-success-rgb), .18);
+        border-radius: .65rem;
+        padding: .85rem 1rem;
+    }
+
+    #devolucionDetalleModal .dd-aporte {
+        display: flex;
+        justify-content: space-between;
+        gap: .75rem;
+        align-items: center;
+        padding: .7rem .85rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: .6rem;
+        background: var(--bs-tertiary-bg);
+    }
+
+    #devolucionDetalleModal .dd-warning {
+        background: rgba(var(--bs-primary-rgb), .055);
+        border-left: 3px solid var(--bs-primary);
+        border-radius: .35rem;
+        padding: .75rem .9rem;
+    }
+
+    #devolucionDetalleModal .modal-footer {
+        padding: .9rem 1.25rem;
+        border-top: 1px solid var(--bs-border-color);
+    }
+
+    @media (max-width: 575.98px) {
+        #devolucionDetalleModal .modal-body { padding: .75rem; }
+        #devolucionDetalleModal .dd-card-body { padding: .9rem; }
+        #devolucionDetalleModal .modal-header { padding: 1rem; }
+    }
+
+    /* MONTOS Y APORTES SOLICITADOS */
+    #devolucionDetalleModal .dd-aportes-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+
+    /* Tarjetas de aportes generadas por JavaScript */
+    #devolucionDetalleModal .dd-aportes-container > * {
+        width: 100%;
+        min-height: 38px;
+        margin: 0;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    /* Igualar altura y diseño del monto general */
+    #devolucionDetalleModal #ddMontoGeneral {
+        min-height: 38px;
+    }
+
+    /* Mantener el texto alineado */
+    #devolucionDetalleModal .dd-aportes-container .dd-aporte {
+        padding: 6px 12px;
+        border: 1px solid var(--bs-border-color);
+        border-radius: 6px;
+        background: var(--bs-tertiary-bg);
+    }
+
+</style>
+
+<div class="modal fade" id="devolucionDetalleModal" tabindex="-1" aria-labelledby="ddModalTitulo" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg">
+            <div class="modal-header">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="dd-icon"><i class="bi bi-file-earmark-text"></i></span>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-1" id="ddModalTitulo">Detalle de solicitud <span id="ddTitulo"></span></h5>
+                        <p class="small text-body-secondary mb-0">Información y gestión del estado de devolución</p>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body">
+                <div id="ddCargando" class="text-center py-5 d-none" role="status">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="text-body-secondary mt-3 mb-0">Consultando solicitud...</p>
+                </div>
+
+                <div id="ddContenido" class="d-none">
+                    <!-- SOLICITUD -->
+                    <section class="dd-card">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-journal-text"></i></span>
+                            <h6 class="dd-card-title">Información de la solicitud</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <div class="row g-3">
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddId">N.º devolución</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-hash"></i></span><input id="ddId" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddSolicitud">Solicitud general</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-files"></i></span><input id="ddSolicitud" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label">Estado actual</label>
+                                    <div class="dd-status"><span id="ddEstado" class="badge text-bg-secondary px-3 py-2">—</span></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddFecha">Fecha de creación</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-calendar-event"></i></span><input id="ddFecha" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label dd-field-label" for="ddTipo">Tipo de devolución</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-arrow-left-right"></i></span><input id="ddTipo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label dd-field-label" for="ddMotivo">Motivo</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-chat-left-text"></i></span><input id="ddMotivo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- FUNCIONARIO -->
+                    <section class="dd-card">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-person-vcard"></i></span>
+                            <h6 class="dd-card-title">Funcionario</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <div class="row g-3">
+                                <div class="col-lg-6">
+                                    <label class="form-label dd-field-label" for="ddNombre">Nombre completo</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-person"></i></span><input id="ddNombre" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-6">
+                                    <label class="form-label dd-field-label" for="ddRut">RUT</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-person-badge"></i></span><input id="ddRut" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <label class="form-label dd-field-label" for="ddGrado">Grado</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-award"></i></span><input id="ddGrado" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-6">
+                                    <label class="form-label dd-field-label" for="ddCodigo">Código</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-upc-scan"></i></span><input id="ddCodigo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- MONTOS SOLICITADOS -->
+                    <section class="dd-card">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-cash-stack"></i></span>
+                            <h6 class="dd-card-title">Montos solicitados</h6>
+                        </div>
+
+                        <div class="dd-card-body">
+                            <div class="row g-3">
+                                <!-- MONTO GENERAL -->
+                                <div class="col-md-6">
+                                    <label class="form-label dd-field-label" for="ddMontoGeneral">Monto general</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text dd-field-icon"><i class="bi bi-currency-dollar"></i></span>
+                                        <input type="text" id="ddMontoGeneral" class="form-control dd-readonly fw-semibold" readonly>
+                                    </div>
+                                </div>
+
+                                <!-- APORTES SOLICITADOS -->
+                                <div class="col-md-6">
+                                    <label class="form-label dd-field-label">Aportes solicitados</label>
+                                    <div id="ddAportes" class="dd-aportes-container" aria-live="polite"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+
+                    <!-- CONTACTO -->
+                    <section class="dd-card">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-geo-alt"></i></span>
+                            <h6 class="dd-card-title">Dirección y contacto</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <div class="row g-3">
+                                <div class="col-lg-4">
+                                    <label class="form-label dd-field-label" for="ddDireccion">Dirección</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-house-door"></i></span><input id="ddDireccion" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-4">
+                                    <label class="form-label dd-field-label" for="ddRegion">Región</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-map"></i></span><input id="ddRegion" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-4">
+                                    <label class="form-label dd-field-label" for="ddComuna">Comuna</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-geo"></i></span><input id="ddComuna" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-lg-4">
+                                    <label class="form-label dd-field-label" for="ddTelefono">Teléfono</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-telephone"></i></span><input id="ddTelefono" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-lg-8">
+                                    <label class="form-label dd-field-label" for="ddCorreo">Correo electrónico</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-envelope"></i></span><input id="ddCorreo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- PAGO -->
+                    <section class="dd-card">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-bank"></i></span>
+                            <h6 class="dd-card-title">Información de pago</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <div class="row g-3">
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddMetodo">Método de pago</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-wallet2"></i></span><input id="ddMetodo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddBanco">Banco</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-bank"></i></span><input id="ddBanco" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddCuentaTipo">Tipo de cuenta</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-credit-card"></i></span><input id="ddCuentaTipo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddNumeroCuenta">N.º de cuenta</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-123"></i></span><input id="ddNumeroCuenta" class="form-control dd-readonly" readonly></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ESTADO -->
+                    <section class="dd-card mb-0">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-arrow-repeat"></i></span>
+                            <h6 class="dd-card-title">Gestión del estado</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-lg-7">
+                                    <label for="ddEstadoNuevo" class="form-label dd-field-label">Cambiar estado de devolución</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text dd-field-icon"><i class="bi bi-list-check"></i></span>
+                                        <select id="ddEstadoNuevo" class="form-select">
+                                            {% for estado in estados_devolucion %}
+                                                <option value="{{ estado.pk }}">{{ estado.nombre }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                {% csrf_token %}
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-lg me-1"></i>Cerrar
+                </button>
+                <button type="button" class="btn btn-primary" id="ddGuardar" disabled>
+                    <i class="bi bi-check-circle me-1"></i>Guardar estado
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const elemento = document.getElementById('devolucionDetalleModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(elemento);
+    const contenido = document.getElementById('ddContenido');
+    const cargando = document.getElementById('ddCargando');
+    const selector = document.getElementById('ddEstadoNuevo');
+    const guardar = document.getElementById('ddGuardar');
+    const urlDetalle = "{% url 'devolucion:detalle_solicitud' 999999 %}";
+    const urlEstado = "{% url 'devolucion:cambiar_estado_solicitud' 999999 %}";
+    let solicitudId = null;
+    let estadoInicial = null;
+    let version = 0;
+
+    function campo(id, valor) {
+        const elementoCampo = document.getElementById('dd' + id);
+        if (!elementoCampo) return;
+        const texto = valor === null || valor === undefined || valor === '' ? '—' : String(valor);
+
+        if (elementoCampo.matches('input, textarea, select')) {
+            elementoCampo.value = texto;
+        } else {
+            elementoCampo.textContent = texto;
+        }
+    }
+
+    function colorEstado(nombre) {
+        const valor = String(nombre || '').toLowerCase();
+        if (valor.includes('rechaz')) return 'text-bg-danger';
+        if (valor.includes('pagad') || valor.includes('aprobad')) return 'text-bg-success';
+        if (valor.includes('ingresad')) return 'text-bg-primary';
+        return 'text-bg-secondary';
+    }
+
+    function avisarError(mensaje) {
+        if (window.AppSwalError) AppSwalError('Error', mensaje);
+        else if (window.Swal) Swal.fire('Error', mensaje, 'error');
+        else alert(mensaje);
+    }
+
+    selector.addEventListener('change', function () {
+        guardar.disabled = !solicitudId || this.value === String(estadoInicial);
+    });
+
+    async function abrirDetalle(id) {
+        const actual = ++version;
+        solicitudId = id;
+        estadoInicial = null;
+        guardar.disabled = true;
+        contenido.classList.add('d-none');
+        cargando.classList.remove('d-none');
+        modal.show();
+
+        try {
+            const respuesta = await fetch(urlDetalle.replace('999999', String(id)), {
+                headers: { 'X-App-Request': 'true' }
+            });
+            const resultado = await respuesta.json();
+            if (!respuesta.ok || resultado.status !== 'ok') {
+                throw new Error(resultado.message || 'No fue posible consultar la solicitud.');
+            }
+            if (actual !== version) return;
+
+            const d = resultado.solicitud;
+            campo('Titulo', '#' + d.id);
+            campo('Id', '#' + d.id);
+            campo('Solicitud', '#' + d.general_id);
+            campo('Estado', d.estado);
+            document.getElementById('ddEstado').className = 'badge px-3 py-2 ' + colorEstado(d.estado);
+            campo('Fecha', d.fecha);
+            campo('Tipo', d.tipo);
+            campo('Motivo', d.motivo);
+            campo('Nombre', d.nombre);
+            campo('Rut', d.rut);
+            campo('Codigo', d.codigo);
+            campo('Grado', d.grado);
+            campo('MontoGeneral', '$ ' + (d.monto_general || '0'));
+            campo('Direccion', d.direccion);
+            campo('Region', d.region);
+            campo('Comuna', d.comuna);
+            campo('Telefono', d.telefono);
+            campo('Correo', d.correo);
+            campo('Metodo', d.metodo);
+            campo('Banco', d.banco);
+            campo('CuentaTipo', d.tipo_cuenta);
+            campo('NumeroCuenta', d.numero_cuenta);
+
+            const aportes = document.getElementById('ddAportes');
+            aportes.replaceChildren();
+            if (!Array.isArray(d.aportes) || d.aportes.length === 0) {
+                const vacio = document.createElement('div');
+                vacio.className = 'col-12 small text-body-secondary';
+                vacio.textContent = 'Sin aportes específicos';
+                aportes.appendChild(vacio);
+            } else {
+                d.aportes.forEach(item => {
+                    const columna = document.createElement('div');
+                    columna.className = 'w-100';
+                    const recuadro = document.createElement('div');
+                    recuadro.className = 'dd-aporte';
+                    const titulo = document.createElement('span');
+                    titulo.className = 'fw-medium';
+                    titulo.textContent = item.tipo || 'Aporte';
+                    const monto = document.createElement('strong');
+                    monto.className = 'text-success';
+                    monto.textContent = '$ ' + (item.monto || '0');
+                    recuadro.append(titulo, monto);
+                    columna.appendChild(recuadro);
+                    aportes.appendChild(columna);
+                });
+            }
+
+            selector.value = String(d.estado_id);
+            estadoInicial = d.estado_id;
+            cargando.classList.add('d-none');
+            contenido.classList.remove('d-none');
+        } catch (error) {
+            if (actual === version) {
+                modal.hide();
+                avisarError(error.message);
+            }
+        }
+    }
+
+    document.getElementById('devolucionesTable').addEventListener('click', function (event) {
+        const boton = event.target.closest('.btn-detalle-devolucion');
+        if (boton) abrirDetalle(Number(boton.dataset.id));
+    });
+
+    guardar.addEventListener('click', async function () {
+        if (!solicitudId || !selector.value || selector.value === String(estadoInicial)) return;
+
+        let confirmar = true;
+        if (window.Swal) {
+            const resultado = await Swal.fire({
+                icon: 'question',
+                title: 'Confirmar cambio de estado',
+                text: '¿Desea cambiar el estado de esta solicitud?',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                cancelButtonText: 'Cancelar'
+            });
+            confirmar = resultado.isConfirmed;
+        } else {
+            confirmar = window.confirm('¿Desea cambiar el estado de esta solicitud?');
+        }
+        if (!confirmar) return;
+
+        guardar.disabled = true;
+        const datos = new FormData();
+        datos.append('estado_id', selector.value);
+
+        try {
+            const respuesta = await fetch(urlEstado.replace('999999', String(solicitudId)), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': elemento.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-App-Request': 'true'
+                },
+                body: datos
+            });
+            const resultado = await respuesta.json();
+            if (!respuesta.ok || resultado.status !== 'ok') {
+                throw new Error(resultado.message || 'No fue posible actualizar el estado.');
+            }
+
+            // Mantener abierto el modal y actualizar el estado visible.
+            const estadoNombre = selector.selectedOptions[0]?.textContent.trim() || '—';
+            campo('Estado', estadoNombre);
+            document.getElementById('ddEstado').className =
+                'badge px-3 py-2 ' + colorEstado(estadoNombre);
+            estadoInicial = Number(selector.value);
+            guardar.disabled = true;
+            window.recargarDevoluciones?.();
+            if (window.AppSwalSuccess) AppSwalSuccess('Estado actualizado', resultado.message);
+            else if (window.Swal) Swal.fire('Estado actualizado', resultado.message, 'success');
+            else alert(resultado.message);
+        } catch (error) {
+            avisarError(error.message);
+            guardar.disabled = selector.value === String(estadoInicial);
+        }
+    });
+
+    elemento.addEventListener('hidden.bs.modal', function () {
+        version++;
+        solicitudId = null;
+        guardar.disabled = true;
+    });
+});
+</script>

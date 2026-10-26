@@ -268,3 +268,54 @@ class PersonDiprecaCode(BaseModel):
 
     def __str__(self):
         return f"{self.person} - {self.dipreca_code}"
+
+
+# ============================================================
+# PERSONA BANCO
+class PersonaBanco(BaseModel):
+
+    banco = models.ForeignKey(
+        'core.Banco',
+        verbose_name="Banco",
+        db_column="id_banco",
+        on_delete=models.PROTECT,
+        related_name="cuentas_personas",
+        null=True,
+        blank=True,
+    )
+
+    cuenta_tipo = models.ForeignKey(
+        'core.BancoCuentaTipo',
+        verbose_name="Tipo de Cuenta Bancaria",
+        db_column="id_cuenta_tipo",
+        on_delete=models.PROTECT,
+        related_name="cuentas_personas",
+        null=True,
+        blank=True,
+    )
+
+    n_cuenta = models.CharField(
+        verbose_name="Número de Cuenta",
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+
+    persona = models.ForeignKey(
+        'core.Person',
+        verbose_name="Persona",
+        db_column="id_persona",
+        on_delete=models.PROTECT,
+        related_name="cuentas_bancarias",
+        null=False,
+        blank=False,
+    )
+
+    class Meta:
+        db_table = "persona_banco"
+        verbose_name = "Cuenta Bancaria de Persona"
+        verbose_name_plural = "Cuentas Bancarias de Personas"
+        ordering = ["persona", "banco"]
+
+    def __str__(self):
+        return f"{self.persona_id} - {self.banco_id} - {self.n_cuenta}"

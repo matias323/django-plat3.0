@@ -21,3 +21,4 @@ from .partner import (
     PartnerMovement,
     PartnerContribution,
 )
+from .bank import Banco, BancoCuenta, BancoCuentaTipo

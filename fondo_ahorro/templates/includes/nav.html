@@ -4,12 +4,12 @@
   <div class="container-fluid px-4">
     
     <!-- Logo -->
-    {% comment %} <a class="navbar-brand d-flex align-items-center me-4 py-0" href="{% url 'core:home' %}">
+    <a class="navbar-brand d-flex align-items-center me-4 py-0" href="{% url 'core:home' %}">
       <img src="{% static 'core/images/logo_dibicar.png' %}" 
            alt="Logo Dibicar" 
            height="38" 
            style="max-height: 38px; width: auto; object-fit: contain;" />
-    </a> {% endcomment %}
+    </a>
     {{request.user_session.app.name}}
     <!-- Botón Hamburguesa Móvil -->
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#megaNavbar" aria-controls="megaNavbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -22,62 +22,71 @@
       <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
 
         {% if user.is_authenticated %}
-
           {% for app in navbar_apps %}
-            {% if app.allowed_daughters %}
-              <!-- Nivel 1: App Padre con sub-menú (Hijas) -->
-              <li class="nav-item dropdown me-2">
-                <a class="nav-link dropdown-toggle fw-medium d-flex align-items-center gap-2" 
-                   href="#" 
-                   role="button" 
-                   data-bs-toggle="dropdown" 
-                   aria-expanded="false">
-                  <i class="bi bi-folder fs-5"></i> {{ app.name }}
-                </a>
-                
-                <ul class="dropdown-menu shadow-sm">
-                  {% for sub_app in app.allowed_daughters %}
-                    {% if sub_app.allowed_daughters %}
-                      <!-- Nivel 2: App Hija con sub-menú (Nietas) -->
-                      <li class="dropdown-submenu">
-                        <a class="dropdown-item dropdown-toggle d-flex align-items-center justify-content-between gap-2" 
-                           href="#" 
-                           role="button">
-                          <span><i class="bi bi-folder2 fs-6 me-2"></i>{{ sub_app.name }}</span>
-                        </a>
-                        
-                        <!-- Nivel 3: Submenú de Nietas -->
-                        <ul class="dropdown-menu shadow-sm">
-                          {% for grand_app in sub_app.allowed_daughters %}
-                            <li>
-                              <a class="dropdown-item d-flex align-items-center gap-2" href="{% url grand_app.url %}">
-                                <i class="bi bi-chevron-right fs-6"></i> {{ grand_app.name }}
-                              </a>
-                            </li>
-                          {% endfor %}
-                        </ul>
-                      </li>
-                    {% else %}
-                      <!-- Nivel 2: App Hija directa (Sin nietas) -->
-                      <li>
-                        <a class="dropdown-item d-flex align-items-center gap-2" href="{% url sub_app.url %}">
-                          <i class="bi bi-chevron-right fs-6"></i> {{ sub_app.name }}
-                        </a>
-                      </li>
-                    {% endif %}
-                  {% endfor %}
-                </ul>
-              </li>
-            {% else %}
-              <!-- Nivel 1: App Padre directa (Sin hijas) -->
-              <li class="nav-item me-3">
-                <a class="nav-link fw-medium d-flex align-items-center gap-2" href="{% url app.url %}">
-                  <i class="bi bi-house-door fs-5"></i> {{ app.name }}
-                </a>
-              </li>
+            {% if app.is_active %}
+              {% if app.allowed_daughters %}
+                <!-- Nivel 1: App Padre con sub-menú (Hijas) -->
+                <li class="nav-item dropdown me-2">
+                  <a class="nav-link dropdown-toggle fw-medium d-flex align-items-center gap-2" 
+                    href="#" 
+                    role="button" 
+                    data-bs-toggle="dropdown" 
+                    aria-expanded="false">
+                    <i class="bi bi-folder fs-5"></i> {{ app.name }}
+                  </a>
+                  
+                  <ul class="dropdown-menu shadow-sm">
+                    {% for sub_app in app.allowed_daughters %}
+                      {% if sub_app.allowed_daughters %}
+                        <!-- Nivel 2: App Hija con sub-menú (Nietas) -->
+                        <li class="dropdown-submenu">
+                          <a class="dropdown-item dropdown-toggle d-flex align-items-center justify-content-between gap-2" 
+                            href="#" 
+                            role="button">
+                            <span><i class="bi bi-folder2 fs-6 me-2"></i>{{ sub_app.name }}</span>
+                          </a>
+                          
+                          <!-- Nivel 3: Submenú de Nietas -->
+                          <ul class="dropdown-menu shadow-sm">
+                            {% for grand_app in sub_app.allowed_daughters %}
+                              <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2" href="{% url grand_app.url %}">
+                                  <i class="bi bi-chevron-right fs-6"></i> {{ grand_app.name }}
+                                </a>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </li>
+                      {% else %}
+                        <!-- Nivel 2: App Hija directa (Sin nietas) -->
+                        {% if sub_app.url and sub_app.url != '#' %}
+                            <a
+                                class="dropdown-item d-flex align-items-center gap-2" href="{% url sub_app.url %}">
+                                <i class="bi bi-chevron-right fs-6"></i>{{ sub_app.name }}
+                            </a>
+                        {% else %}
+                            <span class="dropdown-item-text d-flex align-items-center gap-2 text-body-secondary">
+                                <i class="bi bi-folder fs-6"></i>{{ sub_app.name }}
+                            </span>
+                        {% endif %}
+                        <!-- -->
+                      {% endif %}
+                    {% endfor %}
+                  </ul>
+                </li>
+              {% else %}
+                <!-- Nivel 1: App Padre directa (Sin hijas) -->
+                {% if app.url != '#' %}
+                <li class="nav-item me-3">
+                  <a class="nav-link fw-medium d-flex align-items-center gap-2" href="{% url app.url %}">
+                    <i class="bi bi-house-door fs-5"></i> {{ app.name }}
+                  </a>
+                </li>
+                {% endif %}
+              {% endif %}
             {% endif %}
+            
           {% endfor %}
-
         {% endif %}
 
       </ul>
