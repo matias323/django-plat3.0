@@ -4,13 +4,13 @@
   <div class="container-fluid px-4">
     
     <!-- Logo -->
-    <a class="navbar-brand d-flex align-items-center me-4 py-0" href="{% url 'core:home' %}">
+    {% comment %} <a class="navbar-brand d-flex align-items-center me-4 py-0" href="{% url 'core:home' %}">
       <img src="{% static 'core/images/logo_dibicar.png' %}" 
            alt="Logo Dibicar" 
            height="38" 
            style="max-height: 38px; width: auto; object-fit: contain;" />
-    </a>
-
+    </a> {% endcomment %}
+    {{request.user_session.app.name}}
     <!-- Botón Hamburguesa Móvil -->
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#megaNavbar" aria-controls="megaNavbar" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>

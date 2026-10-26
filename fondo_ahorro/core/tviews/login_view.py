@@ -105,6 +105,8 @@ class LoginView(TemplateView):
                     return self.render_to_response({"form": form})
 
                 usr_permission = UserPermission.objects.filter(user=user).first()
+
+                session_anterior = Session.objects.filter(user= user).order_by('-id').first()
                 session = Session.objects.get_or_create(
                     closed_at = None, 
                     user=user, 
@@ -117,8 +119,9 @@ class LoginView(TemplateView):
 
                 request.user_session = session
 
+                url = usr_permission.app.url if usr_permission.app.url != '#' else 'core:home'
 
-                return redirect("core:home")
+                return redirect(url)
             else:
                 messages.error(request, "Usuario no existe con RUT indicado.("+rut+")")
         else:
