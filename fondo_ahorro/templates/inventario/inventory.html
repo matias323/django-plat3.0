@@ -640,7 +640,18 @@
                     pageLength: 25,
                     ajax: {
                         url: urls.invoicesData,
-                        type: 'GET'
+                        type: 'GET',
+                        headers: {
+                            'X-App-Request': 'true'
+                        },
+                        dataType: 'json',
+                        error: function(xhr, status, error) {
+                            console.error('Error DataTables Facturas');
+                            console.error('HTTP:', xhr.status);
+                            console.error('Estado:', status);
+                            console.error('Error:', error);
+                            console.error('Respuesta:', xhr.responseText);
+                        }
                     },
                     columns: [{
                         data: 'number'
