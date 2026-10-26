@@ -176,6 +176,7 @@
                         </div>
                         <div class="dd-card-body">
                             <div class="row g-3">
+<<<<<<< HEAD
                                 <div class="col-sm-6 col-lg-4">
                                     <label class="form-label dd-field-label" for="ddId">N.º devolución</label>
                                     <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-hash"></i></span><input id="ddId" class="form-control dd-readonly" readonly></div>
@@ -188,6 +189,24 @@
                                     <label class="form-label dd-field-label">Estado actual</label>
                                     <div class="dd-status input-group"><span id="ddEstado" class="badge text-bg-secondary px-3 py-2">—</span></div>
                                 </div>
+=======
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddId">N.º devolución</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-hash"></i></span><input id="ddId" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddSolicitud">Solicitud general</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-files"></i></span><input id="ddSolicitud" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label">Estado actual</label>
+                                    <div class="dd-status"><span id="ddEstado" class="badge text-bg-secondary px-3 py-2">—</span></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddFecha">Fecha de creación</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-calendar-event"></i></span><input id="ddFecha" class="form-control dd-readonly" readonly></div>
+                                </div>
+>>>>>>> felipe
                                 <div class="col-lg-6">
                                     <label class="form-label dd-field-label" for="ddTipo">Tipo de devolución</label>
                                     <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-arrow-left-right"></i></span><input id="ddTipo" class="form-control dd-readonly" readonly></div>
@@ -296,6 +315,7 @@
                         </div>
                         <div class="dd-card-body">
                             <div class="row g-3">
+<<<<<<< HEAD
                                 <div class="col-sm-6 col-lg-6">
                                     <label class="form-label dd-field-label" for="ddMetodo">Método de pago</label>
                                     <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-wallet2"></i></span><input id="ddMetodo" class="form-control dd-readonly" readonly></div>
@@ -309,6 +329,21 @@
                                     <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-credit-card"></i></span><input id="ddCuentaTipo" class="form-control dd-readonly" readonly></div>
                                 </div>
                                 <div class="col-sm-6 col-lg-6">
+=======
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddMetodo">Método de pago</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-wallet2"></i></span><input id="ddMetodo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddBanco">Banco</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-bank"></i></span><input id="ddBanco" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+                                    <label class="form-label dd-field-label" for="ddCuentaTipo">Tipo de cuenta</label>
+                                    <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-credit-card"></i></span><input id="ddCuentaTipo" class="form-control dd-readonly" readonly></div>
+                                </div>
+                                <div class="col-sm-6 col-lg-3">
+>>>>>>> felipe
                                     <label class="form-label dd-field-label" for="ddNumeroCuenta">N.º de cuenta</label>
                                     <div class="input-group"><span class="input-group-text dd-field-icon"><i class="bi bi-123"></i></span><input id="ddNumeroCuenta" class="form-control dd-readonly" readonly></div>
                                 </div>
@@ -451,7 +486,11 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 d.aportes.forEach(item => {
                     const columna = document.createElement('div');
+<<<<<<< HEAD
                     columna.className = 'col-md-6';
+=======
+                    columna.className = 'w-100';
+>>>>>>> felipe
                     const recuadro = document.createElement('div');
                     recuadro.className = 'dd-aporte';
                     const titulo = document.createElement('span');
@@ -520,6 +559,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error(resultado.message || 'No fue posible actualizar el estado.');
             }
 
+<<<<<<< HEAD
             
             /* ACTUALIZAR MODAL SIN CERRARLO */
 
@@ -551,6 +591,19 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 alert(resultado.message);
             }
+=======
+            // Mantener abierto el modal y actualizar el estado visible.
+            const estadoNombre = selector.selectedOptions[0]?.textContent.trim() || '—';
+            campo('Estado', estadoNombre);
+            document.getElementById('ddEstado').className =
+                'badge px-3 py-2 ' + colorEstado(estadoNombre);
+            estadoInicial = Number(selector.value);
+            guardar.disabled = true;
+            window.recargarDevoluciones?.();
+            if (window.AppSwalSuccess) AppSwalSuccess('Estado actualizado', resultado.message);
+            else if (window.Swal) Swal.fire('Estado actualizado', resultado.message, 'success');
+            else alert(resultado.message);
+>>>>>>> felipe
         } catch (error) {
             avisarError(error.message);
             guardar.disabled = selector.value === String(estadoInicial);
