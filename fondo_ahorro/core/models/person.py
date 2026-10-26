@@ -319,8 +319,5 @@ class PersonaBanco(BaseModel):
         ordering = ["persona", "banco"]
 
     def __str__(self):
-<<<<<<< HEAD
-        return f"{self.persona} - {self.banco} - {self.n_cuenta}"
-=======
+
         return f"{self.persona_id} - {self.banco_id} - {self.n_cuenta}"
->>>>>>> felipe

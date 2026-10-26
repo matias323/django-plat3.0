@@ -7,11 +7,6 @@ from core.models.base import BaseModel
 # BANCO
 # ============================================================
 class Banco(BaseModel):
-<<<<<<< HEAD
-    nombre = models.CharField(verbose_name="Nombre", max_length=50, null=False, blank=False)
-    codigo_banco = models.CharField(verbose_name="Código Banco", max_length=10, null=False, blank=False)
-=======
-
     nombre = models.CharField(
         verbose_name="Nombre",
         max_length=50,
@@ -25,7 +20,6 @@ class Banco(BaseModel):
         null=False,
         blank=False,
     )
->>>>>>> felipe
 
     class Meta:
         db_table = "banco"
@@ -41,11 +35,6 @@ class Banco(BaseModel):
 # CUENTA BANCARIA
 # ============================================================
 class BancoCuenta(BaseModel):
-<<<<<<< HEAD
-    descripcion = models.CharField(verbose_name="Descripción", max_length=50, null=False, blank=False)
-    codigo_cuenta = models.CharField(verbose_name="Código Cuenta", max_length=10, null=False, blank=False)
-=======
-
     descripcion = models.CharField(
         verbose_name="Descripción",
         max_length=50,
@@ -59,7 +48,6 @@ class BancoCuenta(BaseModel):
         null=False,
         blank=False,
     )
->>>>>>> felipe
 
     class Meta:
         db_table = "banco_cuenta"
@@ -75,17 +63,6 @@ class BancoCuenta(BaseModel):
 # TIPO DE CUENTA BANCARIA POR BANCO
 # ============================================================
 class BancoCuentaTipo(BaseModel):
-<<<<<<< HEAD
-    banco = models.ForeignKey(
-        Banco, verbose_name="Banco", db_column="id_banco", on_delete=models.PROTECT,
-        related_name="tipos_cuenta", null=False, blank=False
-    )
-
-    banco_cuenta = models.ForeignKey(
-        BancoCuenta, verbose_name="Cuenta Bancaria", db_column="id_banco_cuenta",
-        on_delete=models.PROTECT, related_name="bancos", null=False, blank=False
-=======
-
     banco = models.ForeignKey(
         Banco,
         verbose_name="Banco",
@@ -104,7 +81,6 @@ class BancoCuentaTipo(BaseModel):
         related_name="bancos",
         null=False,
         blank=False,
->>>>>>> felipe
     )
 
     class Meta:
@@ -112,17 +88,6 @@ class BancoCuentaTipo(BaseModel):
         verbose_name = "Tipo de Cuenta por Banco"
         verbose_name_plural = "Tipos de Cuenta por Banco"
         ordering = ["banco", "banco_cuenta"]
-<<<<<<< HEAD
-        constraints = [
-            models.UniqueConstraint(
-                fields=["banco", "banco_cuenta"],
-                name="unique_banco_cuenta_tipo"
-            )
-        ]
-
-    def __str__(self):
-        return f"{self.banco.nombre} - {self.banco_cuenta.descripcion}"
-=======
 
         constraints = [
             models.UniqueConstraint(
@@ -136,4 +101,3 @@ class BancoCuentaTipo(BaseModel):
             f"{self.banco.nombre} - "
             f"{self.banco_cuenta.descripcion}"
         )
->>>>>>> felipe

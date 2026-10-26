@@ -26,11 +26,6 @@ urlpatterns = [
     path('', include('core.urls'),name="core"),
 
     #Devolucion
-<<<<<<< HEAD
-=======
-    path('devolucion/solicitud/', include('applications.devoluciones.dev_solicitud.urls'),name="dev_solicitud"),
-    path('devolucion/consejo/', include('applications.devoluciones.dev_consejo.urls'),name="dev_consejo"),
->>>>>>> felipe
     path('devolucion/', include('applications.devoluciones.repayment.urls')),
     
     path('contabilidad/plan_cuentas/', include('applications.contabilidad.plan_cuentas.urls'),name="plan_cuentas"),
