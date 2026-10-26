@@ -9,8 +9,6 @@ from .request import Request
 # TIPO DE APORTE
 class PartnerContributionType(BaseModel):
     description = models.CharField(verbose_name="Descripción", max_length=255, null=False, blank=False)
-    discount_code = models.CharField(verbose_name="Código Descuento", max_length=100, null=True, blank=True)
-    state = models.IntegerField(verbose_name="Estado", default=1)
     comment = models.TextField(verbose_name="Observaciones", null=True, blank=True)
 
     class Meta:
@@ -26,8 +24,8 @@ class PartnerContributionType(BaseModel):
 # ============================================================
 # SOCIO
 # Una persona solamente puede tener un registro Partner.
-# state = 1 -> socio activo
-# state = 0 -> socio inactivo
+# is_active = True  -> socio activo
+# is_active = False -> socio inactivo
 
 class Partner(BaseModel):
     person = models.OneToOneField(
@@ -39,8 +37,6 @@ class Partner(BaseModel):
         null=False,
         blank=False,
     )
-
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_partner"
@@ -67,10 +63,10 @@ class Partner(BaseModel):
 # ============================================================
 # DESCUENTO VOLUNTARIO
 class PartnerVoluntaryDiscount(BaseModel):
-    person = models.ForeignKey(
-        Person,
-        verbose_name="Persona",
-        db_column="id_person",
+    partner = models.ForeignKey(
+        Partner,
+        verbose_name="Socio",
+        db_column="id_partner",
         on_delete=models.PROTECT,
         related_name="partner_voluntary_discounts",
         null=False,
@@ -78,9 +74,7 @@ class PartnerVoluntaryDiscount(BaseModel):
     )
 
     amount = models.DecimalField(verbose_name="Monto", max_digits=15, decimal_places=2, null=False, blank=False)
-    date = models.DateField(verbose_name="Fecha", null=False, blank=False)
     start_date = models.DateField(verbose_name="Fecha Inicio", null=True, blank=True)
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_partner_voluntary_discount"
@@ -89,14 +83,13 @@ class PartnerVoluntaryDiscount(BaseModel):
         ordering = ["id"]
 
     def __str__(self):
-        return f"{self.person} - {self.amount}"
+        return f"{self.partner} - {self.amount}"
 
 
 # ============================================================
 # SALDO SOCIO
 class PartnerBalance(BaseModel):
     amount = models.DecimalField(verbose_name="Monto", max_digits=15, decimal_places=2, null=False, blank=False)
-    date = models.DateField(verbose_name="Fecha", null=False, blank=False)
 
     contribution_type = models.ForeignKey(
         PartnerContributionType,
@@ -118,8 +111,6 @@ class PartnerBalance(BaseModel):
         blank=False,
     )
 
-    state = models.IntegerField(verbose_name="Estado", default=1)
-
     class Meta:
         db_table = "core_partner_balance"
         verbose_name = "Saldo de Socio"
@@ -136,13 +127,13 @@ class PartnerBalance(BaseModel):
 # Cada vez que una persona entra como socio se crea un registro:
 #
 # Primer ingreso:
-#   PartnerReentry #1 state=1
+#   PartnerReentry #1 is_active=True
 #
 # Renuncia:
-#   PartnerReentry #1 state=0
+#   PartnerReentry #1 is_active=False
 #
 # Reingreso:
-#   PartnerReentry #2 state=1
+#   PartnerReentry #2 is_active=True
 
 class PartnerReentry(BaseModel):
     partner = models.ForeignKey(
@@ -167,7 +158,6 @@ class PartnerReentry(BaseModel):
 
     entry_date = models.DateField(verbose_name="Fecha Ingreso", null=False, blank=False)
     resignation_date = models.DateField(verbose_name="Fecha Renuncia", null=True, blank=True)
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_partner_reentry"
@@ -177,58 +167,19 @@ class PartnerReentry(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["partner"],
-                condition=models.Q(state=1),
+                condition=models.Q(is_active=True),
                 name="unique_active_partner_reentry",
             ),
         ]
 
     def __str__(self):
         return f"{self.partner} - {self.entry_date}"
-
-
-# ============================================================
-# NUEVO APORTE
-class PartnerNewContribution(BaseModel):
-    person = models.ForeignKey(
-        Person,
-        verbose_name="Persona",
-        db_column="id_person",
-        on_delete=models.PROTECT,
-        related_name="partner_new_contributions",
-        null=False,
-        blank=False,
-    )
-
-    current_amount = models.DecimalField(
-        verbose_name="Monto Actual", max_digits=15, decimal_places=2, null=False, blank=False
-    )
-
-    start_month = models.IntegerField(verbose_name="Mes Inicio", null=False, blank=False)
-
-    new_amount = models.DecimalField(
-        verbose_name="Nuevo Monto", max_digits=15, decimal_places=2, null=False, blank=False
-    )
-
-    fiscal_housing = models.IntegerField(verbose_name="Vivienda Fiscal", null=True, blank=True)
-    entry_date = models.DateField(verbose_name="Fecha Ingreso", null=False, blank=False)
-    state = models.IntegerField(verbose_name="Estado", default=1)
-    equipment_ip = models.GenericIPAddressField(verbose_name="IP Equipo", null=True, blank=True)
-
-    class Meta:
-        db_table = "core_partner_new_contribution"
-        verbose_name = "Nuevo Aporte"
-        verbose_name_plural = "Nuevos Aportes"
-        ordering = ["id"]
-
-    def __str__(self):
-        return f"{self.person} - {self.current_amount} -> {self.new_amount}"
-
+    
 
 # ============================================================
 # TIPO DE MOVIMIENTO
 class PartnerMovementType(BaseModel):
-    type = models.CharField(verbose_name="Tipo", max_length=255, null=False, blank=False)
-    state = models.IntegerField(verbose_name="Estado", default=1)
+    name = models.CharField(verbose_name="Tipo", max_length=255, null=False, blank=False)
 
     class Meta:
         db_table = "core_partner_movement_type"
@@ -237,7 +188,7 @@ class PartnerMovementType(BaseModel):
         ordering = ["id"]
 
     def __str__(self):
-        return self.type
+        return self.name
 
 
 # ============================================================
@@ -273,11 +224,9 @@ class PartnerMovement(BaseModel):
         blank=False,
     )
 
-    movement_number = models.IntegerField(verbose_name="Número Movimiento", null=False, blank=False)
+    movement_number = models.IntegerField(verbose_name="Número Movimiento", null=True, blank=True)
     description = models.CharField(verbose_name="Descripción", max_length=255, null=True, blank=True)
     amount = models.DecimalField(verbose_name="Monto", max_digits=15, decimal_places=2, null=False, blank=False)
-    date = models.DateField(verbose_name="Fecha", null=False, blank=False)
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_partner_movement"
@@ -287,6 +236,71 @@ class PartnerMovement(BaseModel):
 
     def __str__(self):
         return f"{self.movement_number} - {self.partner} - {self.amount}"
+    
+    def to_dict(self):
+        return {
+            "id": self.pk,
+            "movement_number": self.movement_number,
+            "description": self.description,
+            "amount": self.amount,
+            "movement_type": {
+                "id": self.movement_type_id,
+                "description": self.movement_type.name,
+            },
+            "partner": {
+                "id": self.partner_id,
+                "person": self.partner.person.get_full_name(),
+                "rut": self.partner.person.get_rut(),
+            },
+            "contribution_type": {
+                "id": self.contribution_type_id,
+                "description": self.contribution_type.description,
+            },
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "is_active": self.is_active,
+        }
+
+
+# ============================================================
+# APORTE SOCIO
+class PartnerContribution(BaseModel):
+    contribution_type = models.ForeignKey(
+        PartnerContributionType,
+        verbose_name="Tipo de Aporte",
+        db_column="id_contribution_type",
+        on_delete=models.PROTECT,
+        related_name="partner_contributions",
+        null=False,
+        blank=False,
+    )
+
+    partner = models.ForeignKey(
+        Partner,
+        verbose_name="Socio",
+        db_column="id_partner",
+        on_delete=models.PROTECT,
+        related_name="contributions",
+        null=False,
+        blank=False,
+    )
+
+    amount = models.DecimalField(
+        verbose_name="Monto",
+        max_digits=15,
+        decimal_places=2,
+        null=False,
+        blank=False,
+    )
+
+    class Meta:
+        db_table = "core_partner_contribution"
+        verbose_name = "Aporte de Socio"
+        verbose_name_plural = "Aportes de Socios"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.partner} - {self.contribution_type} - {self.amount}"
     
 # ============================================================
 # SOCIO APORTE
@@ -319,22 +333,3 @@ class PartnerContribution(BaseModel):
         verbose_name_plural = "Aportes de Socios"
         ordering = ["id"]
         unique_together = ("partner", "contribution_type")
-        
-    
-        
-
-# ============================================================
-# SOCIO DEPOSITO INCREMENTO AHORRO
-class PartnerIncrementDeposit(BaseModel):
-    partner = models.ForeignKey(Partner, verbose_name="Socio", db_column="id_partner", on_delete=models.PROTECT, related_name="increment_deposits", null=False, blank=False)
-    amount = models.PositiveBigIntegerField(verbose_name="Monto", null=False, blank=False)
-    contribution_type = models.ForeignKey(PartnerContributionType, verbose_name="Tipo de Aporte", db_column="id_contribution_type", on_delete=models.PROTECT, related_name="increment_deposits", null=False, blank=False)    
-    
-    class Meta:
-        db_table = "core_partner_increment"
-        verbose_name = "Socio Deposito"
-        verbose_name_plural = "Socios Depositos"
-        ordering = ["id"]
-        
-    def __str__(self):
-        return f"{self.partner} - {self.amount}"

@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from core.models.base import BaseModel
 from core.models.person import Person
 from core.models.document import Document
@@ -11,7 +12,7 @@ from applications.contabilidad.asientos_contables.models import AsientoContable
 
 # Deposito
 class Deposit(BaseModel):
-    date = models.DateField(null=False, blank=False, verbose_name="Fecha Deposito")
+    deposit_date = models.DateField(null=False, blank=False, verbose_name="Fecha Deposito")
     amount = models.PositiveBigIntegerField(null=False, blank=False, verbose_name="Monto")
     person = models.ForeignKey(Person, on_delete=models.PROTECT, null=False, blank=False, verbose_name="Persona")
     description = models.CharField(max_length=200, null=True, blank=True, verbose_name="Descripcion")
@@ -28,19 +29,23 @@ class Deposit(BaseModel):
     
     def deposit_to_dic(self):
         return {
-            "deposit" : {
-                "id" : self.id,
-                "amount" : self.amount,
-                "date" : self.date,
-                "person" : self.person.get_full_name(),
-                "deposit_number" : self.deposit_number,
-                "voucher_number" : self.voucher_number,
-                "description" : self.description,
-            },
+            "id" : self.id,
+            "amount" : self.amount,
+            "date" : self.deposit_date,
+            "person" : self.person.get_full_name(),
+            "rut" : self.person.get_rut(),
+            "deposit_number" : self.deposit_number,
+            "voucher_number" : self.voucher_number,
+            "description" : self.description,
             "applications" : [
-                app.deposit_application_to_dic()
+                app.to_dict()
                 for app in self.applications.select_related("process_type", "application_content_type").all()
-            ]
+            ],
+            "documents" : [
+                doc.to_dict()
+                for doc in self.documents.all()
+            ],
+            "user_create" : self.user_create.person.get_full_name(),
         }
     
 # tipo de proceso
@@ -66,6 +71,7 @@ class DepositApplication(BaseModel):
     application_content_type = models.ForeignKey(ContentType, on_delete=models.PROTECT, null=True, blank=True, verbose_name="Tipo de aplicacion")
     application_object_id = models.PositiveBigIntegerField(null=True, blank=True, verbose_name="ID de Aplicacion")
     process_type = models.ForeignKey(ProcessType, on_delete=models.PROTECT, null=False, blank=False, verbose_name="Tipo de Proceso")
+    person = models.ForeignKey(Person, on_delete=models.PROTECT, null=True, blank=False, verbose_name="Persona")
 
     class Meta:
         db_table = "core_deposit_application"
@@ -77,11 +83,11 @@ class DepositApplication(BaseModel):
         # busco asiento contable en el "origen" donde la se encuentre la instancia de depositApplication
         try:
             ct = ContentType.objects.get_for_model(self)
-            return AsientoContable.objects.filter(origen_content_type=ct, origen_object_id=self.id).first()
+            return AsientoContable.objects.filter(origin_content_type=ct, origin_object_id=self.id).first()
         except Exception:
             return None
         
-    def deposit_application_to_dic(self):
+    def to_dict(self):
         obj_afectado = self.application
         asiento_contable = self.get_asiento_contable()
         
@@ -99,8 +105,8 @@ class DepositApplication(BaseModel):
         
         asiento_data = None
         if asiento_contable:
-            if hasattr(asiento_contable, "to_dict"):
-                asiento_data = asiento_contable.to_dict()
+            if hasattr(asiento_contable, "asiento_to_dict"):
+                asiento_data = asiento_contable.asiento_to_dict()
             else:
                 asiento_data = {
                     "id" : asiento_contable.id,
@@ -112,13 +118,43 @@ class DepositApplication(BaseModel):
             "id" : self.id,
             "amount" : self.amount,
             "description" : self.description,
-            "proceso" : {
+            "proceso" : 
+            {
                 "id" : self.process_type.id,
                 "descripcion" : self.process_type.description,
             },
             "objeto_afectado" : obj_data,
             "asiento_contable" : asiento_data,
-            "document" : self.deposit.document_to_dic()
+            "person" : self.person.get_full_name(),
+            "rut" : self.person.get_rut(),
+            "employee_codigo" : self.person.employees.first().code,
+            "employee_grade" : self.person.employees.first().grade.name
+        }
+    
+    # informacion que se envia al modulo de contabilidad
+    def get_accounting_origin_data(self):
+        return {
+            "module": "DEPOSITOS",
+            "type": self._meta.label,
+            "id": self.pk,
+            "description": self.description,
+            "id": self.deposit_id,
+            "number": self.deposit.deposit_number,
+            "date": self.deposit.deposit_date,
+            "amount": self.deposit.amount,
+            "documents" : [doc.to_dict() for doc in self.deposit.documents.all()],
+            "voucher_number": self.deposit.voucher_number,
+            "process_type": {
+                "id": self.process_type.id,
+                "description": self.process_type.description,
+            },
+            "application": (
+                self.application.to_dict()
+                if self.application and hasattr(self.application, "to_dict")
+                else None
+            ),
+            "user_create": self.user_create.person.get_name().upper().strip(),
+            "created_at": self.created_at.strftime("%d/%m/%Y %H:%M:%S"),
         }
         
 class DepositDocument(BaseModel):
@@ -130,11 +166,16 @@ class DepositDocument(BaseModel):
         verbose_name = "Deposito Documento"
         verbose_name_plural = "Depositos Documentos"
         
-    def document_to_dic(self):
+    def to_dict(self):
+        ruta_relativa = self.document.route
+        base_url = getattr(settings, "SITE_URL", "http://localhost:8000")
+        url = f"{base_url}{settings.MEDIA_URL}{ruta_relativa}"
+        
         return {
             "id" : self.id,
-            "url" : self.document.route,
+            "url" : url,
             "file_type" : self.document.file_type,
             "internal_name" : self.document.internal_name,
-            "size" : self.document.size
+            "size" : self.document.size,
+            "name" : self.document.type_document.name
         }

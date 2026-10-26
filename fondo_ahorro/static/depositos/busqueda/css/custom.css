@@ -1,0 +1,495 @@
+/* ==========================================================================
+   CSS DEDICADO - BÚSQUEDA Y GESTIÓN DE DEPÓSITOS DE AHORROS (CLP)
+   Plantilla: busqueda_depositos.html
+   Sistema: CONTA-SYS ERP - Módulo de Ahorros y Finanzas
+   ========================================================================== */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #eff6ff;
+    --success-color: #059669;
+    --success-hover: #047857;
+    --success-light: #ecfdf5;
+    --danger-color: #dc2626;
+    --danger-light: #fef2f2;
+    --warning-color: #d97706;
+    --warning-light: #fffbeb;
+    --info-color: #0284c7;
+    --info-light: #f0f9ff;
+    --dark-navy: #0f172a;
+    --border-subtle: #e2e8f0;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 10px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+body {
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar */
+.bg-dark-navy {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+.brand-icon-box {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.fs-xs { font-size: 0.72rem; }
+.fs-sm { font-size: 0.85rem; }
+
+.cell-currency-clp {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+/* ==========================================================================
+   KPI SUMMARY CARDS
+   ========================================================================== */
+.kpi-stat-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 1.25rem 1.4rem;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.kpi-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.kpi-value {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+}
+
+/* ==========================================================================
+   BARRA DE BÚSQUEDA Y FILTROS AVANZADOS
+   ========================================================================== */
+.search-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+}
+
+.live-search-input-group {
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 0.35rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.live-search-input-group:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.live-search-input-group input {
+    border: none;
+    outline: none;
+    box-shadow: none;
+    font-size: 0.95rem;
+}
+
+.filters-panel {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 1.25rem;
+}
+
+/* ==========================================================================
+   TABLA DE DEPÓSITOS E INCREMENTOS
+   ========================================================================== */
+.deposits-table-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+}
+
+.table-depositos th {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.85rem 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.table-depositos td {
+    padding: 0.85rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.table-depositos tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table-depositos tbody tr:hover {
+    background-color: #f0fdf4 !important;
+}
+
+.avatar-mini {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+/* Badges interactivos */
+.badge-attachment-btn {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 6px;
+    padding: 0.3rem 0.55rem;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-decoration: none;
+}
+
+.badge-attachment-btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.badge-asiento-btn {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 6px;
+    padding: 0.3rem 0.55rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.badge-asiento-btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+/* Action buttons */
+.btn-action-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.15s ease;
+}
+
+.btn-action-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* ==========================================================================
+   MODAL 1: VISUALIZADOR DE ARCHIVOS ADJUNTOS
+   ========================================================================== */
+.attachment-preview-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    transition: all 0.2s ease;
+}
+
+.attachment-preview-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.attachment-thumb-img {
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.attachment-thumb-img:hover {
+    transform: scale(1.06);
+}
+
+.attachment-icon-box {
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+/* ==========================================================================
+   MODAL 2: COMPROBANTE OFICIAL DE DEPÓSITO (TICKET IMPRIMIBLE)
+   ========================================================================== */
+.ticket-container {
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 2rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #1e293b;
+    max-width: 520px;
+    margin: 0 auto;
+    position: relative;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.ticket-header {
+    text-align: center;
+    border-bottom: 2px dashed #e2e8f0;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.ticket-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.35rem 0;
+    font-size: 0.85rem;
+}
+
+.ticket-divider {
+    border-top: 1px dashed #cbd5e1;
+    margin: 0.85rem 0;
+}
+
+.ticket-financial-box {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.ticket-signatures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2.5rem;
+    padding-top: 0.5rem;
+}
+
+.ticket-sig-line {
+    border-top: 1px solid #64748b;
+    padding-top: 0.4rem;
+    font-size: 0.72rem;
+    color: #64748b;
+    text-align: center;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.ticket-qr-box {
+    width: 72px;
+    height: 72px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    font-size: 2.2rem;
+    color: #0f172a;
+}
+
+/* ==========================================================================
+   MODAL 3: TRAZABILIDAD Y FLUJO DEL PROCESO (TIMELINE)
+   ========================================================================== */
+.timeline-process-container {
+    position: relative;
+    padding: 0.5rem 0 0.5rem 1.5rem;
+}
+
+.timeline-process-container::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    bottom: 20px;
+    left: 28px;
+    width: 3px;
+    background: #e2e8f0;
+    border-radius: 3px;
+}
+
+.timeline-step-item {
+    position: relative;
+    margin-bottom: 1.75rem;
+}
+
+.timeline-step-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-badge {
+    position: absolute;
+    left: -1.5rem;
+    top: 2px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    background: #ffffff;
+    border: 3px solid #059669;
+    color: #059669;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.timeline-badge.step-active {
+    background: #059669;
+    color: #ffffff;
+}
+
+.timeline-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-left: 1.25rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+}
+
+.timeline-card:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.06);
+}
+
+/* ==========================================================================
+   MODAL 4: ASIENTO CONTABLE GENERADO (PARTIDA DOBLE)
+   ========================================================================== */
+.accounting-entry-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.accounting-header-box {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    color: #ffffff;
+    padding: 1.25rem 1.5rem;
+}
+
+.table-accounting th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.75rem;
+}
+
+.table-accounting td {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    vertical-align: middle;
+}
+
+.table-accounting tfoot {
+    background-color: #f0fdf4;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   ESTILOS DE IMPRESIÓN OFICIAL (@media print)
+   ========================================================================== */
+@media print {
+    body * {
+        visibility: hidden !important;
+    }
+
+    #modal-ticket-deposito,
+    #modal-ticket-deposito * {
+        visibility: visible !important;
+    }
+
+    #modal-ticket-deposito {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: transparent !important;
+    }
+
+    .modal-dialog {
+        max-width: 100% !important;
+        margin: 0 !important;
+    }
+
+    .modal-content {
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    .modal-header,
+    .modal-footer,
+    .btn-close {
+        display: none !important;
+    }
+
+    .ticket-container {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 1.5cm !important;
+    }
+}

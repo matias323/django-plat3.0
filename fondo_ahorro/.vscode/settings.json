@@ -11,5 +11,12 @@
         "statusBar.debuggingForeground": "#FEFBFB",
         "statusBar.noFolderBackground": "#5A1216",
         "statusBar.noFolderForeground": "#FEFBFB"
+    },
+    "editor.formatOnSave": true,
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[django-html]": {
+        "editor.defaultFormatter": "Shellomo.django-template-intelligence"
     }
 }

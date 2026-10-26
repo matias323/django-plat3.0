@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        
+        <!-- Cabecera de la sección -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h3 mb-0 text-body-emphasis">
+                    <i class="bi bi-grid-fill me-2 text-primary"></i>Gestión de Aplicaciones
+                </h2>
+            </div>
+            <div>
+                <!-- Botón para crear nueva app (ajusta el href según tu URL name) -->
+                <a href="{% url 'apps:create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Nueva Aplicación
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabla de Aplicaciones -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead >
+                            <tr>
+                                <th class="ps-4">Orden</th>
+                                <th>Nombre de Aplicación</th>
+                                <th>Ruta / URL (View Name)</th>
+                                <th>Aplicación Padre</th>
+                                <th class="text-center">¿Tiene Hijas?</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-end pe-4">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for app in object_list %}
+                            <tr>
+                                <td class="ps-4 fw-semibold text-secondary">
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">{{ app.order }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-body">{{ app.name }}</div>
+                                </td>
+                                <td>
+                                    <code class="small text-primary">{{ app.url }}</code>
+                                </td>
+                                <td>
+                                    {% if app.father_app %}
+                                        <span class="badge bg-info-subtle text-info border px-2 py-1">
+                                            <i class="bi bi-folder2-open me-1"></i>{{ app.father_app.name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small"><em>Módulo Principal (Padre)</em></span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if app.has_daughter %}
+                                        <span class="badge bg-success-subtle text-success border px-2 py-1"><i class="bi bi-check-circle me-1"></i>Sí</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if app.is_active %}
+                                        <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactiva</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <!-- Botón de Editar (ajusta el url name de tu proyecto) -->
+                                        <a href="{% url 'apps:update' app.pk %}" class="btn btn-outline-secondary" title="Editar Aplicación">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-secondary">
+                                    <i class="bi bi-folder-x display-6 d-block mb-2"></i>
+                                    No hay aplicaciones registradas en el sistema.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paginación (si está habilitada en la vista con paginate_by) -->
+        {% if is_paginated %}
+        <nav aria-label="Paginación de aplicaciones" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

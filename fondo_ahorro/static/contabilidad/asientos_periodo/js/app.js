@@ -16,6 +16,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementos DOM del Modal de Edición
     const modalEditEl = document.getElementById('modal-edit-asiento');
     const modalEdit = new bootstrap.Modal(modalEditEl);
+    const modalProcesoEl = document.getElementById('modal-proceso-origen');
+    const modalProceso = modalProcesoEl ? new bootstrap.Modal(modalProcesoEl) : null;
+    const modalZoomEl = document.getElementById('modal-zoom-doc');
+    const modalZoom = modalZoomEl ? new bootstrap.Modal(modalZoomEl) : null;
     const tbodyModalMovements = document.getElementById('tbody-modal-edit-movements');
     const modalEditTotalDebe = document.getElementById('modal-edit-total-debe');
     const modalEditTotalHaber = document.getElementById('modal-edit-total-haber');
@@ -80,6 +84,17 @@ document.addEventListener('DOMContentLoaded', () => {
             .split('')
             .reverse()
             .join('');
+    }
+
+    /**
+     * Formatear bytes a tamaño legible (KB / MB)
+     */
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
     }
 
     //captura evento input con la clase input-currency
@@ -169,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let is_auxiliar = false;
         let btn_aux = '';
         let btnEdit = '';
+        let origen = '';
         if (asiento.is_null) {
             movRows =`
                 <tr>
@@ -177,11 +193,22 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
 
-        if (!asiento.aprobacion && !asiento.is_null) {
-            btnEdit = `<button class="btn btn-warning btn-sm py-0 px-2 fw-semibold btn-child-edit" data-asiento="${asiento.id}">
-                            <i class="bi bi-pencil-square"></i> Editar Asiento
-                        </button>`;
+        if (!asiento.aprobacion && !asiento.is_null && asiento.id_asiento_tipo==6) {
+            btnEdit = `
+                <button class="btn btn-warning btn-sm py-0 px-2 fw-semibold btn-child-edit" data-asiento="${asiento.id}">
+                    <i class="bi bi-pencil-square"></i> Editar Asiento
+                </button>
+            `;
         }
+
+        // if (asiento.origen) {
+        //     origen = `
+        //     <button type="button" class="btn btn-sm btn-doc-ref-trigger btn-origen d-inline-flex align-items-center gap-1 font-monospace" id="${asiento.id}" title="Clic para ver proceso de origen y documentos adjuntos">
+        //         <i class="bi bi-file-earmark-ruled"></i>
+        //         <span>${asiento.origen.voucher_number}</span>
+        //     </button>
+        //     `;
+        // }
 
         (asiento.movimientos || []).forEach((m, idx) => {
             totalDebe += m.debe;
@@ -200,7 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="fw-bold font-monospace text-primary" style="width: 90px;">${m.cuenta.num_cuenta}</td>
                     <td class="fw-semibold">${m.cuenta.nombre || '-'}</td>
                     <td class="text-muted" style="width: 120px;">${btn_aux || '-'}</td>
-                    <td class="text-muted" style="width: 130px;">${m.refDoc || '-'}</td>
                     <td>${m.glosa}</td>
                     <td class="text-end cell-currency text-primary" style="width: 120px;">${m.debe > 0 ? formatMoney(m.debe) : '-'}</td>
                     <td class="text-end cell-currency text-success" style="width: 120px;">${m.haber > 0 ? formatMoney(m.haber) : '-'}</td>
@@ -228,7 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th>Código</th>
                                 <th>Denominación de Cuenta</th>
                                 <th>Auxiliar</th>
-                                <th>Doc. Ref.</th>
                                 <th>Glosa Específica</th>
                                 <th class="text-end text-primary">Debe ($)</th>
                                 <th class="text-end text-success">Haber ($)</th>
@@ -239,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tbody>
                         <tfoot class="table-light fw-bold">
                             <tr>
-                                <td colspan="6" class="text-end text-uppercase">Sumas del Asiento:</td>
+                                <td colspan="5" class="text-end text-uppercase">Sumas del Asiento:</td>
                                 <td class="text-end cell-currency text-primary">${formatMoney(totalDebe)}</td>
                                 <td class="text-end cell-currency text-success">${formatMoney(totalHaber)}</td>
                             </tr>
@@ -254,8 +279,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if(e.target && e.target.closest('.btn-view-aux')) {
             e.preventDefault();
-            const idAsiento = Number(e.target.dataset.asiento);
-            const idMovimiento = Number(e.target.dataset.id);
+            const target = e.target.closest('.btn-view-aux');
+            const idAsiento = Number(target.dataset.asiento);
+            const idMovimiento = Number(target.dataset.id);
 
             // //buscar los auxiliares
             // 1. Buscar el asiento
@@ -270,6 +296,166 @@ document.addEventListener('DOMContentLoaded', () => {
             viewAux(auxiliares);
         }
     })
+
+    //capturar click btn origen
+    document.addEventListener('click', (e) => {
+        if(e.target && e.target.closest('.btn-origen')) {
+            e.preventDefault();
+            const target = e.target.closest('.btn-origen');
+            const id_asiento = Number(target.id);
+
+            // 1. Buscar el asiento
+            const asientoEncontrado = asientosData.find(a => a.id === id_asiento);
+            if (asientoEncontrado) {
+                viewOrigen(asientoEncontrado);
+            } else {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'No se encontraron documentos adjuntos.',
+                })
+            }
+        }
+    })
+
+    //ver origen
+    const viewOrigen = (data) => {
+        if (data.length == 0 || data == null) {
+            return
+        }
+
+        // 1. Encabezado del modal
+        const badgeTipo = document.getElementById('modal-proc-badge-tipo');
+        if (badgeTipo) {
+            badgeTipo.innerHTML = getTypeBadge(data.asiento_tipo);
+        }
+
+        document.getElementById('modal-proc-asiento-num').textContent = data.numero_asiento;
+        document.getElementById('modal-proc-ref-doc').textContent = data.origen.voucher_number;
+        document.getElementById('modal-proc-fecha').textContent = data.fecha_asiento;
+
+        document.getElementById('modal-proc-categoria').textContent = data.asiento_tipo;
+        document.getElementById('modal-proc-nombre').textContent = data.origen.process_type.description;
+        document.getElementById('modal-proc-glosa').textContent = data.origen.description || data.glosa;
+
+        document.getElementById('modal-proc-monto').textContent = `${formatMoney(data.origen.amount)}`;
+
+        const estadoBadge = document.getElementById('modal-proc-estado');
+        if (estadoBadge) {
+            estadoBadge.textContent = data.asiento_estado;
+            if (data.asiento_estado === 'CONTABILIZADO') estadoBadge.className = 'badge bg-success-subtle text-success border border-success-subtle fs-xs';
+            else if (data.asiento_estado === 'BORRADOR') estadoBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle fs-xs';
+            else estadoBadge.className = 'badge bg-danger-subtle text-danger border border-danger-subtle fs-xs';
+        }
+
+        // Metadatos
+        document.getElementById('modal-proc-tercero').textContent = data.origen.process_type.description;
+        document.getElementById('modal-proc-tercero-id').textContent = data.origen.voucher_number;
+        document.getElementById('modal-proc-socio').textContent = data.origen.application.partner.person;
+        document.getElementById('modal-proc-socio-detalle').textContent = data.origen.application.partner.rut;
+        document.getElementById('modal-proc-module').textContent = data.origen.module;
+        document.getElementById('modal-proc-usuario').textContent = data.origen.user_create;
+        document.getElementById('modal-proc-creado').textContent = data.origen.created_at;
+
+        // 4. Documentos y Respaldo Adjuntos
+        const containerAdjuntos = document.getElementById('modal-proc-adjuntos-list');
+        const badgeTotalAdj = document.getElementById('modal-proc-total-adjuntos');
+        if (badgeTotalAdj) {
+            badgeTotalAdj.textContent = `${data.origen.documents.length} archivo${data.origen.documents.length === 1 ? '' : 's'}`;
+        }
+
+        if (containerAdjuntos) {
+            if (data.origen.documents === 0) {
+                containerAdjuntos.innerHTML = `
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-folder-x fs-2 d-block mb-2 text-secondary opacity-50"></i>
+                        <p class="small mb-0">No se encontraron archivos anexados para esta referencia.</p>
+                    </div>
+                `;
+            } else {
+                let adjuntosHtml = '';
+                data.origen.documents.forEach(file => {
+                    let previewElement = '';
+                    if (file.file_type === 'image' && file.url) {
+                        previewElement = `
+                            <img src="${file.url}" alt="${file.internal_name}" class="attachment-thumb-img shadow-sm"
+                                 data-img="${file.url}" data-title="${file.internal_name}" title="Clic para ver en pantalla completa">
+                        `;
+                    } else if (file.file_type == 'application/pdf') {
+                        previewElement = `
+                            <div class="attachment-icon-box bg-danger-subtle text-danger border border-danger-subtle shadow-sm">
+                                <i class="bi bi-file-earmark-pdf-fill"></i>
+                            </div>
+                        `;
+                    } else {
+                        previewElement = `
+                            <div class="attachment-icon-box bg-primary-subtle text-primary border border-primary-subtle shadow-sm">
+                                <i class="bi bi-file-earmark-text-fill"></i>
+                            </div>
+                        `;
+                    }
+
+                    adjuntosHtml += `
+                        <div class="attachment-preview-card">
+                            <div class="d-flex align-items-center gap-3 overflow-hidden">
+                                ${previewElement}
+                                <div class="overflow-hidden">
+                                    <div class="fw-bold text-dark fs-sm text-truncate" title="${file.name}">
+                                        ${file.name}
+                                    </div>
+                                    <div class="text-muted fs-xs mt-1">
+                                        <span><i class="bi bi-hdd-network me-1"></i>${formatBytes(file.size)}</span>
+                                        <span class="mx-1">•</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                ${file.file_type === 'image' && file.url ? `
+                                    <button type="button" class="btn btn-outline-primary btn-sm py-1 px-2 d-flex align-items-center gap-1 btn-zoom-file" data-img="${file.url}" data-title="${file.internal_name}">
+                                        <i class="bi bi-zoom-in"></i> Ver
+                                    </button>
+                                ` : ''}
+                                <a href="${file.url || '#'}" target="_blank" download="${file.name}" class="btn btn-primary btn-sm py-1 px-2 d-flex align-items-center gap-1 btn-download-file ${!file.url ? 'disabled' : ''}">
+                                    <i class="bi bi-download"></i> Descargar
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                });
+                containerAdjuntos.innerHTML = adjuntosHtml;
+
+                // Listeners de zoom para miniaturas e imágenes
+                containerAdjuntos.querySelectorAll('.attachment-thumb-img, .btn-zoom-file').forEach(el => {
+                    el.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = el.getAttribute('data-img');
+                        const title = el.getAttribute('data-title');
+                        openZoomDocModal(url, title);
+                    });
+                });
+            }
+        }
+
+        if (modalProceso) {
+            modalProceso.show();
+        }
+    }
+
+    function openZoomDocModal(dataUrl, title) {
+        const imgTarget = document.getElementById('zoom-doc-img');
+        const titleTarget = document.getElementById('zoom-doc-title');
+        const dlBtn = document.getElementById('btn-zoom-download');
+
+        if (imgTarget) imgTarget.src = dataUrl;
+        if (titleTarget) titleTarget.textContent = title || "Vista Previa de Documento";
+        if (dlBtn) {
+            dlBtn.href = dataUrl;
+            dlBtn.download = (title || 'documento').replace(/\s+/g, '_') + '.png';
+        }
+
+        if (modalZoom) {
+            modalZoom.show();
+        }
+    }
 
     //cargar aux en tbl y abrir modal
     const viewAux = (data) => {
@@ -430,6 +616,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 {
+                    data: 'origen',
+                    render: function (data, type, row) {
+                        if (!data) return '-';
+                        return `<button type="button" class="btn btn-sm btn-doc-ref-trigger btn-origen d-inline-flex align-items-center gap-1 font-monospace" id="${row.id}" title="Clic para ver proceso de origen y documentos adjuntos">
+                            <i class="bi bi-file-earmark-ruled"></i>
+                            <span>${data.voucher_number}</span>
+                        </button>`;
+                    }
+                },
+                {
                     data: 'movimientos',
                     className: 'text-end cell-currency text-primary',
                     render: function (data) {
@@ -469,19 +665,22 @@ document.addEventListener('DOMContentLoaded', () => {
                             btn += `<button class="btn btn-outline-success btn-dt-validate" title="Validar asiento">
                                         <i class="bi bi-check-circle"></i>
                                     </button>`;
-                            if (row.is_null) {
-                                btn += `<button class="btn btn-outline-info btn-dt-active" title="Activar asiento">
-                                            <i class="bi bi-exclamation-triangle-fill"></i>
-                                        </button>`;
-                            } else {
-                                btn += `
-                                    <button class="btn btn-outline-warning btn-dt-edit" title="Editar en Modal">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </button>
-                                    <button class="btn btn-outline-danger btn-dt-anular" title="Anular Asiento">
-                                        <i class="bi bi-slash-circle"></i>
-                                    </button>
-                                `;
+                            
+                            if (row.id_asiento_tipo == 6) {
+                                if (row.is_null) {
+                                    btn += `<button class="btn btn-outline-info btn-dt-active" title="Activar asiento">
+                                                <i class="bi bi-exclamation-triangle-fill"></i>
+                                            </button>`;
+                                } else {
+                                    btn += `
+                                        <button class="btn btn-outline-danger btn-dt-anular" title="Anular Asiento">
+                                            <i class="bi bi-slash-circle"></i>
+                                        </button>
+                                        <button class="btn btn-outline-warning btn-dt-edit" title="Editar en Modal">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                    `;
+                                }
                             }
                         } else {
                             btn += `<button class="btn btn-outline-secondary btn-dt-pdf">
@@ -1263,7 +1462,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Contabilizar y guardar cambios desde el modal
     $('#btn-modal-save-post').on('click', () => {
         const data = getModalAsientoData();
-        console.log(data);
         if (data.movimientos.length < 2) {
             Swal.fire({
                 icon: 'warning',

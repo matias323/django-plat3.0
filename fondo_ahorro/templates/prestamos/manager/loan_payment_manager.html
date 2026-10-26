@@ -1,0 +1,875 @@
+{% extends "base.html" %}
+
+{% block title %}Gestor de pagos{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.3.3/css/dataTables.dataTables.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="card shadow-sm border-0">
+
+        <div class="card-body">
+
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+                <div>
+                    <h3 class="mb-1">Gestor de pagos</h3>
+                    <p class="text-muted mb-0">
+                        Revisa, aprueba, rechaza y gestiona reversas de las solicitudes de pago.
+                    </p>
+                </div>
+            </div>
+
+            <hr>
+
+            <div class="d-flex flex-wrap gap-2 mb-4">
+                <button type="button" class="btn btn-warning payment-filter active" data-filter="pending">
+                    Pendientes
+                </button>
+
+                <button type="button" class="btn btn-success payment-filter" data-filter="approved">
+                    Aprobados
+                </button>
+
+                <button type="button" class="btn btn-danger payment-filter" data-filter="rejected">
+                    Rechazados
+                </button>
+
+                <button type="button" class="btn btn-secondary payment-filter" data-filter="reversed">
+                    Reversados
+                </button>
+
+                <button type="button" class="btn btn-primary payment-filter" data-filter="all">
+                    Todos
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table id="paymentManagerTable" class="table table-hover align-middle text-center w-100">
+                    <thead>
+                        <tr>
+                            <th>ID Préstamo</th>
+                            <th>Código</th>
+                            <th>RUT</th>
+                            <th>Nombre</th>
+                            <th>Tipo</th>
+                            <th>Cuota</th>
+                            <th>Monto</th>
+                            <th>Fecha</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody></tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- ============================================================
+     MODAL DETALLE
+============================================================ -->
+<div class="modal fade" id="paymentDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" id="paymentDetailModalContent"></div>
+    </div>
+</div>
+
+
+<!-- ============================================================
+     MODAL ACCIÓN
+============================================================ -->
+<div class="modal fade" id="paymentActionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title mb-0" id="paymentActionTitle">
+                        Gestión de pago
+                    </h5>
+
+                    <small class="text-muted" id="paymentActionSubtitle"></small>
+                </div>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <form id="paymentActionForm" enctype="multipart/form-data">
+
+                <div class="modal-body">
+
+                    <input type="hidden" id="paymentActionId">
+                    <input type="hidden" id="paymentActionMode">
+                    <input type="hidden" id="paymentActionType">
+                    <input type="hidden" id="paymentHasDeposit" value="0">
+
+                    <div class="mb-3" id="paymentReasonBlock">
+                        <label for="paymentReason" class="form-label">Motivo / observación</label>
+                        <textarea id="paymentReason" class="form-control" rows="3"
+                                  placeholder="Ingrese una observación"></textarea>
+                    </div>
+
+                    <div class="mb-3 d-none" id="paymentResolutionBlock">
+                        <label for="paymentResolution" class="form-label">Número de resolución</label>
+                        <input type="text" id="paymentResolution" class="form-control"
+                               inputmode="numeric" autocomplete="off">
+                        <small class="text-muted">
+                            Obligatorio para amortización y amortización de insolutos.
+                        </small>
+                    </div>
+
+                    <div class="mb-3" id="paymentDocumentBlock">
+                        <label for="paymentDocument" class="form-label">Documento PDF</label>
+                        <input type="file" id="paymentDocument" class="form-control" accept="application/pdf">
+                        <small class="text-muted" id="paymentDocumentHelp"></small>
+                    </div>
+
+                    <div class="mb-3 d-none" id="paymentRecalculationBlock">
+                        <label for="paymentRecalculationStart" class="form-label">
+                            Recalcular dividendos desde
+                        </label>
+
+                        <select id="paymentRecalculationStart" class="form-select">
+                            <option value="">Seleccione una opción</option>
+                            <option value="current">Desde este mes</option>
+                            <option value="next">Desde el mes siguiente</option>
+                            <option value="months">Desde X meses en adelante</option>
+                        </select>
+
+                        <div class="mt-2 d-none" id="paymentRecalculationMonthsBlock">
+                            <label for="paymentRecalculationMonths" class="form-label">
+                                Cantidad de meses hacia adelante
+                            </label>
+
+                            <input type="number" id="paymentRecalculationMonths"
+                                   class="form-control" min="2" value="2">
+                        </div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="paymentDepositBlock">
+                        <div class="alert alert-info">
+                            Este pago contiene
+                            <strong id="paymentDepositAmount">$0</strong>
+                            provenientes de depósito. Selecciona el aporte que recibirá ese dinero
+                            si la reversa es aprobada.
+                        </div>
+
+                        <label for="paymentDepositContribution" class="form-label">
+                            Aporte destino del depósito
+                        </label>
+
+                        <select id="paymentDepositContribution" class="form-select">
+                            <option value="">Seleccione un aporte</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Cerrar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary" id="paymentActionSubmit">
+                        Confirmar
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.3.3/js/dataTables.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const csrfToken = "{{ csrf_token }}";
+
+    const URL_DATATABLE = "{% url 'loan:payment_manager_datatable' %}";
+    const URL_ACTION = "{% url 'loan:payment_action' 999999 %}";
+    const URL_REVERSAL_INFO = "{% url 'loan:payment_reversal_info' 999999 %}";
+    const URL_REVERSAL_REQUEST = "{% url 'loan:payment_reversal_request' 999999 %}";
+    const URL_REVERSAL_DECISION = "{% url 'loan:payment_reversal_decision' 999999 %}";
+    const URL_DETAIL = "{% url 'loan:payment_detail' 999999 888888 %}";
+
+    let currentFilter = "pending";
+
+    const detailModalElement = document.getElementById("paymentDetailModal");
+    const detailModal = bootstrap.Modal.getOrCreateInstance(detailModalElement, { focus: false });
+
+    const actionModalElement = document.getElementById("paymentActionModal");
+    const actionModal = bootstrap.Modal.getOrCreateInstance(actionModalElement, { focus: false });
+
+    const actionForm = document.getElementById("paymentActionForm");
+    const actionId = document.getElementById("paymentActionId");
+    const actionMode = document.getElementById("paymentActionMode");
+    const actionType = document.getElementById("paymentActionType");
+    const actionTitle = document.getElementById("paymentActionTitle");
+    const actionSubtitle = document.getElementById("paymentActionSubtitle");
+    const reason = document.getElementById("paymentReason");
+    const documentInput = document.getElementById("paymentDocument");
+    const resolution = document.getElementById("paymentResolution");
+    const resolutionBlock = document.getElementById("paymentResolutionBlock");
+    const documentBlock = document.getElementById("paymentDocumentBlock");
+    const documentHelp = document.getElementById("paymentDocumentHelp");
+    const recalculationBlock = document.getElementById("paymentRecalculationBlock");
+    const recalculationStart = document.getElementById("paymentRecalculationStart");
+    const recalculationMonths = document.getElementById("paymentRecalculationMonths");
+    const recalculationMonthsBlock = document.getElementById("paymentRecalculationMonthsBlock");
+    const depositBlock = document.getElementById("paymentDepositBlock");
+    const depositAmount = document.getElementById("paymentDepositAmount");
+    const depositContribution = document.getElementById("paymentDepositContribution");
+    const submitButton = document.getElementById("paymentActionSubmit");
+
+    function escapeHtml(value) {
+        return $("<div>").text(value ?? "").html();
+    }
+
+    function numberValue(value) {
+        const raw = String(value ?? "").trim();
+
+        if (!raw) return 0;
+
+        const direct = Number(raw);
+
+        if (Number.isFinite(direct)) return direct;
+
+        const normalized = raw.replace(/\./g, "").replace(",", ".");
+        const result = Number(normalized);
+
+        return Number.isFinite(result) ? result : 0;
+    }
+
+    function formatCLP(value) {
+        return new Intl.NumberFormat("es-CL", {
+            style: "currency",
+            currency: "CLP",
+            maximumFractionDigits: 0
+        }).format(numberValue(value));
+    }
+
+    async function showError(title, message) {
+        if (window.AppSwalError) return AppSwalError(title, message);
+
+        if (window.Swal) {
+            return Swal.fire({
+                icon: "error",
+                title: title,
+                text: message,
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+        }
+
+        alert(`${title}: ${message}`);
+    }
+
+    async function showSuccess(title, message) {
+        if (window.AppSwalSuccess) return AppSwalSuccess(title, message);
+
+        if (window.Swal) {
+            return Swal.fire({
+                icon: "success",
+                title: title,
+                text: message,
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+        }
+
+        alert(message);
+    }
+
+    async function showConfirm(title, text, danger = false) {
+        if (window.AppSwalConfirm) {
+            return AppSwalConfirm({
+                title: title,
+                text: text,
+                confirmText: '<i class="bi bi-check-lg me-1"></i> Confirmar',
+                confirmClass: danger ? "btn-danger" : "btn-primary"
+            });
+        }
+
+        if (window.Swal) {
+            return Swal.fire({
+                icon: danger ? "warning" : "question",
+                title: title,
+                text: text,
+                showCancelButton: true,
+                confirmButtonText: "Confirmar",
+                cancelButtonText: "Cancelar",
+                reverseButtons: true,
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+        }
+
+        return { isConfirmed: confirm(text) };
+    }
+
+    function normalized(value) {
+        return String(value || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toUpperCase();
+    }
+
+    function isAmortization(typeName) {
+        return normalized(typeName).includes("AMORTIZ");
+    }
+
+    function isInsolvent(typeName) {
+        return normalized(typeName).includes("INSOLUT");
+    }
+
+    function isPrepayment(typeName) {
+        return normalized(typeName).includes("PREPAGO");
+    }
+
+    function resetActionModal() {
+        actionForm.reset();
+        actionId.value = "";
+        actionMode.value = "";
+        actionType.value = "";
+        document.getElementById("paymentHasDeposit").value = "0";
+
+        resolutionBlock.classList.add("d-none");
+        recalculationBlock.classList.add("d-none");
+        recalculationMonthsBlock.classList.add("d-none");
+        depositBlock.classList.add("d-none");
+        documentBlock.classList.remove("d-none");
+
+        depositContribution.innerHTML = '<option value="">Seleccione un aporte</option>';
+        depositAmount.textContent = "$0";
+
+        reason.placeholder = "Ingrese una observación";
+        documentHelp.textContent = "";
+        submitButton.className = "btn btn-primary";
+        submitButton.textContent = "Confirmar";
+        submitButton.disabled = false;
+    }
+
+    const table = $("#paymentManagerTable").DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: false,
+        autoWidth: false,
+        pageLength: 10,
+        order: [[7, "desc"]],
+
+        ajax: {
+            url: URL_DATATABLE,
+            type: "GET",
+
+            data: function (data) {
+                data.filter = currentFilter;
+            },
+
+            dataSrc: function (json) {
+                if (json.error) {
+                    console.error(json.error);
+                    showError("Error", json.error);
+                    return [];
+                }
+
+                return json.data || [];
+            }
+        },
+
+        columns: [
+            { data: "loan_id" },
+
+            {
+                data: "employee_code",
+                render: value => escapeHtml(value || "-")
+            },
+
+            {
+                data: "rut",
+                render: value => escapeHtml(value || "-")
+            },
+
+            {
+                data: "person_name",
+                render: value => escapeHtml(value || "-")
+            },
+
+            {
+                data: "payment_type",
+                render: value => escapeHtml(value || "-")
+            },
+
+            {
+                data: "installment",
+                render: value => value ?? "-"
+            },
+
+            {
+                data: "amount",
+                render: value => formatCLP(value)
+            },
+
+            {
+                data: "date",
+                render: value => escapeHtml(value || "-")
+            },
+
+            {
+                data: null,
+                render: function (data, type, row) {
+                    return `<span class="badge bg-${escapeHtml(row.status_class || "secondary")}">
+                        ${escapeHtml(row.status || "-")}
+                    </span>`;
+                }
+            },
+
+            {
+                data: null,
+                orderable: false,
+                searchable: false,
+
+                render: function (data, type, row) {
+                    const buttons = [];
+
+                    buttons.push(`
+                        <button type="button" class="btn btn-sm btn-primary btn-payment-detail"
+                                data-id="${row.id}" data-loan="${row.loan_id}" title="Detalle">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    `);
+
+                    if (row.can_approve) {
+                        buttons.push(`
+                            <button type="button" class="btn btn-sm btn-success btn-payment-action"
+                                    data-id="${row.id}" data-mode="approve"
+                                    data-payment-type="${escapeHtml(row.payment_type)}"
+                                    data-amount="${escapeHtml(row.amount)}" title="Aprobar">
+                                <i class="bi bi-check-lg"></i>
+                            </button>
+                        `);
+                    }
+
+                    if (row.can_reject) {
+                        buttons.push(`
+                            <button type="button" class="btn btn-sm btn-danger btn-payment-action"
+                                    data-id="${row.id}" data-mode="reject"
+                                    data-payment-type="${escapeHtml(row.payment_type)}"
+                                    data-amount="${escapeHtml(row.amount)}" title="Rechazar">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        `);
+                    }
+
+                    if (row.can_request_reversal) {
+                        buttons.push(`
+                            <button type="button" class="btn btn-sm btn-dark btn-payment-reversal-request"
+                                    data-id="${row.id}" data-payment-type="${escapeHtml(row.payment_type)}"
+                                    title="Solicitar reversa">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                        `);
+                    }
+
+                    if (row.can_approve_reversal) {
+                        buttons.push(`
+                            <button type="button" class="btn btn-sm btn-success btn-payment-reversal-decision"
+                                    data-id="${row.id}" data-mode="approve" title="Aprobar reversa">
+                                <i class="bi bi-check-circle"></i>
+                            </button>
+                        `);
+                    }
+
+                    if (row.can_reject_reversal) {
+                        buttons.push(`
+                            <button type="button" class="btn btn-sm btn-danger btn-payment-reversal-decision"
+                                    data-id="${row.id}" data-mode="reject" title="Rechazar reversa">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        `);
+                    }
+
+                    return `<div class="d-flex justify-content-center flex-wrap gap-1">${buttons.join("")}</div>`;
+                }
+            }
+        ],
+
+        language: {
+            emptyTable: "No existen pagos para mostrar.",
+            info: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+            infoEmpty: "Mostrando 0 a 0 de 0 registros",
+            lengthMenu: "Mostrar _MENU_ registros",
+            loadingRecords: "Cargando...",
+            processing: "Procesando...",
+            search: "Buscar:",
+            zeroRecords: "No se encontraron resultados.",
+            paginate: {
+                first: "Primero",
+                last: "Último",
+                next: "Siguiente",
+                previous: "Anterior"
+            }
+        }
+    });
+
+    $(".payment-filter").on("click", function () {
+        currentFilter = String(this.dataset.filter || "pending");
+
+        $(".payment-filter").removeClass("active");
+        this.classList.add("active");
+
+        table.ajax.reload();
+    });
+
+    $(document).on("click", ".btn-payment-detail", async function () {
+        const paymentId = this.dataset.id;
+        const loanId = this.dataset.loan;
+
+        document.getElementById("paymentDetailModalContent").innerHTML = `
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border"></div>
+                <div class="mt-2">Cargando detalle...</div>
+            </div>
+        `;
+
+        detailModal.show();
+
+        try {
+            const url = URL_DETAIL
+                .replace("999999", loanId)
+                .replace("888888", paymentId);
+
+            const response = await fetch(url, {
+                headers: { "X-App-Request": "true" }
+            });
+
+            if (!response.ok) throw new Error("No se pudo cargar el detalle.");
+
+            const html = await response.text();
+            document.getElementById("paymentDetailModalContent").innerHTML = html;
+
+            document.querySelectorAll("#paymentDetailModalContent .money-text").forEach(element => {
+                element.textContent = formatCLP(element.textContent);
+            });
+
+        } catch (error) {
+            document.getElementById("paymentDetailModalContent").innerHTML = `
+                <div class="modal-body">
+                    <div class="alert alert-danger mb-0">${escapeHtml(error.message)}</div>
+                </div>
+            `;
+        }
+    });
+
+    $(document).on("click", ".btn-payment-action", function () {
+        resetActionModal();
+
+        const paymentId = this.dataset.id;
+        const mode = this.dataset.mode;
+        const paymentType = this.dataset.paymentType || "";
+
+        actionId.value = paymentId;
+        actionMode.value = mode;
+        actionType.value = paymentType;
+        actionSubtitle.textContent = `Pago #${paymentId} — ${paymentType}`;
+
+        if (mode === "approve") {
+            actionTitle.textContent = `Aprobar pago #${paymentId}`;
+            submitButton.className = "btn btn-success";
+            submitButton.textContent = "Aprobar pago";
+            reason.placeholder = "Observación opcional";
+
+            if (isAmortization(paymentType)) {
+                resolutionBlock.classList.remove("d-none");
+                documentHelp.textContent = "El PDF y el número de resolución son obligatorios.";
+            } else {
+                documentHelp.textContent = "Documento opcional.";
+            }
+
+            if (isPrepayment(paymentType) || (isAmortization(paymentType) && !isInsolvent(paymentType))) {
+                recalculationBlock.classList.remove("d-none");
+            }
+
+        } else {
+            actionTitle.textContent = `Rechazar pago #${paymentId}`;
+            submitButton.className = "btn btn-danger";
+            submitButton.textContent = "Rechazar pago";
+            reason.placeholder = "Motivo obligatorio del rechazo";
+            documentBlock.classList.add("d-none");
+        }
+
+        actionModal.show();
+    });
+
+    recalculationStart.addEventListener("change", function () {
+        recalculationMonthsBlock.classList.toggle("d-none", this.value !== "months");
+    });
+
+    $(document).on("click", ".btn-payment-reversal-request", async function () {
+        resetActionModal();
+
+        const paymentId = this.dataset.id;
+        const paymentType = this.dataset.paymentType || "";
+
+        try {
+            const response = await fetch(
+                URL_REVERSAL_INFO.replace("999999", paymentId),
+                { headers: { "X-App-Request": "true" } }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se pudo consultar la reversa.");
+            }
+
+            actionId.value = paymentId;
+            actionMode.value = "request_reversal";
+            actionType.value = paymentType;
+
+            actionTitle.textContent = `Solicitar reversa del pago #${paymentId}`;
+            actionSubtitle.textContent = paymentType;
+
+            reason.placeholder = "Motivo obligatorio de la reversa";
+            documentBlock.classList.remove("d-none");
+            documentHelp.textContent = "Documento PDF obligatorio.";
+            submitButton.className = "btn btn-dark";
+            submitButton.textContent = "Solicitar reversa";
+
+            if (data.has_deposit) {
+                document.getElementById("paymentHasDeposit").value = "1";
+                depositBlock.classList.remove("d-none");
+                depositAmount.textContent = formatCLP(data.deposit_amount);
+
+                depositContribution.innerHTML = '<option value="">Seleccione un aporte</option>';
+
+                (data.contributions || []).forEach(item => {
+                    const option = document.createElement("option");
+                    option.value = item.id;
+                    option.textContent = `${item.description} — saldo ${formatCLP(item.balance)}`;
+                    depositContribution.appendChild(option);
+                });
+            }
+
+            actionModal.show();
+
+        } catch (error) {
+            await showError("No se pudo solicitar la reversa", error.message);
+        }
+    });
+
+    $(document).on("click", ".btn-payment-reversal-decision", function () {
+        resetActionModal();
+
+        const paymentId = this.dataset.id;
+        const mode = this.dataset.mode;
+
+        actionId.value = paymentId;
+        actionMode.value = mode === "approve" ? "approve_reversal" : "reject_reversal";
+
+        documentBlock.classList.add("d-none");
+
+        if (mode === "approve") {
+            actionTitle.textContent = `Aprobar reversa del pago #${paymentId}`;
+            reason.placeholder = "Observación opcional";
+            submitButton.className = "btn btn-success";
+            submitButton.textContent = "Aprobar reversa";
+        } else {
+            actionTitle.textContent = `Rechazar reversa del pago #${paymentId}`;
+            reason.placeholder = "Motivo obligatorio del rechazo";
+            submitButton.className = "btn btn-danger";
+            submitButton.textContent = "Rechazar reversa";
+        }
+
+        actionModal.show();
+    });
+
+    actionForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const paymentId = actionId.value;
+        const mode = actionMode.value;
+        const paymentType = actionType.value || "";
+        const reasonValue = reason.value.trim();
+        const file = documentInput.files[0] || null;
+
+        if ((mode === "reject" || mode === "request_reversal" || mode === "reject_reversal") && !reasonValue) {
+            await showError("Motivo requerido", "Debe ingresar un motivo.");
+            reason.focus();
+            return;
+        }
+
+        if (mode === "approve" && isAmortization(paymentType)) {
+            if (!resolution.value.trim()) {
+                await showError("Resolución requerida", "Debe ingresar el número de resolución.");
+                resolution.focus();
+                return;
+            }
+
+            if (!file) {
+                await showError("Documento requerido", "Debe adjuntar el PDF de la resolución.");
+                return;
+            }
+        }
+
+        if (mode === "request_reversal" && !file) {
+            await showError(
+                "Documento requerido",
+                "Debe adjuntar el documento PDF de reversa."
+            );
+            return;
+        }
+
+        if (file) {
+            if (!file.name.toLowerCase().endsWith(".pdf")) {
+                await showError("Archivo inválido", "El documento debe estar en formato PDF.");
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                await showError("Archivo demasiado grande", "El documento no puede superar los 10 MB.");
+                return;
+            }
+        }
+
+        if (
+            mode === "request_reversal"
+            && document.getElementById("paymentHasDeposit").value === "1"
+            && !depositContribution.value
+        ) {
+            await showError(
+                "Aporte requerido",
+                "Debe seleccionar el aporte que recibirá el dinero del depósito."
+            );
+            depositContribution.focus();
+            return;
+        }
+
+        if (
+            mode === "approve"
+            && (isPrepayment(paymentType) || (isAmortization(paymentType) && !isInsolvent(paymentType)))
+            && !recalculationStart.value
+        ) {
+            await showError(
+                "Recálculo requerido",
+                "Debe seleccionar desde cuándo se recalcularán los dividendos."
+            );
+            recalculationStart.focus();
+            return;
+        }
+
+        if (recalculationStart.value === "months" && Number(recalculationMonths.value || 0) < 2) {
+            await showError(
+                "Cantidad inválida",
+                "La cantidad de meses debe ser mayor o igual a 2."
+            );
+            recalculationMonths.focus();
+            return;
+        }
+
+        const titleMap = {
+            approve: "Aprobar pago",
+            reject: "Rechazar pago",
+            request_reversal: "Solicitar reversa",
+            approve_reversal: "Aprobar reversa",
+            reject_reversal: "Rechazar reversa"
+        };
+
+        const confirmResult = await showConfirm(
+            titleMap[mode] || "Confirmar operación",
+            "¿Confirmas que deseas realizar esta operación?",
+            mode === "reject" || mode === "reject_reversal"
+        );
+
+        if (!confirmResult.isConfirmed) return;
+
+        const formData = new FormData();
+        formData.append("reason", reasonValue);
+
+        let url = "";
+
+        if (mode === "approve" || mode === "reject") {
+            url = URL_ACTION.replace("999999", paymentId);
+            formData.append("action", mode);
+
+            if (resolution.value.trim()) {
+                formData.append("resolution", resolution.value.trim());
+            }
+
+            if (recalculationStart.value) {
+                formData.append("recalculation_start", recalculationStart.value);
+                formData.append("recalculation_months", recalculationMonths.value || "0");
+            }
+
+            if (file) formData.append("document", file);
+
+        } else if (mode === "request_reversal") {
+            url = URL_REVERSAL_REQUEST.replace("999999", paymentId);
+
+            if (file) {
+                formData.append("document", file);
+            }
+
+            if (depositContribution.value) {
+                formData.append("deposit_contribution_type", depositContribution.value);
+            }
+
+        } else {
+            url = URL_REVERSAL_DECISION.replace("999999", paymentId);
+
+            formData.append(
+                "action",
+                mode === "approve_reversal" ? "approve" : "reject"
+            );
+        }
+
+        submitButton.disabled = true;
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "X-App-Request": "true"
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No se pudo completar la operación.");
+            }
+
+            actionModal.hide();
+            table.ajax.reload(null, false);
+
+            await showSuccess("Operación realizada", data.message);
+
+        } catch (error) {
+            await showError("No se pudo completar la operación", error.message);
+
+        } finally {
+            submitButton.disabled = false;
+        }
+    });
+
+});
+</script>
+
+{% endblock %}

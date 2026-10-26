@@ -1,0 +1,338 @@
+<style>
+    #recordDetailBody .form-label {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    #recordDetailBody .clp-cell {
+        white-space: nowrap;
+    }
+</style>
+<div class="modal-header">
+    <div>
+        <h5 class="modal-title mb-1">
+            <i class="bi bi-file-earmark-text"></i>
+            Acta de Entrega N°
+            {{ record.record_number }}
+        </h5>
+        <span class="badge {% if record.record_type_id == 1 %}bg-danger{% else %}bg-success{% endif %}">
+            {{ record.record_type.name }}
+        </span>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body" id="recordDetailBody">
+    <h5 class="mb-3">Información del acta</h5>
+    <div class="row">
+        <div class="col-md-3 mb-3">
+            <label class="form-label">N° Acta</label>
+            <input class="form-control" value="{{ record.record_number }}" readonly>
+        </div>
+        <div class="col-md-3 mb-3">
+            <label class="form-label">Fecha</label>
+            <input class="form-control" value="{{ record.record_date|date:'d-m-Y' }}" readonly>
+        </div>
+        <div class="col-md-3 mb-3">
+            <label class="form-label">Tipo</label>
+            <input class="form-control" value="{{ record.record_type.name }}" readonly>
+        </div>
+        <div class="col-md-3 mb-3">
+            <label class="form-label">Estado</label>
+            <input class="form-control" value="{{ record.status.name }}" readonly>
+        </div>
+        <div class="{% if record.record_type_id == 2 %}col-md-6{% else %}col-md-12{% endif %} mb-3">
+            <label class="form-label">Área</label>
+            <input class="form-control" value="{{ record.area }}" readonly>
+        </div>
+        {% if record.record_type_id == 2 %}
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Prestamista</label>
+                <input class="form-control" value="{{ lender_name }}" readonly>
+            </div>
+        {% endif %}
+        <div class="col-md-12 mb-3">
+            <label class="form-label">Observación</label>
+            <textarea class="form-control" rows="3" readonly>{{ record.observation|default:'' }}</textarea>
+        </div>
+    </div>
+    <hr>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="mb-0">Documentos</h5>
+            <small class="text-muted">Documentos asociados al acta de entrega.</small>
+        </div>
+    </div>
+    {% if can_edit %}
+        <form id="recordDocumentForm" enctype="multipart/form-data" class="row mb-3">
+            {% csrf_token %}
+            <div class="col-md-9">
+                <input type="file" name="record_documents" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple required>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary w-100">
+                    <i class="bi bi-upload"></i>
+                    Agregar documento
+                </button>
+            </div>
+        </form>
+    {% endif %}
+    {% if documents %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Documento</th>
+                        <th>Fecha</th>
+                        <th style="width:100px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                        <tr>
+                            <td>{{ document.name }}</td>
+                            <td>
+                                {% if document.date %}
+                                    {{ document.date|date:'d-m-Y H:i' }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ document.url }}" target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-light border">No existen documentos asociados a esta acta.</div>
+    {% endif %}
+    <hr>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="mb-0">Productos asociados</h5>
+            <small class="text-muted">
+                Total:
+                {{ products|length }}
+            </small>
+        </div>
+    </div>
+    {% if products %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped table-hover align-middle">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Marca</th>
+                        <th>Modelo</th>
+                        <th>N° Rol</th>
+                        <th>N° BCU</th>
+                        <th>N° Serial</th>
+                        <th>Fondo</th>
+                        <th>Clase activo</th>
+                        <th>Clase</th>
+                        <th>Subclase</th>
+                        {% if record.record_type_id == 1 %}
+                            <th>Inicio uso</th>
+                            <th>Valor actual</th>
+                        {% endif %}
+                        <th>Observación</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                        <tr>
+                            <td>{{ product.name }}</td>
+                            <td>{{ product.brand|default:'-' }}</td>
+                            <td>{{ product.model|default:'-' }}</td>
+                            <td>{{ product.role_number }}</td>
+                            <td>{{ product.bcu_number|default:'-' }}</td>
+                            <td>{{ product.serial_number|default:'-' }}</td>
+                            <td>
+                                {% if product.fund %}
+                                    {{ product.fund.name }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ product.subclass.asset_class.name }}</td>
+                            <td>{{ product.subclass.inventory_class.name }}</td>
+                            <td>{{ product.subclass.name }}</td>
+                            {% if record.record_type_id == 1 %}
+                                <td>
+                                    {% if product.use_start_date %}
+                                        {{ product.use_start_date|date:'d-m-Y' }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="clp-cell" data-value="{{ product.current_value }}"></td>
+                            {% endif %}
+                            <td>{{ product.observation|default:'-' }}</td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-primary btn-record-product" data-id="{{ product.id }}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-warning">Esta acta no tiene productos asociados.</div>
+    {% endif %}
+</div>
+<div class="modal-footer">
+    {% if can_cancel and record.is_active and record.status_id == 1 %}
+        <button type="button" class="btn btn-danger" id="btnCancelRecord">
+            <i class="bi bi-exclamation-triangle"></i>
+            Anular Acta
+        </button>
+    {% endif %}
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+</div>
+<script>
+    (function () {
+        const format = v => '$' + (parseInt(v || 0, 10) || 0).toLocaleString('es-CL');
+        $('#recordDetailBody .clp-cell').each(function () {
+            $(this).text(format($(this).data('value')));
+        });
+        function showMessage(title, message, icon = 'info') {
+            if (window.inventoryShowMessage) {
+                return window.inventoryShowMessage(title, message, icon);
+            }
+
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                return window.Swal.fire({
+                    title: title,
+                    text: message || '',
+                    icon: icon
+                });
+            }
+
+            alert(message || title);
+            return Promise.resolve();
+        }
+
+        function confirmAction(title, message, confirmText) {
+            if (window.inventoryConfirm) {
+                return window.inventoryConfirm(title, message, confirmText);
+            }
+
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                return window.Swal.fire({
+                    title: title,
+                    text: message || '',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: confirmText || 'Aceptar',
+                    cancelButtonText: 'Cancelar',
+                    reverseButtons: true
+                }).then(result => result.isConfirmed);
+            }
+
+            return Promise.resolve(confirm(message || title));
+        }
+
+        function error(m) {
+            return showMessage(
+                'Error',
+                m || 'No se pudo realizar la operación.',
+                'error'
+            );
+        }
+        $('#recordDocumentForm').off('submit.inventory').on('submit.inventory', function (e) {
+            e.preventDefault();
+            const data = new FormData(this);
+            $.ajax({
+                url: "{% url 'inventory:delivery_record_document_upload' record.id %}",
+                type: 'POST',
+                data: data,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function (response) {
+                    if (response.status !== 'success') {
+                        error(response.message);
+                        return;
+                    }
+
+                    $('#recordDetailModalContent').load(
+                        "{% url 'inventory:delivery_record_detail' record.id %}",
+                        function () {
+                            showMessage(
+                                'Correcto',
+                                response.message || 'Documento agregado correctamente.',
+                                'success'
+                            );
+                        }
+                    );
+                },
+                error: function (xhr) {
+                    console.error(xhr.responseText);
+                    error(
+                        xhr.responseJSON?.message ||
+                        'Error al subir documentos.'
+                    );
+                }
+            });
+        });
+        $('#btnCancelRecord').off('click.inventory').on('click.inventory', function () {
+            const run = () => $.ajax({
+                url: "{% url 'inventory:delivery_record_cancel' record.id %}",
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': document.cookie.split('; ').find(v => v.startsWith('csrftoken='))?.split('=')[1] || ''
+                },
+                dataType: 'json',
+                success: function (response) {
+                    if (response.status !== 'success') {
+                        error(response.message);
+                        return;
+                    }
+
+                    window.inventoryHideModal('recordDetailModal');
+
+                    if (window.reloadInventoryRecords) {
+                        window.reloadInventoryRecords();
+                    }
+
+                    if (window.reloadInventoryProducts) {
+                        window.reloadInventoryProducts();
+                    }
+
+                    showMessage(
+                        'Correcto',
+                        response.message || 'Acta anulada correctamente.',
+                        'success'
+                    );
+                },
+                error: function (xhr) {
+                    console.error(xhr.responseText);
+                    error(
+                        xhr.responseJSON?.message ||
+                        'No se pudo anular el acta.'
+                    );
+                }
+            });
+            confirmAction(
+                '¿Anular acta?',
+                'El acta y sus productos asociados quedarán deshabilitados.',
+                'Anular'
+            ).then(function (confirmed) {
+                if (confirmed) {
+                    run();
+                }
+            });
+        });
+        $('.btn-record-product').off('click.inventory').on('click.inventory', function () {
+            const id = $(this).data('id');
+            window.inventoryHideModal('recordDetailModal');
+            $('#productModalContent').load("{% url 'inventory:product_modal' %}?id=" + id, () => window.inventoryShowModal('productModal'));
+        });
+    })();
+</script>

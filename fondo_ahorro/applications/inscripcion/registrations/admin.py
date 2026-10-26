@@ -9,40 +9,43 @@ from .models import (
 )
 
 
-# ============================================================
-# TIPO DE INSCRIPCIÓN
+class BaseAuditAdmin(admin.ModelAdmin):
+    readonly_fields = ("created_at", "updated_at", "user_create", "user_update")
+
+    def save_model(self, request, obj, form, change):
+        obj.save(user=request.user)
+
+
 @admin.register(RegistrationType)
-class RegistrationTypeAdmin(admin.ModelAdmin):
-    list_display = ("id", "type", "state")
-    list_display_links = ("id", "type", "state")
-    list_filter = ("state",)
+class RegistrationTypeAdmin(BaseAuditAdmin):
+    list_display = ("id", "type", "is_active", "created_at", "updated_at")
+    list_display_links = ("id", "type")
+    list_filter = ("is_active",)
     search_fields = ("type",)
     ordering = ("id",)
 
 
-# ============================================================
-# SOLICITUD DE INSCRIPCIÓN
 @admin.register(Registration)
-class RegistrationAdmin(admin.ModelAdmin):
+class RegistrationAdmin(BaseAuditAdmin):
     list_display = (
         "id",
         "request",
         "person",
         "registration_type",
         "contributes_a2",
-        "user",
         "user_ip",
+        "is_active",
+        "created_at",
+        "user_create",
     )
 
-    list_display_links = (
-        "id",
-        "request",
-        "person",
-    )
+    list_display_links = ("id", "request", "person")
 
     list_filter = (
+        "is_active",
         "registration_type",
         "request__status",
+        "created_at",
     )
 
     search_fields = (
@@ -59,43 +62,41 @@ class RegistrationAdmin(admin.ModelAdmin):
         "request__status",
         "person",
         "registration_type",
-        "user",
+        "user_create",
     )
 
-    ordering = ("-id",)
+    ordering = ("-created_at",)
     list_per_page = 25
 
 
-# ============================================================
-# ESTADO DE DOCUMENTO
 @admin.register(RegistrationDocumentStatus)
-class RegistrationDocumentStatusAdmin(admin.ModelAdmin):
-    list_display = ("id", "status_type", "state")
-    list_display_links = ("id", "status_type", "state")
-    list_filter = ("state",)
+class RegistrationDocumentStatusAdmin(BaseAuditAdmin):
+    list_display = ("id", "status_type", "is_active", "created_at", "updated_at")
+    list_display_links = ("id", "status_type")
+    list_filter = ("is_active",)
     search_fields = ("status_type",)
     ordering = ("id",)
 
 
-# ============================================================
-# DOCUMENTOS DE LA SOLICITUD
 @admin.register(RegistrationDocument)
-class RegistrationDocumentAdmin(admin.ModelAdmin):
+class RegistrationDocumentAdmin(BaseAuditAdmin):
     list_display = (
         "id",
         "registration",
         "document",
         "status",
+        "is_active",
+        "created_at",
+        "user_create",
     )
 
-    list_display_links = (
-        "id",
-        "registration",
-    )
+    list_display_links = ("id", "registration")
 
     list_filter = (
+        "is_active",
         "status",
         "document__type_document",
+        "created_at",
     )
 
     search_fields = (
@@ -111,31 +112,29 @@ class RegistrationDocumentAdmin(admin.ModelAdmin):
         "document",
         "document__type_document",
         "status",
+        "user_create",
     )
 
-    ordering = ("-id",)
+    ordering = ("-created_at",)
     list_per_page = 25
 
 
-# ============================================================
-# OBSERVACIONES
 @admin.register(RegistrationObservation)
-class RegistrationObservationAdmin(admin.ModelAdmin):
+class RegistrationObservationAdmin(BaseAuditAdmin):
     list_display = (
         "id",
         "registration",
         "observation",
-        "state",
+        "is_active",
+        "created_at",
+        "user_create",
     )
 
-    list_display_links = (
-        "id",
-        "registration",
-    )
+    list_display_links = ("id", "registration")
 
     list_filter = (
-        "state",
-        "observation__date",
+        "is_active",
+        "created_at",
     )
 
     search_fields = (
@@ -150,7 +149,8 @@ class RegistrationObservationAdmin(admin.ModelAdmin):
         "registration__person",
         "observation",
         "observation__user",
+        "user_create",
     )
 
-    ordering = ("-id",)
+    ordering = ("-created_at",)
     list_per_page = 25

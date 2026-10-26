@@ -1,22 +1,11 @@
 from django.db import models
-from django.conf import settings
 
-from core.models import (
-    Person,
-    Document,
-    Observation,
-    Request,
-)
+from core.models.base import BaseModel
+from core.models import Person, Document, Observation, Request
 
 
-class RegistrationType(models.Model):
-    type = models.CharField(
-        max_length=100
-    )
-
-    state = models.IntegerField(
-        default=1
-    )
+class RegistrationType(BaseModel):
+    type = models.CharField(max_length=100)
 
     class Meta:
         db_table = "registration_type"
@@ -27,7 +16,7 @@ class RegistrationType(models.Model):
         return self.type
 
 
-class Registration(models.Model):
+class Registration(BaseModel):
     request = models.OneToOneField(
         Request,
         on_delete=models.PROTECT,
@@ -57,14 +46,6 @@ class Registration(models.Model):
         db_column="contributes_a2",
     )
 
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        db_column="id_user",
-        null=True,
-        blank=True,
-    )
-
     user_ip = models.GenericIPAddressField(
         null=True,
         blank=True,
@@ -77,14 +58,8 @@ class Registration(models.Model):
         verbose_name_plural = "Solicitudes de inscripción"
 
 
-class RegistrationDocumentStatus(models.Model):
-    status_type = models.CharField(
-        max_length=100
-    )
-
-    state = models.IntegerField(
-        default=1
-    )
+class RegistrationDocumentStatus(BaseModel):
+    status_type = models.CharField(max_length=100)
 
     class Meta:
         db_table = "registration_document_status"
@@ -95,24 +70,24 @@ class RegistrationDocumentStatus(models.Model):
         return self.status_type
 
 
-class RegistrationDocument(models.Model):
+class RegistrationDocument(BaseModel):
     registration = models.ForeignKey(
         Registration,
         on_delete=models.CASCADE,
         db_column="id_registration",
-        related_name="documents"
+        related_name="documents",
     )
 
     document = models.ForeignKey(
         Document,
         on_delete=models.PROTECT,
-        db_column="id_document"
+        db_column="id_document",
     )
 
     status = models.ForeignKey(
         RegistrationDocumentStatus,
         on_delete=models.PROTECT,
-        db_column="id_status"
+        db_column="id_status",
     )
 
     class Meta:
@@ -124,22 +99,18 @@ class RegistrationDocument(models.Model):
         return f"{self.registration} - {self.document}"
 
 
-class RegistrationObservation(models.Model):
+class RegistrationObservation(BaseModel):
     registration = models.ForeignKey(
         Registration,
         on_delete=models.CASCADE,
         db_column="id_registration",
-        related_name="observations"
+        related_name="observations",
     )
 
     observation = models.ForeignKey(
         Observation,
         on_delete=models.PROTECT,
-        db_column="id_observation"
-    )
-
-    state = models.IntegerField(
-        default=1
+        db_column="id_observation",
     )
 
     class Meta:

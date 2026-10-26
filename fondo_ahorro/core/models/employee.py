@@ -23,7 +23,6 @@ class EmployeeGrade(BaseModel):
 class EmployeeContractType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=255, null=False, blank=False)
     code = models.CharField(verbose_name="Código", max_length=50, null=False, blank=False)
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_employee_contract_type"
@@ -38,7 +37,6 @@ class EmployeeContractType(BaseModel):
 class EmployeeSalaryType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=255, null=False, blank=False)
     code = models.CharField(verbose_name="Código", max_length=50, null=False, blank=False)
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_employee_salary_type"
@@ -52,7 +50,6 @@ class EmployeeSalaryType(BaseModel):
 
 class EmployeeQualificationType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=255, null=False, blank=False)
-    state = models.IntegerField(verbose_name="Estado", default=1)
 
     class Meta:
         db_table = "core_employee_qualification_type"

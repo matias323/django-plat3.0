@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="mb-1">Solicitud de inscripción</h3>
+            <div class="text-muted">Completa tus datos y adjunta los documentos requeridos para enviar tu solicitud.</div>
+        </div>
+    </div>
+
+    {% if message %}
+        <div class="alert alert-{{ message_type|default:'info' }} shadow-sm">
+            <i class="bi bi-info-circle me-1"></i>{{ message }}
+        </div>
+    {% endif %}
+
+    {% if can_create %}
+        <form id="registrationForm" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="person_id" value="{{ employee.person_id }}">
+            <input type="hidden" name="registration_type" value="{{ registration_type.id }}">
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body"><strong>Datos del funcionario</strong></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Código</label>
+                            <input type="text" class="form-control" value="{{ employee.code }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">RUT</label>
+                            <input type="text" class="form-control" value="{{ employee.rut }}" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nombre funcionario</label>
+                            <input type="text" class="form-control" value="{{ employee.name }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Grado</label>
+                            <input type="text" class="form-control" value="{{ employee.grade }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Tipo solicitud</label>
+                            <input type="text" class="form-control" value="{{ registration_type.display_name }}" readonly>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Estado socio</label>
+                            <input type="text" class="form-control" value="{{ employee.member_status }}" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if registration_type.is_reentry %}
+                <div class="alert alert-warning shadow-sm">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Fuiste socio anteriormente. Esta solicitud corresponde a un reingreso.
+                </div>
+            {% endif %}
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body"><strong>Contacto y domicilio</strong></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Teléfono <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" name="phone" maxlength="20" value="{{ phone }}"
+                                   placeholder="Ej.: 912345678" autocomplete="tel" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Correo <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" value="{{ email }}"
+                                   placeholder="correo@ejemplo.cl" autocomplete="email" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Región <span class="text-danger">*</span></label>
+                            <select class="form-select" id="regionId" name="region_id" required>
+                                <option value="">Seleccione una región</option>
+                                {% for region in regions %}
+                                    <option value="{{ region.id }}" {% if region.id == region_id %}selected{% endif %}>{{ region.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Comuna <span class="text-danger">*</span></label>
+                            <select class="form-select" id="communeId" name="commune_id" required disabled>
+                                <option value="">Seleccione primero una región</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Dirección <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="address" maxlength="255" value="{{ address }}"
+                                   placeholder="Ej.: Los Aromos" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Número <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="address_number" maxlength="30" value="{{ address_number }}"
+                                   placeholder="125" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body"><strong>Datos de la solicitud</strong></div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Monto aporte A2</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" name="contributes_a2" min="0" step="1" value="0" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-body"><strong>Documentos</strong></div>
+                <div class="card-body">
+                    <div class="alert alert-info">Los documentos deben estar en formato PDF y no superar los 10 MB.</div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Solicitud firmada en físico <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control pdf-file" name="physical_request_document"
+                               accept=".pdf,application/pdf" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Documento de identificación <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control pdf-file" name="identification_document"
+                               accept=".pdf,application/pdf" required>
+                        <small class="text-muted">RUT, cédula u otro documento válido de identificación.</small>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-bold">Otros documentos</label>
+                        <input type="file" class="form-control pdf-file" name="other_documents"
+                               accept=".pdf,application/pdf" multiple>
+                        <small class="text-muted">Opcional. Puedes seleccionar uno o varios documentos adicionales.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end pb-4">
+                <button type="submit" class="btn btn-success px-4" id="btnSaveRegistration">
+                    <i class="bi bi-send me-1"></i> Enviar solicitud
+                </button>
+            </div>
+        </form>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("registrationForm");
+    if (!form) return;
+
+    const csrfToken = form.querySelector("[name=csrfmiddlewaretoken]").value;
+    const regionSelect = document.getElementById("regionId");
+    const communeSelect = document.getElementById("communeId");
+    const saveButton = document.getElementById("btnSaveRegistration");
+    const initialCommuneId = "{{ commune_id|default:''|escapejs }}";
+    const maxFileSize = 10 * 1024 * 1024;
+
+    regionSelect.addEventListener("change", function () { loadCommunes(this.value); });
+
+    if (regionSelect.value) loadCommunes(regionSelect.value, initialCommuneId);
+
+    async function loadCommunes(regionId, selectedId = "") {
+        communeSelect.disabled = true;
+
+        if (!regionId) {
+            communeSelect.innerHTML = '<option value="">Seleccione primero una región</option>';
+            return;
+        }
+
+        communeSelect.innerHTML = '<option value="">Cargando comunas...</option>';
+
+        try {
+            const url = "{% url 'registrations:communes_by_region' 999999 %}".replace("999999", regionId);
+            const response = await fetch(url, { headers: { "X-App-Request": "true" } });
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") throw new Error(data.message || "No se pudieron cargar las comunas.");
+
+            communeSelect.innerHTML = '<option value="">Seleccione una comuna</option>';
+            data.communes.forEach(commune => {
+                const option = document.createElement("option");
+                option.value = commune.id;
+                option.textContent = commune.name;
+                option.selected = String(commune.id) === String(selectedId || "");
+                communeSelect.appendChild(option);
+            });
+            communeSelect.disabled = false;
+        } catch (error) {
+            communeSelect.innerHTML = '<option value="">No se pudieron cargar las comunas</option>';
+            await showError("Error al cargar comunas", error.message);
+        }
+    }
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const validationError = validateFiles();
+        if (validationError) {
+            await showError("Documento inválido", validationError);
+            return;
+        }
+
+        const confirm = await Swal.fire({
+            title: "Enviar solicitud",
+            text: "¿Confirmas que los datos ingresados son correctos?",
+            icon: "question",
+            showCancelButton: true,
+            confirmButtonText: "Enviar solicitud",
+            cancelButtonText: "Cancelar",
+            confirmButtonColor: "#198754",
+            reverseButtons: true,
+            background: "var(--bs-body-bg)",
+            color: "var(--bs-body-color)"
+        });
+
+        if (!confirm.isConfirmed) return;
+
+        saveButton.disabled = true;
+        const originalHtml = saveButton.innerHTML;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Enviando...';
+
+        try {
+            const response = await fetch("{% url 'registrations:create' %}", {
+                method: "POST",
+                headers: { "X-CSRFToken": csrfToken, "X-App-Request": "true" },
+                body: new FormData(form)
+            });
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") throw new Error(data.message || "No se pudo crear la solicitud.");
+
+            await Swal.fire({
+                title: "Solicitud enviada",
+                text: data.message,
+                icon: "success",
+                confirmButtonText: "Aceptar",
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+
+            window.location.reload();
+        } catch (error) {
+            await showError("No se pudo enviar la solicitud", error.message);
+            saveButton.disabled = false;
+            saveButton.innerHTML = originalHtml;
+        }
+    });
+
+    function validateFiles() {
+        for (const input of document.querySelectorAll(".pdf-file")) {
+            for (const file of input.files) {
+                if (!file.name.toLowerCase().endsWith(".pdf")) return `El archivo "${file.name}" debe estar en formato PDF.`;
+                if (file.size > maxFileSize) return `El archivo "${file.name}" supera el máximo de 10 MB.`;
+            }
+        }
+        return "";
+    }
+
+    function showError(title, message) {
+        return Swal.fire({
+            title: title,
+            text: message,
+            icon: "error",
+            confirmButtonText: "Aceptar",
+            background: "var(--bs-body-bg)",
+            color: "var(--bs-body-color)"
+        });
+    }
+});
+</script>
+{% endblock %}

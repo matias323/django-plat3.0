@@ -9,7 +9,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from .services import AsientoContableServices
 from .services_reporte import ReporteService
 import json
-from .models.asientos_contables import AsientoContableTipo, AsientoContableEstado
+from .models.asientos_contables import AsientoContableTipo, AsientoContableEstado, AsientoContable
 from applications.contabilidad.plan_cuentas.models import Cuentas
 from applications.contabilidad.periodo_contable.services import PeriodoContableServices
 from .utils import get_month_name
@@ -97,11 +97,6 @@ class LibroMayorView(TemplateView):
         context["catalogo_cuentas"] = Cuentas.get_catalogo_cuentas()
         
         return context
-    
-    
-    
-    
-    
         
 #crear asiento contable
 class AsientoContableCreate(LoginRequiredMixin, View):
@@ -259,6 +254,16 @@ class AsientoContableUpdateView(LoginRequiredMixin, View):
             
             if not movements:
                 return JsonResponse({"success":False, "message":"El movimiento del asiento es requerido"}, status=HTTPStatus.BAD_REQUEST)
+            
+            #verificar que el asiento exista, periodo activo y no este contabilizado
+            asiento = AsientoContable.objects.filter(pk=pk).first()
+            
+            if not asiento:
+                raise ValueError("El asiento no existe")
+            
+            #solo editar asiento manuales
+            if not asiento.entry_type.id == 6: #6: MANUAL
+                raise ValueError("No es posible editar el asiento, asiento generado automaticamente desde un proceso externo")
             
             #asiento manual no debe utilizar cuenta banco(11102, id=13)
             existe = any(movement.get("account") == 13 for movement in movements) 

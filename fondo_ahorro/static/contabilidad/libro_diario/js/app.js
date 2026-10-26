@@ -99,6 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 })
             })
             const data = await response.json();
+            console.log(data)
             return data.data;
         } catch (error) {
             console.error(error);
@@ -206,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const isAnulado = asiento.is_null === true;
             const badgeTipoClass = getBadgeTipoClass(asiento.asiento_tipo);
             const badgeEstadoClass = getBadgeEstadoClass(asiento.asiento_estado);
+            let doc_referencia = asiento.origen ? asiento.origen.voucher_number : '';
 
             // Subtotales del asiento
             let subtotalDebe = 0;
@@ -284,7 +286,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                         <div class="fw-semibold text-dark">${mov.cuenta.nombre || '-'}</div>
                                     </td>
                                     <td>
-                                        ${mov.refDoc ? `<span class="badge bg-secondary-subtle text-secondary font-monospace">${mov.refDoc}</span>` : '<span class="text-muted">-</span>'}
+                                        ${doc_referencia ? `<span class="badge bg-secondary-subtle text-secondary font-monospace">${doc_referencia}</span>` : '<span class="text-muted">-</span>'}
                                     </td>
                                     <td class="text-muted small">${mov.glosa || '-'}</td>
                                     <td class="text-end cell-currency ${mov.debe > 0 ? 'text-success fw-bold' : 'text-muted'}">

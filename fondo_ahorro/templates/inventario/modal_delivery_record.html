@@ -1,0 +1,388 @@
+<style>
+    #deliveryRecordForm .form-label {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    #deliveryRecordForm .entry-card .card-header {
+        background: #f8f9fa;
+    }
+    #deliveryRecordForm .select2-container {
+        width: 100% !important;
+    }
+</style>
+{% if permission_denied %}
+    <div class="modal-header">
+        <h5 class="modal-title">Nueva Acta de Entrega</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="alert alert-danger mb-0">No tiene permisos para crear actas de entrega.</div>
+    </div>
+{% else %}
+    <div class="modal-header">
+        <h5 class="modal-title">
+            <i class="bi bi-file-earmark-text"></i>
+            Nueva Acta de Entrega
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <form id="deliveryRecordForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+            <h5 class="mb-3">Datos del acta</h5>
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">N° Acta</label>
+                    <input class="form-control" value="Automático" readonly>
+                    <small class="text-muted">Se asignará al guardar.</small>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Fecha acta</label>
+                    <input type="date" name="record_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Tipo</label>
+                    <select name="record_type" id="recordType" class="form-control" required>
+                        <option value="">Seleccione</option>
+                        {% for type in types %}
+                            <option value="{{ type.id }}">{{ type.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Área</label>
+                    <input type="text" name="area" class="form-control" maxlength="255" placeholder="Ej: Departamento de Informática" required>
+                </div>
+            </div>
+            <div class="row d-none" id="recordLenderBlock">
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Prestamista</label>
+                    <select name="lender_id" id="recordLender" class="form-control"></select>
+                    <small class="text-muted">
+                        Empresa o persona propietaria de los productos que ingresan en arriendo.
+                    </small>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Observación</label>
+                    <textarea name="observation" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Documentos del acta</label>
+                    <input type="file" name="record_documents" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple>
+                    <small class="text-muted">Puede seleccionar uno o varios documentos.</small>
+                </div>
+            </div>
+            <hr>
+            <div id="recordOutgoingBlock" class="d-none">
+                <h5>Productos de salida</h5>
+                <p class="text-muted">
+                    Seleccione productos existentes. Si un producto nunca ha comenzado su uso, la fecha del acta se utilizará como fecha de comienzo de uso.
+                </p>
+                <div class="mb-3">
+                    <label class="form-label">Productos</label>
+                    <select name="outgoing_products[]" id="recordOutgoingProducts" class="form-control" multiple>
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <strong>Importante:</strong>
+                    si el producto ya se encuentra en uso, su fecha original no será modificada.
+                </div>
+            </div>
+            <div id="recordIncomingBlock" class="d-none">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h5 class="mb-0">Productos de entrada</h5>
+                        <small class="text-muted">Se registrarán automáticamente con fondo ARRIENDO.</small>
+                    </div>
+                    <button type="button" class="btn btn-success btn-sm" id="btnAddEntryProduct">
+                        <i class="bi bi-plus-lg"></i>
+                        Agregar producto
+                    </button>
+                </div>
+                <div class="alert alert-warning">
+                    Estos productos pertenecen al prestamista, por lo que su depreciación no será calculada por este sistema.
+                </div>
+                <div id="recordEntryProducts"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary" id="btnSaveRecord">
+                <i class="bi bi-floppy"></i>
+                Guardar acta
+            </button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+    </form>
+    <script>
+        (function () {
+            let counter = 0;
+            const urls = {
+                lenders: "{% url 'inventory:search_lenders' %}",
+                outgoing: "{% url 'inventory:search_outgoing_products' %}",
+                subclasses: "{% url 'inventory:search_subclasses' %}",
+                save: "{% url 'inventory:delivery_record_save' %}"
+            };
+            function showMessage(title, message, icon = 'info') {
+                if (window.inventoryShowMessage) {
+                    return window.inventoryShowMessage(title, message, icon);
+                }
+
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    return window.Swal.fire({
+                        title: title,
+                        text: message || '',
+                        icon: icon
+                    });
+                }
+
+                alert(message || title);
+                return Promise.resolve();
+            }
+
+            function error(m) {
+                return showMessage(
+                    'Error',
+                    m || 'No se pudo guardar.',
+                    'error'
+                );
+            }
+            $('#recordLender').select2({
+                dropdownParent: $('#recordLender').parent(),
+                width: '100%',
+                placeholder: 'Buscar prestamista...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: urls.lenders,
+                    dataType: 'json',
+                    delay: 300,
+                    data: p => ({
+                        q: p.term || ''
+                    }),
+                    processResults: d => d
+                }
+            });
+            $('#recordOutgoingProducts').select2({
+                dropdownParent: $('#recordOutgoingProducts').parent(),
+                width: '100%',
+                placeholder: 'Buscar producto por nombre, rol, BCU, serial, marca o modelo...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: urls.outgoing,
+                    dataType: 'json',
+                    delay: 300,
+                    data: p => ({
+                        q: p.term || ''
+                    }),
+                    processResults: d => d
+                }
+            });
+            function startSubclass($select) {
+                $select.select2({
+                    dropdownParent: $select.parent(),
+                    width: '100%',
+                    placeholder: 'Buscar subclase...',
+                    allowClear: true,
+                    minimumInputLength: 2,
+                    ajax: {
+                        url: urls.subclasses,
+                        dataType: 'json',
+                        delay: 300,
+                        data: p => ({
+                            q: p.term || ''
+                        }),
+                        processResults: d => d
+                    }
+                }).on('select2:select', function (e) {
+                    const d = e.params.data || {
+                    }, card = $(this).closest('.entry-card');
+                    card.find('.entry-asset-class').val(d.asset_class || '');
+                    card.find('.entry-class').val(d.class || '');
+                    card.find('.entry-life').val(d.useful_life_years ? d.useful_life_years + ' años': '');
+                }).on('select2:clear', function () {
+                    const card = $(this).closest('.entry-card');
+                    card.find('.entry-asset-class,.entry-class,.entry-life').val('');
+                });
+            }
+            function addEntry() {
+                counter++;
+                const html = `
+                <div class="card mb-3 entry-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>Producto #${counter}</strong>
+                        <button type="button" class="btn btn-danger btn-sm btn-remove-entry">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nombre producto</label>
+                                <input type="text" name="entry_name[]" class="form-control" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Marca</label>
+                                <input type="text" name="entry_brand[]" class="form-control">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Modelo</label>
+                                <input type="text" name="entry_model[]" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Tamaño</label>
+                                <select name="entry_size[]" class="form-control">
+                                    <option value="">Seleccione</option>
+                                    <option>PEQUEÑO</option>
+                                    <option>MEDIANO</option>
+                                    <option>GRANDE</option>
+                                    <option>EXTRA GRANDE</option>
+                                    <option>NO APLICA</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Color</label>
+                                <input type="text" name="entry_color[]" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">N° Serial</label>
+                                <input type="text" name="entry_serial[]" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">N° BCU</label>
+                                <input type="text" name="entry_bcu[]" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">N° SAP</label>
+                                <input type="text" name="entry_sap[]" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Subclase</label>
+                                <select name="entry_subclass[]" class="form-control entry-subclass" required></select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Clase de activo</label>
+                                <input class="form-control entry-asset-class" readonly>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Clase</label>
+                                <input class="form-control entry-class" readonly>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Vida útil</label>
+                                <input class="form-control entry-life" readonly>
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label">Observación producto</label>
+                                <textarea name="entry_observation[]" class="form-control" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+                $('#recordEntryProducts').append(html);
+                startSubclass($('#recordEntryProducts .entry-card').last().find('.entry-subclass'));
+            }
+            function updateType() {
+                const type = parseInt($('#recordType').val() || 0, 10);
+                $('#recordOutgoingBlock,#recordIncomingBlock,#recordLenderBlock').addClass('d-none');
+                $('#recordOutgoingProducts').prop('disabled', true).prop('required', false);
+                $('#recordEntryProducts').find('input,select,textarea').prop('disabled', true);
+                $('#recordLender').prop('required', false);
+                if (type === 1) {
+                    $('#recordOutgoingBlock').removeClass('d-none');
+                    $('#recordOutgoingProducts').prop('disabled', false).prop('required', true);
+                    $('#recordLender').val(null).trigger('change');
+                }
+                if (type === 2) {
+                    $('#recordIncomingBlock,#recordLenderBlock').removeClass('d-none');
+                    $('#recordLender').prop('required', false);
+                    if (!$('#recordEntryProducts .entry-card').length) addEntry();
+                    $('#recordEntryProducts').find('input,select,textarea').prop('disabled', false);
+                    $('#recordOutgoingProducts').val(null).trigger('change');
+                }
+            }
+            $('#recordType').on('change', updateType);
+            $('#btnAddEntryProduct').on('click', addEntry);
+            $(document).off('click.record', '.btn-remove-entry').on('click.record', '.btn-remove-entry', function () {
+                $(this).closest('.entry-card').remove();
+            });
+            $('#deliveryRecordForm').off('submit.inventory').on('submit.inventory', function (e) {
+                e.preventDefault();
+
+                const type = parseInt($('#recordType').val() || 0, 10);
+
+                if (type === 1 && !($('#recordOutgoingProducts').val() || []).length) {
+                    error('Debe seleccionar al menos un producto de salida.');
+                    return;
+                }
+
+                if (type === 2 && !$('#recordEntryProducts .entry-card').length) {
+                    error('Debe agregar al menos un producto de entrada.');
+                    return;
+                }
+
+                const data = new FormData(this);
+                const button = $('#btnSaveRecord');
+
+                button
+                    .prop('disabled', true)
+                    .html('<span class="spinner-border spinner-border-sm me-1"></span> Guardando...');
+
+                $.ajax({
+                    url: urls.save,
+                    type: 'POST',
+                    data: data,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+
+                    success: function (response) {
+                        if (response.status !== 'success') {
+                            error(response.message);
+                            return;
+                        }
+
+                        window.inventoryHideModal('recordModal');
+
+                        if (window.reloadInventoryRecords) {
+                            window.reloadInventoryRecords();
+                        }
+
+                        if (window.reloadInventoryProducts) {
+                            window.reloadInventoryProducts();
+                        }
+
+                        showMessage(
+                            'Correcto',
+                            response.message || 'Acta de entrega guardada correctamente.',
+                            'success'
+                        );
+                    },
+
+                    error: function (xhr) {
+                        console.error(xhr.responseText);
+
+                        error(
+                            xhr.responseJSON?.message ||
+                            'No se pudo guardar el acta.'
+                        );
+                    },
+
+                    complete: function () {
+                        button
+                            .prop('disabled', false)
+                            .html('<i class="bi bi-floppy me-1"></i> Guardar acta');
+                    }
+                });
+            });
+
+            updateType();
+        })();
+    </script>
+{% endif %}

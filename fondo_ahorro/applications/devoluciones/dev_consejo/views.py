@@ -4,7 +4,9 @@ from django.shortcuts import render
 # Create your views here.
 from django.views.generic import TemplateView
 
-class ConsejoView(TemplateView):
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+class ConsejoView(LoginRequiredMixin,TemplateView):
     template_name = 'devolucion/consejo/consejo.html'
 
     def get_context_data(self, **kwargs):

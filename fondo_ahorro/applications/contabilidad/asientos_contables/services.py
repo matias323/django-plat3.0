@@ -989,7 +989,7 @@ class AsientoContableServices:
                 "saldo_anterior" : saldo_anterior,
                 "saldo" : saldo_actual,
                 "glosa" : movimiento.description,
-                "asiento": {
+                "asiento": { 
                     "id" : asiento.pk,
                     "numero_asiento" : asiento.entry_number,
                     "numero_comprobante" : asiento.voucher_number,
@@ -1002,6 +1002,7 @@ class AsientoContableServices:
                         "mes" : asiento.period.month,
                         "year" : asiento.period.year
                     },
+                    "origen" : asiento.get_origen_data(),
                 },
             }
             

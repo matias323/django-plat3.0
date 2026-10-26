@@ -1,0 +1,431 @@
+<style>
+    #productForm .form-label {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    #productForm .money-field {
+        text-align: right;
+    }
+    #productForm .document-thumb {
+        width: 48px;
+        height: 48px;
+        object-fit: cover;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+    #productForm .select2-container {
+        width: 100% !important;
+    }
+</style>
+{% if permission_denied %}
+    <div class="modal-header">
+        <h5 class="modal-title">Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="alert alert-danger mb-0">No tiene permisos para crear productos.</div>
+    </div>
+{% elif not_found %}
+    <div class="modal-header">
+        <h5 class="modal-title">Producto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="alert alert-danger mb-0">No se encontró el producto solicitado.</div>
+    </div>
+{% else %}
+    <div class="modal-header">
+        <h5 class="modal-title">
+            {% if not can_edit %}
+                Ver producto
+            {% elif product %}
+                Editar producto
+            {% else %}
+                Nuevo producto
+            {% endif %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <form id="productForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="id_product" value="{{ product.id|default:0 }}">
+        <div class="modal-body">
+            <div class="row">
+                <div class="col-md-7 mb-3">
+                    <label class="form-label">Nombre producto</label>
+                    <input type="text" name="name" class="form-control" value="{{ product.name|default:'' }}" required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">N° Rol</label>
+                    <input type="text" class="form-control" value="{{ next_role }}" readonly>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Stock</label>
+                    <input type="number" name="stock" class="form-control" min="0" value="{{ product.stock|default:1 }}" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Marca</label>
+                    <input type="text" name="brand" class="form-control" value="{{ product.brand|default:'' }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Modelo</label>
+                    <input type="text" name="model" class="form-control" value="{{ product.model|default:'' }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Color</label>
+                    <input type="text" name="color" class="form-control" value="{{ product.color|default:'' }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Tamaño</label>
+                    <select name="size" class="form-control">
+                        <option value="">Seleccione</option>
+                        {% for value,label in size_choices %}
+                            <option value="{{ value }}" {% if product.size == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">N° BCU</label>
+                    <input type="text" name="bcu_number" class="form-control" value="{{ product.bcu_number|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">N° SAP</label>
+                    <input type="text" name="sap_number" class="form-control" value="{{ product.sap_number|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">N° Serial</label>
+                    <input type="text" name="serial_number" class="form-control" value="{{ product.serial_number|default:'' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Subclase</label>
+                    <select name="id_subclass" id="productSubclass" class="form-control" required>
+                        {% if product %}
+                            <option value="{{ product.subclass_id }}" selected>
+                                {{ product.subclass.asset_class.name }}
+                                /
+                                {{ product.subclass.inventory_class.name }}
+                                /
+                                {{ product.subclass.name }}
+                            </option>
+                        {% endif %}
+                    </select>
+                    <small class="text-muted">Buscar por clase de activo, clase o subclase.</small>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Vida útil</label>
+                    <input type="text"
+                           id="productUsefulLife"
+                           class="form-control"
+                           value="{% if product %}{{ product.useful_life_years }} años{% endif %}"
+                           readonly>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Clase de activo</label>
+                    <input type="text"
+                           id="productAssetClass"
+                           class="form-control"
+                           value="{% if product %}{{ product.subclass.asset_class.name }}{% endif %}"
+                           readonly>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Clase</label>
+                    <input type="text"
+                           id="productClass"
+                           class="form-control"
+                           value="{% if product %}{{ product.subclass.inventory_class.name }}{% endif %}"
+                           readonly>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Factura</label>
+                    <select name="id_invoice" class="form-control">
+                        <option value="">Sin factura</option>
+                        {% for invoice in invoices %}
+                            <option value="{{ invoice.id }}" {% if product.invoice_id == invoice.id %}selected{% endif %}>
+                                Factura N°
+                                {{ invoice.invoice_number }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fondo</label>
+                    <select name="id_fund" class="form-control">
+                        <option value="">Seleccione</option>
+                        {% for fund in funds %}
+                            <option value="{{ fund.id }}" {% if product.fund_id == fund.id %}selected{% endif %}>
+                                {{ fund.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Fecha adquisición</label>
+                    <input type="date" name="acquisition_date" class="form-control" value="{% if product.acquisition_date %}{{ product.acquisition_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Comienzo uso</label>
+                    <input type="date" name="use_start_date" class="form-control" value="{% if product.use_start_date %}{{ product.use_start_date|date:'Y-m-d' }}{% endif %}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Valor inicial</label>
+                    <input type="text" name="initial_value" class="form-control money-field" value="{{ product.initial_value|default:0 }}" required>
+                </div>
+                {% if product %}
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Valor actual</label>
+                        <input type="text" class="form-control money-field" value="{{ product.current_value }}" readonly>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Depreciación</label>
+                        <input type="text" class="form-control money-field" value="{{ product.depreciation }}" readonly>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Depreciación acumulada</label>
+                        <input type="text" class="form-control money-field" value="{{ product.accumulated_depreciation }}" readonly>
+                    </div>
+                {% endif %}
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Persona asignada</label>
+                    <select name="assigned_person_id" id="productPerson" class="form-control">
+                        <option value=""></option>
+                        {% if active_assignment %}
+                            <option value="{{ active_assignment.person_id }}" selected>
+                                {{ assignment_name }}
+                                -
+                                {{ assignment_rut }}
+                            </option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Libro</label>
+                    <select name="book" class="form-control">
+                        <option value="">Seleccione</option>
+                        <option value="1" {% if product.book == 1 or not product %}selected{% endif %}>Libro 1</option>
+                        <option value="2" {% if product.book == 2 %}selected{% endif %}>Libro 2</option>
+                    </select>
+                </div>
+                <div class="col-md-8 mb-3">
+                    <label class="form-label">Observación</label>
+                    <input type="text" name="observation" class="form-control" maxlength="255" value="{{ product.observation|default:'' }}">
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Estado</label>
+                    <select name="status" class="form-control">
+                        <option value="1" {% if not product or product.status == 1 %}selected{% endif %}>Activo</option>
+                        <option value="2" {% if product.status == 2 %}selected{% endif %}>De baja</option>
+                        <option value="3" {% if product.status == 3 %}selected{% endif %}>De baja - Libro 2</option>
+                        <option value="4" {% if product.status == 4 %}selected{% endif %}>Inactivo</option>
+                    </select>
+                </div>
+                {% if can_edit %}
+                    <div class="col-md-12 mb-3">
+                        <label class="form-label">Documento / imagen</label>
+                        <input type="file" name="product_file" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp">
+                        <small class="text-muted">PDF o imagen.</small>
+                    </div>
+                {% endif %}
+            </div>
+            {% if product %}
+                <hr>
+                <h5>Documentos del producto</h5>
+                {% if documents %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Documento</th>
+                                    <th style="width:100px;">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for doc in documents %}
+                                    <tr>
+                                        <td>{{ doc.name }}</td>
+                                        <td class="text-center">
+                                            <a href="{{ doc.url }}" target="_blank" class="btn btn-sm btn-primary">
+                                                <span class="fa fa-eye"></span>
+                                                Ver
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">Este producto no tiene documentos asociados.</div>
+                {% endif %}
+                {% if product.invoice_id %}
+                    <hr>
+                    <h5>Documentos de factura asociada</h5>
+                    {% if invoice_documents %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <tbody>
+                                    {% for doc in invoice_documents %}
+                                        <tr>
+                                            <td>{{ doc.name }}</td>
+                                            <td class="text-center" style="width:100px;">
+                                                <a href="{{ doc.url }}" target="_blank" class="btn btn-sm btn-secondary">
+                                                    <span class="fa fa-eye"></span>
+                                                    Ver
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">La factura asociada no tiene documentos.</div>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="modal-footer">
+            {% if can_edit %}
+                <button type="submit" class="btn btn-primary">
+                    <span class="fa fa-save"></span>
+                    Guardar producto
+                </button>
+            {% endif %}
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+    </form>
+    <script>
+        (function () {
+            const canEdit = {{ can_edit|yesno:"true,false" }};
+            const searchSubclass = "{% url 'inventory:search_subclasses' %}", searchPeople = "{% url 'inventory:search_people' %}", saveUrl = "{% url 'inventory:product_save' %}";
+            function formatMoney(input) {
+                let v = String($(input).val() || '').replace(/\D/g, '');
+                $(input).val(v.replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
+            }
+            function showMessage(title, message, icon = 'info') {
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    return window.Swal.fire({
+                        title: title,
+                        text: message,
+                        icon: icon
+                    });
+                }
+
+                if (window.swal && typeof window.swal.fire === 'function') {
+                    return window.swal.fire({
+                        title: title,
+                        text: message,
+                        icon: icon
+                    });
+                }
+
+                if (typeof window.swal === 'function') {
+                    try {
+                        return window.swal(title, message, icon);
+                    } catch (e) {
+                        console.warn('SweetAlert no compatible, usando alert().', e);
+                    }
+                }
+
+                alert(message);
+                return null;
+            }
+
+            function error(m) {
+                showMessage('Error', m || 'No se pudo guardar.', 'error');
+            }
+            $('#productForm .money-field').each(function () {
+                formatMoney(this);
+            }).on('input', function () {
+                formatMoney(this);
+            });
+            $('#productSubclass').select2({
+                dropdownParent: $('#productModal'),
+                width: '100%',
+                placeholder: 'Buscar subclase...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: searchSubclass,
+                    dataType: 'json',
+                    delay: 300,
+                    data: p => ({
+                        q: p.term || ''
+                    }),
+                    processResults: d => d
+                }
+            }).on('select2:select', function (e) {
+                const data = e.params.data || {};
+
+                $('#productUsefulLife').val(
+                    data.useful_life_years ? data.useful_life_years + ' años' : ''
+                );
+                $('#productAssetClass').val(data.asset_class || '');
+                $('#productClass').val(data.class || '');
+            }).on('select2:clear', function () {
+                $('#productUsefulLife').val('');
+                $('#productAssetClass').val('');
+                $('#productClass').val('');
+            });
+            $('#productPerson').select2({
+                dropdownParent: $('#productModal'),
+                width: '100%',
+                placeholder: 'Sin asignar / Buscar persona...',
+                allowClear: true,
+                minimumInputLength: 2,
+                ajax: {
+                    url: searchPeople,
+                    dataType: 'json',
+                    delay: 300,
+                    data: p => ({
+                        q: p.term || ''
+                    }),
+                    processResults: d => d
+                }
+            });
+            if (!canEdit) {
+                $('#productForm').find('input:not([type="hidden"]),textarea').prop('readonly', true);
+                $('#productForm select,#productForm input[type="file"]').prop('disabled', true);
+            }
+            $('#productForm').off('submit.inventory').on('submit.inventory', function (e) {
+                e.preventDefault();
+                const button = $(this).find('button[type="submit"]'), data = new FormData(this);
+                button.prop('disabled', true);
+                $.ajax({
+                    url: saveUrl,
+                    type: 'POST',
+                    data: data,
+                    processData: false,
+                    contentType: false,
+                    dataType: 'json',
+                    success: r => {
+                        if (r.status === 'success') {
+                            if (window.reloadInventoryProducts) {
+                                window.reloadInventoryProducts();
+                            }
+
+                            if (window.reloadInventoryInvoices) {
+                                window.reloadInventoryInvoices();
+                            }
+
+                            if (window.reloadInventoryOffices) {
+                                window.reloadInventoryOffices();
+                            }
+
+                            showMessage('Correcto', r.message, 'success');
+
+                            $('#productModalContent').load(
+                                "{% url 'inventory:product_modal' %}?id=" + r.id_product
+                            );
+                        } else {
+                            error(r.message);
+                        }
+                    },
+                    error: x => error(x.responseJSON?.message || 'No se pudo guardar el producto.'),
+                    complete: () => button.prop('disabled', false)
+                });
+            });
+        })();
+    </script>
+{% endif %}

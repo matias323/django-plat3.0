@@ -80,15 +80,28 @@ class AsientoContable(BaseModel):
     def __str__(self):
         return f"{self.voucher_number} - {self.period}"
     
-    def get_origen_to_dict(self):
+    def get_origen_data(self):
         if not self.origin:
             return None
         
+        origen = self.origin
+        if hasattr(origen, "get_accounting_origin_data"):
+            return origen.get_accounting_origin_data()
+
         return {
-            "id": self.origin_object_id,
-            "app": self.origin_content_type.app_label,
-            "tipo": self.origin_content_type.model
+            "module": origen._meta.app_label.upper(),
+            "type": origen._meta.label,
+            "id": origen.pk,
+            "description": str(origen),
+            "voucher": origen.voucher_number,
         }
+        
+        # return self.origin.to_dict()
+        # return {
+        #     "id": self.origin_object_id,
+        #     "app": self.origin_content_type.app_label,
+        #     "tipo": self.origin_content_type.model
+        # }
     
     def asiento_to_dict(self):
         movimientos_data = []
@@ -119,7 +132,7 @@ class AsientoContable(BaseModel):
             "periodo": self.period.periodo_to_dict(),
             "user_create": self.user_create.person.get_name(),
             "movimientos": movimientos_data,
-            "origen": self.get_origen_to_dict(),
+            "origen": self.get_origen_data(),
             "is_null": self.is_null,
             "version": self.version,
             "aprobacion": self.aprobaciones.exists()

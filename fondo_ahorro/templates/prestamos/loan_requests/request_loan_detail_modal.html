@@ -1,0 +1,403 @@
+<div class="modal-header">
+    <div>
+        <h5 class="modal-title mb-1">
+            Solicitud de préstamo #{{ request_loan.id }}
+        </h5>
+        <div class="text-muted small">
+            Revisión documental y resolución de la solicitud
+        </div>
+    </div>
+
+    <button type="button"
+            class="btn-close"
+            data-bs-dismiss="modal">
+    </button>
+</div>
+
+<div class="modal-body">
+
+    <!-- DATOS FUNCIONARIO -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">
+            <strong>Funcionario</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="fw-bold fs-5 mb-3">
+                {{ person_name }}
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Código</label>
+                    <div class="fw-semibold">{{ request_loan.employee.code }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">RUT</label>
+                    <div class="fw-semibold">{{ person_rut }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Grado</label>
+                    <div class="fw-semibold">{{ employee_grade|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DATOS SOLICITUD -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header">
+            <strong>Datos de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Tipo de préstamo</label>
+                    <div class="fw-semibold">{{ request_loan.loan_type.name }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Concepto</label>
+                    <div class="fw-semibold">{{ request_loan.type_concept.concept.name }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Fecha solicitud</label>
+                    <div class="fw-semibold">{{ request_loan.request_date|date:"d-m-Y" }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Monto solicitado</label>
+                    <div class="fw-semibold">$ {{ request_loan.loan_amount|floatformat:0 }}</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Plazo</label>
+                    <div class="fw-semibold">{{ request_loan.term }} meses</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label text-muted mb-1">Estado</label>
+                    <div>
+                        {% if is_rejected %}
+                            <span class="badge bg-danger">Rechazado</span>
+                        {% elif request_loan.state %}
+                            <span class="badge {% if request_loan.state.is_paid_state or request_loan.state.is_approval_state %}bg-success{% else %}bg-primary{% endif %}">
+                                {{ request_loan.state.name }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary">Sin estado</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Estado de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-2 text-center">
+                {% for step in timeline %}
+                    <div class="col-6 col-md">
+                        <div class="request-step request-step-{{ step.state }}">
+                            <div class="request-step-icon">
+                                {% if step.state == "done" %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                {% elif step.state == "current" %}
+                                    <i class="bi bi-circle-fill"></i>
+                                {% elif step.state == "rejected" %}
+                                    <i class="bi bi-x-circle-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-circle"></i>
+                                {% endif %}
+                            </div>
+
+                            <div>{{ step.label }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCUMENTOS -->
+    <div class="card shadow-sm mb-3">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <strong>Documentos</strong>
+            <span class="text-muted small">
+                {{ total_documents_count }} adjunto{{ total_documents_count|pluralize }} ·
+                {{ approved_documents_count }} aprobado{{ approved_documents_count|pluralize }} ·
+                {{ pending_documents_count }} pendiente{{ pending_documents_count|pluralize }} ·
+                {{ rejected_documents_count }} rechazado{{ rejected_documents_count|pluralize }}
+            </span>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:50px;">#</th>
+                            <th>Documento</th>
+                            <th style="width:120px;">Adjuntos</th>
+                            <th style="width:210px;">Estado</th>
+                            <th class="text-center" style="width:85px;">Acción</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in document_rows %}
+                            <tr class="document-category-row"
+                                role="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#modal-documents-{{ row.required.id }}"
+                                aria-expanded="false"
+                                aria-controls="modal-documents-{{ row.required.id }}">
+                                <td>{{ forloop.counter }}</td>
+
+                                <td class="fw-semibold">
+                                    <i class="bi bi-chevron-right document-chevron me-2"></i>
+                                    {{ row.required.document_type.name }}
+                                </td>
+
+                                <td>
+                                    {% if row.documents_count %}
+                                        <span class="badge bg-secondary">{{ row.documents_count }}</span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if row.documents_count == 0 %}
+                                        <span class="badge bg-secondary">Sin archivo</span>
+                                    {% else %}
+                                        {% if row.approved_count %}
+                                            <span class="badge bg-success">{{ row.approved_count }} aprobado{{ row.approved_count|pluralize }}</span>
+                                        {% endif %}
+                                        {% if row.pending_count %}
+                                            <span class="badge bg-warning text-dark">{{ row.pending_count }} pendiente{{ row.pending_count|pluralize }}</span>
+                                        {% endif %}
+                                        {% if row.rejected_count %}
+                                            <span class="badge bg-danger">{{ row.rejected_count }} rechazado{{ row.rejected_count|pluralize }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-center">
+                                    {% if row.can_upload %}
+                                        <a href="{% url 'loan_requests:detail' request_loan.id %}"
+                                           class="btn btn-sm btn-success"
+                                           onclick="event.stopPropagation();"
+                                           title="Agregar documento">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+
+                            <tr class="collapse document-detail-row" id="modal-documents-{{ row.required.id }}">
+                                <td colspan="5" class="p-0">
+                                    <div class="p-3 bg-body-tertiary border-top">
+                                        {% if row.documents %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-hover align-middle mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Archivo</th>
+                                                            <th>Estado</th>
+                                                            <th>Validado por</th>
+                                                            <th>Fecha</th>
+                                                            <th class="text-center">Acciones</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for item in row.documents %}
+                                                            <tr>
+                                                                <td>
+                                                                    {{ item.document.document_name }}
+                                                                    {% if item.rejection_comment %}
+                                                                        <div class="small text-danger mt-1">{{ item.rejection_comment }}</div>
+                                                                    {% endif %}
+                                                                </td>
+
+                                                                <td>
+                                                                    {% if item.status == "APPROVED" %}
+                                                                        <span class="badge bg-success">Aprobado</span>
+                                                                    {% elif item.status == "REJECTED" %}
+                                                                        <span class="badge bg-danger">Rechazado</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                                                    {% endif %}
+                                                                </td>
+
+                                                                <td>{{ item.validated_by|default:"-" }}</td>
+
+                                                                <td>
+                                                                    {% if item.validated_at %}
+                                                                        {{ item.validated_at|date:"d-m-Y H:i" }}
+                                                                    {% else %}
+                                                                        -
+                                                                    {% endif %}
+                                                                </td>
+
+                                                                <td class="text-center text-nowrap">
+                                                                    <a href="{% url 'loan_requests:document_view' request_loan.id item.id %}"
+                                                                       target="_blank"
+                                                                       class="btn btn-sm btn-info text-white"
+                                                                       title="Ver documento">
+                                                                        <i class="bi bi-eye"></i>
+                                                                    </a>
+
+                                                                    {% if item.status == "PENDING" and not is_final %}
+                                                                        <form method="post" class="d-inline"
+                                                                              action="{% url 'loan_requests:document_approve' request_loan.id item.id %}">
+                                                                            {% csrf_token %}
+                                                                            <button type="submit" class="btn btn-sm btn-success" title="Aprobar">
+                                                                                <i class="bi bi-check-lg"></i>
+                                                                            </button>
+                                                                        </form>
+
+                                                                        <form method="post" class="d-inline"
+                                                                              action="{% url 'loan_requests:document_reject' request_loan.id item.id %}">
+                                                                            {% csrf_token %}
+                                                                            <input type="hidden" name="comment" value="">
+                                                                            <button type="submit"
+                                                                                    class="btn btn-sm btn-danger"
+                                                                                    title="Rechazar"
+                                                                                    onclick="event.preventDefault(); const reason = prompt('Ingrese el motivo del rechazo:'); if (reason && reason.trim()) { this.form.querySelector('[name=comment]').value = reason.trim(); this.form.submit(); }">
+                                                                                <i class="bi bi-x-lg"></i>
+                                                                            </button>
+                                                                        </form>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                No existen documentos adjuntos en esta categoría.
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No existen documentos configurados.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- OBSERVACIONES -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <strong>Observaciones</strong>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                            <th>Usuario</th>
+                            <th>Observación</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for relation in observations %}
+                        <tr>
+                            <td>{{ relation.created_at|date:"d-m-Y H:i" }}</td>
+                            <td>{{ relation.get_action_display }}</td>
+                            <td>{{ relation.observation.user }}</td>
+                            <td>{{ relation.observation.comment }}</td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">
+                                Sin observaciones.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="modal-footer">
+    <button type="button"
+            class="btn btn-outline-secondary"
+            data-bs-dismiss="modal">
+        Cerrar
+    </button>
+
+    <a href="{% url 'loan_requests:detail' request_loan.id %}"
+       class="btn btn-primary">
+        <i class="bi bi-box-arrow-up-right me-1"></i>
+        Gestionar solicitud
+    </a>
+</div>
+
+
+<style>
+.document-category-row{cursor:pointer}
+.document-category-row:hover{background:var(--bs-tertiary-bg)}
+.document-chevron{display:inline-block;transition:transform .18s ease}
+.document-category-row[aria-expanded="true"] .document-chevron{transform:rotate(90deg)}
+.document-detail-row > td{background:var(--bs-tertiary-bg)}
+.request-step{
+    min-height:86px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:10px 6px;
+    border-radius:10px;
+    border:1px solid var(--bs-border-color);
+    font-weight:600;
+}
+.request-step-icon{font-size:1.25rem}
+.request-step-done{
+    background:rgba(var(--bs-success-rgb),.12);
+    color:var(--bs-success);
+    border-color:rgba(var(--bs-success-rgb),.35);
+}
+.request-step-current{
+    background:rgba(var(--bs-primary-rgb),.12);
+    color:var(--bs-primary);
+    border-color:rgba(var(--bs-primary-rgb),.35);
+}
+.request-step-rejected{
+    background:rgba(var(--bs-danger-rgb),.12);
+    color:var(--bs-danger);
+    border-color:rgba(var(--bs-danger-rgb),.35);
+}
+.request-step-future{
+    background:var(--bs-tertiary-bg);
+    color:var(--bs-secondary-color);
+}
+</style>

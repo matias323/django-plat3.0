@@ -4,19 +4,15 @@ from .base import BaseModel
 
 
 class DocumentType(BaseModel):
-    type = models.CharField(
+    name = models.CharField(
         max_length=100
-    )
-
-    state = models.IntegerField(
-        default=1
     )
 
     class Meta:
         db_table = "core_document_type"
 
     def __str__(self):
-        return self.type
+        return self.name
 
 
 class Document(BaseModel):

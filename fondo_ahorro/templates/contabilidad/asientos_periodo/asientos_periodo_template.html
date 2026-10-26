@@ -89,6 +89,7 @@
                             <th style="width: 85px;">Período</th>
                             <th style="width: 110px;">Tipo</th>
                             <th>Glosa General / Concepto</th>
+                            <th style="width: 110px;">Doc. Ref.</th>
                             <th class="text-end text-primary" style="width: 120px;">Debe ($)</th>
                             <th class="text-end text-success" style="width: 120px;">Haber ($)</th>
                             <th class="text-center" style="width: 110px;">Estado</th>
@@ -357,15 +358,177 @@
     </div>
 </div>
 
+<!-- ========================================================================= -->
+<!-- MODAL: EXPEDIENTE DEL PROCESO DE ORIGEN Y DOCUMENTOS ADJUNTOS            -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-proceso-origen" tabindex="-1" aria-labelledby="modalProcesoOrigenLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark-navy text-white py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="brand-icon-box bg-primary bg-gradient shadow-sm">
+                        <i class="bi bi-diagram-3-fill text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="modal-title fw-bold mb-0" id="modalProcesoOrigenLabel">
+                                Proceso de Origen y Documentación de Respaldo
+                            </h5>
+                            <span class="" id="modal-proc-badge-tipo">VENTAS</span>
+                        </div>
+                        <div class="text-white-50 fs-xs mt-1">
+                            <span>Asiento Contable: <strong class="text-white font-monospace" id="modal-proc-asiento-num">AST-2026-0002</strong></span>
+                            <span class="mx-2">•</span>
+                            <span>Doc. Ref: <strong class="text-info font-monospace" id="modal-proc-ref-doc">FT F001-0004523</strong></span>
+                            <span class="mx-2">•</span>
+                            <span>Fecha: <span class="text-white" id="modal-proc-fecha">-</span></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
 
+            <div class="modal-body p-4 bg-light">
+                <!-- 1. RESUMEN EJECUTIVO DEL PROCESO -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="row g-3">
+                            <div class="col-lg-8">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="rounded-3 p-3 bg-primary-subtle text-primary border border-primary-subtle fs-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 58px; height: 58px;" id="modal-proc-icon-box">
+                                        <i class="bi bi-receipt"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-uppercase text-muted fw-bold fs-xs" id="modal-proc-categoria">Facturación y Ventas</div>
+                                        <h5 class="fw-bold text-dark mb-1" id="modal-proc-nombre">Venta de Mercaderías y Emisión DTE</h5>
+                                        <p class="text-secondary small mb-0" id="modal-proc-glosa">
+                                            Por la venta de mercaderías según Factura F001-0004523 a Distribuidora Los Andes SAC
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-4 text-lg-end d-flex flex-column justify-content-center border-start-lg ps-lg-4">
+                                <div class="text-muted fs-xs text-uppercase fw-semibold">Monto del Proceso Original</div>
+                                <div class="fs-3 fw-bold text-primary font-monospace" id="modal-proc-monto">$ 11,800.00</div>
+                                <div class="d-flex align-items-center justify-content-lg-end gap-2 mt-1">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-xs" id="modal-proc-estado">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Contabilizado
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-3 text-muted opacity-25">
+
+                        <!-- Metadatos detallados -->
+                        <div class="row g-2 fs-xs">
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Proceso / Referencia:</span>
+                                <strong class="text-dark d-block text-truncate" id="modal-proc-tercero"></strong>
+                                <span class="text-muted font-monospace" id="modal-proc-tercero-id"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Persona / Socio:</span>
+                                <strong class="text-dark d-block" id="modal-proc-socio"></strong>
+                                <span class="text-muted" id="modal-proc-socio-detalle"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Referencia / Modulo:</span>
+                                <strong class="text-dark d-block" id="modal-proc-module"></strong>
+                                <span class="text-muted" id="modal-proc-cc"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Operador Responsable:</span>
+                                <strong class="text-dark d-block" id="modal-proc-usuario">j_perez</strong>
+                                <span class="text-muted" id="modal-proc-creado">2026-08-05 11:15:20</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. DOS COLUMNAS: TRAZABILIDAD (TIMELINE) + DOCUMENTOS ADJUNTOS -->
+                <div class="row g-4">
+                    <!-- <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-3 h-100">
+                            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-clock-history text-primary"></i>
+                                    Flujo y Trazabilidad Operativa
+                                </div>
+                                <span class="badge bg-light text-dark border fs-xs">Audit Trail</span>
+                            </div>
+                            <div class="card-body p-3 p-md-4">
+                                <div class="timeline-process-container" id="modal-proc-timeline">
+                                </div>
+                            </div>
+                        </div>
+                    </div> -->
+
+                    <!-- Columna Derecha: Documentos Adjuntos de Respaldo -->
+                    <div class="col-lg-12">
+                        <div class="card border-0 shadow-sm rounded-3 h-100">
+                            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-paperclip text-success"></i>
+                                    Documentos y Respaldo Adjuntos
+                                </div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill fs-xs" id="modal-proc-total-adjuntos">
+                                    3 archivos
+                                </span>
+                            </div>
+                            <div class="card-body p-3 p-md-4">
+                                <div class="alert alert-primary py-2 px-3 fs-xs d-flex align-items-center gap-2 mb-3 rounded-2">
+                                    <i class="bi bi-shield-check fs-6 text-primary"></i>
+                                    <span>Documentos y certificados vinculados al comprobante de referencia.</span>
+                                </div>
+
+                                <div id="modal-proc-adjuntos-list">
+                                    <!-- Tarjetas de documentos adjuntos generadas dinámicamente -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-3 d-flex">
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+ <!-- ========================================================================= -->
+<!-- MODAL ZOOM PARA VOUCHERS / DOCUMENTOS GRÁFICOS                           -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-zoom-doc" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark text-white py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-image text-info"></i>
+                    <h6 class="modal-title fw-bold mb-0" id="zoom-doc-title">Vista Previa de Documento</h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 text-center bg-black bg-opacity-10">
+                <img src="" id="zoom-doc-img" alt="Documento Ampliado" class="img-fluid rounded border shadow-sm" style="max-height: 75vh;">
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <a href="#" download="documento.png" id="btn-zoom-download" class="btn btn-primary btn-sm d-flex align-items-center gap-1">
+                    <i class="bi bi-download"></i> Descargar Imagen
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 </main>
-
-
-
-
-
 
 
 <!-- CATALOGO DE CUENTAS -->

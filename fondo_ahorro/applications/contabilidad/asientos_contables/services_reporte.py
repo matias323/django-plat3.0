@@ -18,7 +18,8 @@ from django.http import HttpResponse
 class ReporteService:
     
     @staticmethod
-    def generate_asiento_pdf(asiento, user=None):      
+    def generate_asiento_pdf(asiento, user=None):   
+        print(asiento)   
         buffer = io.BytesIO()
 
         doc = SimpleDocTemplate(

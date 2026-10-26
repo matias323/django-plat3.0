@@ -2,6 +2,7 @@ from django.db import models
 
 from .base import BaseModel
 from .location import Commune
+from .document import Document
 
 
 class PersonType(BaseModel):
@@ -223,3 +224,38 @@ class PersonAddress(BaseModel):
 
     def __str__(self):
         return f"{self.address} {self.number}, {self.commune.name}"
+
+
+# ============================================================
+# PERSONA CODIGO DIPRECA
+class PersonDiprecaCode(BaseModel):
+    person = models.ForeignKey(
+        Person,
+        verbose_name="Person",
+        db_column="id_person",
+        on_delete=models.PROTECT,
+        related_name="loan_dipreca_codes",
+        null=False,
+        blank=False,
+    )
+
+    document = models.ForeignKey(
+        Document,
+        verbose_name="Document",
+        db_column="id_document",
+        on_delete=models.PROTECT,
+        related_name="loan_dipreca_codes",
+        null=False,
+        blank=False,
+    )
+
+    dipreca_code = models.BigIntegerField(verbose_name="DIPRECA Code", null=False, blank=False)
+
+    class Meta:
+        db_table = "loan_dipreca_code"
+        verbose_name = "Persona Codigo DIPRECA"
+        verbose_name_plural = "Persona Codigo DIPRECA"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.person} - {self.dipreca_code}"

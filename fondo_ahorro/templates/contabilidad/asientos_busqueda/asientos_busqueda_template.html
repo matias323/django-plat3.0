@@ -32,7 +32,7 @@
                 <!-- Período Fiscal -->
                 <div class="col-lg-2 col-md-3 col-sm-6">
                     <label class="form-label mb-1">Período:</label>
-                    <select class="form-select form-select-sm" id="filter-periodo">
+                    <select class="form-select form-select" id="filter-periodo">
                         <option value="0" selected>-- Todos los períodos --</option>
                         {% for periodo in periodos %}
                             <option value="{{ periodo.id }}">{{ periodo.period_date }}</option>
@@ -43,7 +43,7 @@
                 <!-- Tipo de Asiento -->
                 <div class="col-lg-2 col-md-3 col-sm-6">
                     <label class="form-label mb-1">Tipo de Asiento:</label>
-                    <select class="form-select form-select-sm" id="filter-tipo">
+                    <select class="form-select form-select" id="filter-tipo">
                         <option value="0" selected>-- Todos los tipos --</option>
                         {% for tipo in asientos_tipos %}
                             <option value="{{ tipo.id }}">{{ tipo.description }}</option>
@@ -54,7 +54,7 @@
                 <!-- Estado -->
                 <div class="col-lg-2 col-md-3 col-sm-6">
                     <label class="form-label mb-1">Estado:</label>
-                    <select class="form-select form-select-sm" id="filter-estado">
+                    <select class="form-select form-select" id="filter-estado">
                         <option value="0" selected>-- Todos los estados --</option>
                         {% for estado in asientos_estados %}
                             <option value="{{ estado.id }}">{{ estado.description }}</option>

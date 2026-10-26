@@ -1,0 +1,969 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitud de préstamo #{{ request_loan.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <div>
+            <h3 class="mb-1">Solicitud de préstamo #{{ request_loan.id }}</h3>
+            <div class="text-muted">Revisión, edición y gestión de la solicitud.</div>
+        </div>
+
+        <a href="{% url 'loan_requests:list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Volver
+        </a>
+    </div>
+
+    <!-- ============================================================
+         DATOS EDITABLES
+    ============================================================ -->
+    <form method="post" id="requestLoanEditForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_request">
+        <input type="hidden" name="employee_id" id="employeeId" value="{{ request_loan.employee.id }}">
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <strong>Datos de la solicitud</strong>
+
+                {% if can_edit %}
+                    <span class="badge bg-primary">
+                        <i class="bi bi-pencil-square me-1"></i>
+                        Edición habilitada
+                    </span>
+                {% elif is_final %}
+                    <span class="badge bg-secondary">Solicitud finalizada — solo lectura</span>
+                {% endif %}
+            </div>
+
+            <div class="card-body">
+
+                <!-- FUNCIONARIO -->
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Funcionario</label>
+
+                    {% if can_edit %}
+                        <div class="input-group mb-2">
+                            <input type="text"
+                                   id="employeeSearch"
+                                   class="form-control"
+                                   placeholder="Buscar por nombre, RUT o código"
+                                   autocomplete="off">
+
+                            <button type="button"
+                                    class="btn btn-outline-primary"
+                                    id="btnSearchEmployee">
+                                <i class="bi bi-search me-1"></i> Buscar
+                            </button>
+                        </div>
+
+                        <div id="employeeResults" class="d-none mb-3"></div>
+                    {% endif %}
+
+                    <div class="card bg-body-tertiary">
+                        <div class="card-body py-3">
+                            <div class="fw-bold mb-2" id="selectedEmployeeName">{{ person_name }}</div>
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <span class="text-muted d-block small">Código</span>
+                                    <span id="selectedEmployeeCode">{{ request_loan.employee.code|default:"-" }}</span>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <span class="text-muted d-block small">RUT</span>
+                                    <span id="selectedEmployeeRut">{{ person_rut }}</span>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <span class="text-muted d-block small">Grado</span>
+                                    <span id="selectedEmployeeGrade">{{ employee_grade|default:"-" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Fecha de solicitud</label>
+                        <input type="date"
+                               name="request_date"
+                               class="form-control"
+                               value="{{ request_loan.request_date|date:'Y-m-d' }}"
+                               {% if not can_edit %}disabled{% endif %}
+                               required>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Tipo de préstamo</label>
+
+                        <select name="loan_type"
+                                id="loanType"
+                                class="form-select"
+                                {% if not can_edit %}disabled{% endif %}
+                                required>
+
+                            {% for loan_type in loan_types %}
+                                <option value="{{ loan_type.id }}"
+                                        {% if request_loan.loan_type_id == loan_type.id %}selected{% endif %}>
+                                    {{ loan_type.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Concepto</label>
+
+                        <select name="type_concept"
+                                id="loanConcept"
+                                class="form-select"
+                                data-selected-concept="{{ request_loan.type_concept_id }}"
+                                {% if not can_edit %}disabled{% endif %}
+                                required>
+
+                            <option value="{{ request_loan.type_concept_id }}">
+                                {{ request_loan.type_concept.concept.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Monto solicitado</label>
+
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+
+                            <input type="text"
+                                   id="loanAmountDisplay"
+                                   class="form-control"
+                                   inputmode="numeric"
+                                   autocomplete="off"
+                                   value="{{ request_loan.loan_amount|floatformat:0 }}"
+                                   {% if not can_edit %}disabled{% endif %}
+                                   required>
+                        </div>
+
+                        <input type="hidden"
+                               name="loan_amount"
+                               id="loanAmount"
+                               value="{{ request_loan.loan_amount|floatformat:0 }}">
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Plazo</label>
+
+                        <div class="input-group">
+                            <input type="number"
+                                   name="term"
+                                   class="form-control"
+                                   min="1"
+                                   value="{{ request_loan.term }}"
+                                   {% if not can_edit %}disabled{% endif %}
+                                   required>
+
+                            <span class="input-group-text">meses</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Estado actual</label>
+
+                        <div class="form-control bg-body-tertiary">
+                            {% if is_rejected %}
+                                <span class="badge bg-danger">Rechazado</span>
+                            {% elif request_loan.state %}
+                                <span class="badge {% if request_loan.state.is_paid_state or request_loan.state.is_approval_state %}bg-success{% else %}bg-primary{% endif %}">
+                                    {{ request_loan.state.name }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">Sin estado</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if has_loan and can_edit %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Esta solicitud fue aprobada por consejo con modificaciones.
+                        Los datos pueden editarse y, al guardar, el préstamo y sus dividendos se recalcularán con los nuevos valores.
+                    </div>
+                {% elif has_loan %}
+                    <div class="alert alert-info mt-3 mb-0">
+                        Esta solicitud ya generó un préstamo y sus datos se encuentran en solo lectura.
+                    </div>
+                {% endif %}
+
+                {% if can_edit %}
+                    <div class="d-flex justify-content-end mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>
+                            Guardar cambios
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    <!-- ============================================================
+         CAMBIO DE ESTADO
+    ============================================================ -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Estado de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            {% if is_rejected %}
+                <div class="alert alert-danger mb-0">
+                    <i class="bi bi-x-circle me-1"></i>
+                    La solicitud fue rechazada en el estado
+                    <strong>{{ request_loan.state.name|default:"Ingresado" }}</strong>.
+                </div>
+
+            {% elif can_change_state and has_next_state %}
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_state">
+
+                    <div class="col-md-9">
+                        <label class="form-label fw-semibold">Siguiente estado</label>
+
+                        <select name="request_state"
+                                class="form-select"
+                                required>
+                            <option value="" selected disabled>Seleccione...</option>
+
+                            {% for state in request_states %}
+                                <option value="{{ state.id }}">
+                                    {{ state.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-arrow-right-circle me-1"></i>
+                            Avanzar estado
+                        </button>
+                    </div>
+                </form>
+
+            {% else %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted">Estado actual:</span>
+                    <span class="badge bg-success">
+                        {{ request_loan.state.name }}
+                    </span>
+                    <span class="text-muted small">
+                        No existen estados posteriores disponibles.
+                    </span>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ============================================================
+         LINEA DE TIEMPO
+    ============================================================ -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header">
+            <strong>Estado de la solicitud</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-2 text-center">
+                {% for step in timeline %}
+                    <div class="col-6 col-md">
+                        <div class="request-step request-step-{{ step.state }}">
+                            <div class="request-step-icon">
+                                {% if step.state == "done" %}
+                                    <i class="bi bi-check-circle-fill"></i>
+                                {% elif step.state == "current" %}
+                                    <i class="bi bi-circle-fill"></i>
+                                {% elif step.state == "rejected" %}
+                                    <i class="bi bi-x-circle-fill"></i>
+                                {% else %}
+                                    <i class="bi bi-circle"></i>
+                                {% endif %}
+                            </div>
+
+                            <div>{{ step.label }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         DOCUMENTOS
+    ============================================================ -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h4 class="mb-0">Documentos</h4>
+        <span class="text-muted small">Cada categoría puede contener uno o más documentos.</span>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table id="documentsTable" class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:55px;">#</th>
+                            <th>Documento</th>
+                            <th style="width:140px;">Adjuntos</th>
+                            <th style="width:220px;">Estado</th>
+                            <th class="text-center" style="width:100px;">Acción</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for row in document_rows %}
+                            <tr class="document-category-row"
+                                role="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#documents-{{ row.required.id }}"
+                                aria-expanded="false"
+                                aria-controls="documents-{{ row.required.id }}">
+                                <td>{{ forloop.counter }}</td>
+
+                                <td class="fw-semibold">
+                                    <i class="bi bi-chevron-right document-chevron me-2"></i>
+                                    {{ row.required.document_type.name }}
+                                </td>
+
+                                <td>
+                                    {% if row.documents_count %}
+                                        <span class="badge bg-secondary">
+                                            {{ row.documents_count }} adjunto{{ row.documents_count|pluralize }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">Sin archivo</span>
+                                    {% endif %}
+                                </td>
+
+                                <td>
+                                    {% if row.documents_count == 0 %}
+                                        <span class="badge bg-secondary">Sin archivo</span>
+                                    {% else %}
+                                        {% if row.approved_count %}
+                                            <span class="badge bg-success">{{ row.approved_count }} aprobado{{ row.approved_count|pluralize }}</span>
+                                        {% endif %}
+                                        {% if row.pending_count %}
+                                            <span class="badge bg-warning text-dark">{{ row.pending_count }} pendiente{{ row.pending_count|pluralize }}</span>
+                                        {% endif %}
+                                        {% if row.rejected_count %}
+                                            <span class="badge bg-danger">{{ row.rejected_count }} rechazado{{ row.rejected_count|pluralize }}</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-center">
+                                    {% if row.can_upload %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-success btn-upload"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#uploadDocumentModal"
+                                                data-url="{% url 'loan_requests:document_upload' request_loan.id row.required.id %}"
+                                                data-name="{{ row.required.document_type.name }}"
+                                                onclick="event.stopPropagation();"
+                                                title="Agregar documento">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+
+                            <tr class="collapse document-detail-row" id="documents-{{ row.required.id }}">
+                                <td colspan="5" class="p-0">
+                                    <div class="p-3 bg-body-tertiary border-top">
+                                        {% if row.documents %}
+                                            <div class="table-responsive">
+                                                <table class="table table-sm table-hover align-middle mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Archivo</th>
+                                                            <th style="width:130px;">Estado</th>
+                                                            <th style="width:180px;">Validado por</th>
+                                                            <th style="width:160px;">Fecha validación</th>
+                                                            <th class="text-center" style="width:150px;">Acciones</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for item in row.documents %}
+                                                            <tr>
+                                                                <td>
+                                                                    <div class="fw-semibold">
+                                                                        <i class="bi bi-file-earmark-pdf me-1"></i>
+                                                                        {{ item.document.document_name }}
+                                                                    </div>
+                                                                    {% if item.rejection_comment %}
+                                                                        <div class="small text-danger mt-1">{{ item.rejection_comment }}</div>
+                                                                    {% endif %}
+                                                                </td>
+
+                                                                <td>
+                                                                    {% if item.status == "APPROVED" %}
+                                                                        <span class="badge bg-success">Aprobado</span>
+                                                                    {% elif item.status == "REJECTED" %}
+                                                                        <span class="badge bg-danger">Rechazado</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                                                    {% endif %}
+                                                                </td>
+
+                                                                <td>{{ item.validated_by|default:"-" }}</td>
+
+                                                                <td>
+                                                                    {% if item.validated_at %}
+                                                                        {{ item.validated_at|date:"d-m-Y H:i" }}
+                                                                    {% else %}
+                                                                        -
+                                                                    {% endif %}
+                                                                </td>
+
+                                                                <td class="text-center text-nowrap">
+                                                                    <a href="{% url 'loan_requests:document_view' request_loan.id item.id %}"
+                                                                       target="_blank"
+                                                                       class="btn btn-sm btn-info text-white"
+                                                                       title="Ver documento">
+                                                                        <i class="bi bi-eye"></i>
+                                                                    </a>
+
+                                                                    {% if item.status == "PENDING" and not is_final %}
+                                                                        <form method="post"
+                                                                              class="d-inline"
+                                                                              action="{% url 'loan_requests:document_approve' request_loan.id item.id %}">
+                                                                            {% csrf_token %}
+                                                                            <button type="submit" class="btn btn-sm btn-success" title="Aprobar documento">
+                                                                                <i class="bi bi-check-lg"></i>
+                                                                            </button>
+                                                                        </form>
+
+                                                                        <button type="button"
+                                                                                class="btn btn-sm btn-danger btn-reject-document"
+                                                                                data-bs-toggle="modal"
+                                                                                data-bs-target="#rejectDocumentModal"
+                                                                                data-url="{% url 'loan_requests:document_reject' request_loan.id item.id %}"
+                                                                                data-name="{{ item.document.document_name }}"
+                                                                                title="Rechazar documento">
+                                                                            <i class="bi bi-x-lg"></i>
+                                                                        </button>
+                                                                    {% endif %}
+                                                                </td>
+                                                            </tr>
+                                                        {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        {% else %}
+                                            <div class="text-center text-muted py-3">
+                                                No existen documentos adjuntos en esta categoría.
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No existen documentos configurados.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         ACCIONES
+    ============================================================ -->
+    <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
+        {% if not is_final %}
+            {% if not has_loan %}
+            <button type="button"
+                    class="btn btn-outline-danger"
+                    data-bs-toggle="modal"
+                    data-bs-target="#rejectRequestModal">
+                <i class="bi bi-x-lg me-1"></i>
+                Rechazar solicitud
+            </button>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- ============================================================
+         OBSERVACIONES
+    ============================================================ -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h4 class="mb-0">Observaciones</h4>
+
+        <button type="button"
+                class="btn btn-sm btn-outline-primary"
+                data-bs-toggle="modal"
+                data-bs-target="#observationModal">
+            <i class="bi bi-plus-lg me-1"></i>
+            Agregar observación
+        </button>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="observationsTable" class="table table-sm table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Acción</th>
+                            <th>Usuario</th>
+                            <th>Observación</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for relation in observations %}
+                        <tr>
+                            <td>{{ relation.created_at|date:"d-m-Y H:i" }}</td>
+                            <td>{{ relation.get_action_display }}</td>
+                            <td>{{ relation.observation.user }}</td>
+                            <td>{{ relation.observation.comment }}</td>
+                        </tr>
+
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                Sin observaciones.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADJUNTAR DOCUMENTO -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data" id="uploadDocumentForm">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Adjuntar documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3 fw-semibold" id="uploadDocumentName"></div>
+
+                    <label class="form-label">Archivo PDF</label>
+
+                    <input type="file"
+                           name="document"
+                           class="form-control"
+                           accept=".pdf,application/pdf"
+                           required>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-success">
+                        Adjuntar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RECHAZAR DOCUMENTO -->
+<div class="modal fade" id="rejectDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="rejectDocumentForm">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Rechazar documento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3 fw-semibold" id="rejectDocumentName"></div>
+
+                    <label class="form-label">Motivo del rechazo</label>
+
+                    <textarea name="comment"
+                              class="form-control"
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        Rechazar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- RECHAZAR SOLICITUD -->
+<div class="modal fade" id="rejectRequestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post"
+                  action="{% url 'loan_requests:reject' request_loan.id %}">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Rechazar solicitud</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <label class="form-label">Motivo del rechazo</label>
+
+                    <textarea name="comment"
+                              class="form-control"
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-danger">
+                        Rechazar solicitud
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- OBSERVACION -->
+<div class="modal fade" id="observationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post"
+                  action="{% url 'loan_requests:add_observation' request_loan.id %}">
+                {% csrf_token %}
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar observación</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <label class="form-label">Observación</label>
+
+                    <textarea name="comment"
+                              class="form-control"
+                              rows="4"
+                              required></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-outline-secondary"
+                            data-bs-dismiss="modal">
+                        Cancelar
+                    </button>
+
+                    <button type="submit" class="btn btn-primary">
+                        Guardar observación
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.request-step{
+    min-height:90px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:12px 8px;
+    border-radius:10px;
+    border:1px solid var(--bs-border-color);
+    font-weight:600;
+}
+.request-step-icon{font-size:1.35rem}
+.request-step-done{
+    background:rgba(var(--bs-success-rgb),.12);
+    color:var(--bs-success);
+    border-color:rgba(var(--bs-success-rgb),.35);
+}
+.request-step-current{
+    background:rgba(var(--bs-primary-rgb),.12);
+    color:var(--bs-primary);
+    border-color:rgba(var(--bs-primary-rgb),.35);
+}
+.request-step-rejected{
+    background:rgba(var(--bs-danger-rgb),.12);
+    color:var(--bs-danger);
+    border-color:rgba(var(--bs-danger-rgb),.35);
+}
+.request-step-future{
+    background:var(--bs-tertiary-bg);
+    color:var(--bs-secondary-color);
+}
+.document-category-row{cursor:pointer}
+.document-category-row:hover{background:var(--bs-tertiary-bg)}
+.document-chevron{display:inline-block;transition:transform .18s ease}
+.document-category-row[aria-expanded="true"] .document-chevron{transform:rotate(90deg)}
+.document-detail-row > td{background:var(--bs-tertiary-bg)}
+.employee-result{cursor:pointer}
+.employee-result:hover{background:var(--bs-tertiary-bg)}
+</style>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const employeeId = document.getElementById("employeeId");
+    const employeeSearch = document.getElementById("employeeSearch");
+    const employeeResults = document.getElementById("employeeResults");
+    const btnSearchEmployee = document.getElementById("btnSearchEmployee");
+
+    const selectedEmployeeName = document.getElementById("selectedEmployeeName");
+    const selectedEmployeeCode = document.getElementById("selectedEmployeeCode");
+    const selectedEmployeeRut = document.getElementById("selectedEmployeeRut");
+    const selectedEmployeeGrade = document.getElementById("selectedEmployeeGrade");
+
+    const loanType = document.getElementById("loanType");
+    const loanConcept = document.getElementById("loanConcept");
+    const loanAmountDisplay = document.getElementById("loanAmountDisplay");
+    const loanAmount = document.getElementById("loanAmount");
+
+    const employeeSearchUrl = "{% url 'loan_requests:employee_search' %}";
+    const conceptsUrl = "{% url 'loan_requests:concepts' %}";
+
+    function escapeHtml(value){
+        const div = document.createElement("div");
+        div.textContent = value ?? "";
+        return div.innerHTML;
+    }
+
+    function cleanNumber(value){
+        return String(value || "").replace(/[^\d]/g, "");
+    }
+
+    function formatCLP(value){
+        const clean = cleanNumber(value);
+        return clean ? Number(clean).toLocaleString("es-CL") : "";
+    }
+
+    if (loanAmountDisplay && loanAmount) {
+        loanAmountDisplay.value = formatCLP(loanAmount.value);
+
+        loanAmountDisplay.addEventListener("input", function(){
+            const clean = cleanNumber(this.value);
+            loanAmount.value = clean;
+            this.value = formatCLP(clean);
+        });
+    }
+
+    async function loadConcepts(){
+        if (!loanType || !loanConcept || loanType.disabled) return;
+
+        const loanTypeId = loanType.value;
+        const selectedId = loanConcept.dataset.selectedConcept || "";
+
+        if (!loanTypeId) return;
+
+        loanConcept.disabled = true;
+        loanConcept.innerHTML = `<option value="">Cargando...</option>`;
+
+        try{
+            const response = await fetch(
+                `${conceptsUrl}?loan_type_id=${encodeURIComponent(loanTypeId)}`
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No fue posible cargar los conceptos.");
+            }
+
+            loanConcept.innerHTML = `
+                <option value="">Seleccione...</option>
+                ${data.concepts.map(item => `
+                    <option value="${item.id}" ${String(item.id) === String(selectedId) ? "selected" : ""}>
+                        ${escapeHtml(item.name)}
+                    </option>
+                `).join("")}
+            `;
+
+            loanConcept.disabled = false;
+            loanConcept.dataset.selectedConcept = "";
+
+        }catch(error){
+            loanConcept.innerHTML = `<option value="">Error al cargar conceptos</option>`;
+            loanConcept.disabled = false;
+        }
+    }
+
+    if (loanType && !loanType.disabled) {
+        loanType.addEventListener("change", function(){
+            loanConcept.dataset.selectedConcept = "";
+            loadConcepts();
+        });
+
+        loadConcepts();
+    }
+
+    async function searchEmployee(){
+        if (!employeeSearch || !employeeResults) return;
+
+        const query = String(employeeSearch.value || "").trim();
+
+        if (query.length < 2) return;
+
+        employeeResults.classList.remove("d-none");
+        employeeResults.innerHTML = `
+            <div class="text-center py-3 border rounded">
+                <div class="spinner-border spinner-border-sm"></div>
+                <div class="text-muted mt-2">Buscando...</div>
+            </div>
+        `;
+
+        try{
+            const response = await fetch(
+                `${employeeSearchUrl}?q=${encodeURIComponent(query)}`
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(data.message || "No fue posible buscar funcionarios.");
+            }
+
+            if (!data.results.length) {
+                employeeResults.innerHTML = `
+                    <div class="alert alert-warning mb-0">
+                        No se encontraron funcionarios.
+                    </div>
+                `;
+                return;
+            }
+
+            employeeResults.innerHTML = `
+                <div class="table-responsive border rounded">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>RUT</th>
+                                <th>Nombre</th>
+                                <th>Grado</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.results.map(item => `
+                                <tr class="employee-result">
+                                    <td>${escapeHtml(item.code || "-")}</td>
+                                    <td>${escapeHtml(item.rut || "-")}</td>
+                                    <td>${escapeHtml(item.name || "-")}</td>
+                                    <td>${escapeHtml(item.grade || "-")}</td>
+                                    <td class="text-end">
+                                        <button type="button"
+                                                class="btn btn-sm btn-primary btn-select-employee"
+                                                data-id="${item.id}"
+                                                data-code="${escapeHtml(item.code || "")}"
+                                                data-rut="${escapeHtml(item.rut || "")}"
+                                                data-name="${escapeHtml(item.name || "")}"
+                                                data-grade="${escapeHtml(item.grade || "")}">
+                                            Seleccionar
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+        }catch(error){
+            employeeResults.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
+        }
+    }
+
+    if (btnSearchEmployee) {
+        btnSearchEmployee.addEventListener("click", searchEmployee);
+    }
+
+    if (employeeSearch) {
+        employeeSearch.addEventListener("keydown", function(event){
+            if (event.key === "Enter") {
+                event.preventDefault();
+                searchEmployee();
+            }
+        });
+    }
+
+    document.addEventListener("click", function(event){
+        const button = event.target.closest(".btn-select-employee");
+
+        if (!button) return;
+
+        employeeId.value = button.dataset.id || "";
+        selectedEmployeeName.textContent = button.dataset.name || "-";
+        selectedEmployeeCode.textContent = button.dataset.code || "-";
+        selectedEmployeeRut.textContent = button.dataset.rut || "-";
+        selectedEmployeeGrade.textContent = button.dataset.grade || "-";
+        employeeResults.classList.add("d-none");
+    });
+
+    document.querySelectorAll(".btn-upload").forEach(button => {
+        button.addEventListener("click", function () {
+            document.getElementById("uploadDocumentForm").action = this.dataset.url;
+            document.getElementById("uploadDocumentName").textContent = this.dataset.name;
+        });
+    });
+
+    document.querySelectorAll(".btn-reject-document").forEach(button => {
+        button.addEventListener("click", function () {
+            document.getElementById("rejectDocumentForm").action = this.dataset.url;
+            document.getElementById("rejectDocumentName").textContent = this.dataset.name;
+        });
+    });
+});
+</script>
+{% endblock %}

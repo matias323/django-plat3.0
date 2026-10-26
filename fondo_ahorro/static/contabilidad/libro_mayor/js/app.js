@@ -47,7 +47,6 @@ document.addEventListener("DOMContentLoaded", () => {
             fechaHasta = filterFechaHasta.value.trim();
 
             let data = await buscarData(periodo, fechaDesde, fechaHasta, cuenta);
-            console.log(data)
             Swal.close();
             if (!data.success) {
                 Swal.fire({
@@ -277,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             <div class="fw-semibold text-dark">${mov.glosa}</div>
                         </td>
                         <td>
-                            ${mov.refDoc ? `<span class="badge bg-light text-secondary border font-monospace">${mov.refDoc}</span>` : '<span class="text-muted">-</span>'}
+                            ${mov.asiento.origen ? `<span class="badge bg-light text-secondary border font-monospace">${mov.asiento.origen.voucher_number}</span>` : '<span class="text-muted">-</span>'}
                         </td>
                         <td class="text-end cell-currency ${mov.debe > 0 ? 'text-success fw-bold' : 'text-muted'}">
                             ${mov.debe > 0 ? formatMoney(mov.debe) : '-'}

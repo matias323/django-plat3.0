@@ -1,0 +1,1263 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<style>
+    /* SWEETALERT SOBRE LOS MODALES */
+    .swal2-container {
+        z-index: 20000 !important;
+    }
+    /* ============================ */
+
+    #loanDetailModal .modal-dialog {
+        height: calc(100vh - 60px);
+        max-height: 850px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+
+    #loanDetailModal .modal-content {
+        height: 100%;
+        max-height: 850px;
+    }
+
+    #loanDetailModal .modal-body {
+        overflow-y: auto;
+    }
+
+    #loanDetailModal .tab-content {
+        min-height: 520px;
+    }
+
+    #loanActionModal {
+        z-index: 1070;
+    }
+
+    @media (max-height: 750px) {
+        #loanDetailModal .modal-dialog {
+            height: calc(100vh - 30px);
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+    }
+</style>
+
+
+<div class="container-fluid py-4">
+
+    <!-- TITULO -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="mb-1">Cartera de préstamos</h3>
+            <div class="text-muted">Administración y consulta de préstamos.</div>
+        </div>
+    </div>
+
+
+    <!-- TABLA -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-body">
+            <strong>Préstamos registrados</strong>
+        </div>
+
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="loanTable" class="table table-hover align-middle text-center w-100">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Código</th>
+                            <th>Funcionario</th>
+                            <th>Tipo</th>
+                            <th>Concepto</th>
+                            <th>Saldo capital</th>
+                            <th>Fecha inicio</th>
+                            <th>Método cobro</th>
+                            <th>Plazo</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL DETALLE PRESTAMO -->
+<div class="modal fade" id="loanDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" id="loanDetailModalContent"></div>
+    </div>
+</div>
+
+
+<!-- MODAL ACCIONES -->
+<div class="modal fade" id="loanActionModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" id="loanActionModalContent"></div>
+    </div>
+</div>
+
+
+<form id="loanCsrfForm" class="d-none">
+    {% csrf_token %}
+</form>
+
+
+<!-- DATATABLE -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const detailElement = document.getElementById("loanDetailModal");
+    const detailContent = document.getElementById("loanDetailModalContent");
+    const detailModal = bootstrap.Modal.getOrCreateInstance(detailElement, { focus: false });
+
+    const actionElement = document.getElementById("loanActionModal");
+    const actionContent = document.getElementById("loanActionModalContent");
+    const actionModal = bootstrap.Modal.getOrCreateInstance(actionElement, { focus: false });
+
+    const csrfToken = document.querySelector("#loanCsrfForm [name=csrfmiddlewaretoken]").value;
+
+    const detailUrlTemplate = "{% url 'loan:detail' 999999 %}";
+    const actionModalUrlTemplate = "{% url 'loan:action_modal' 999999 'ACTION' %}";
+    const actionPostUrlTemplate = "{% url 'loan:action_post' 999999 'ACTION' %}";
+    const guarantorSearchUrlTemplate = "{% url 'loan:guarantor_search' 999999 %}";
+    const paymentDetailUrlTemplate = "{% url 'loan:payment_detail' 999999 888888 %}";
+
+    let currentLoanId = 0;
+    let currentDetailTab = "#loanInformation";
+    let paymentModuleIndex = 0;
+    let prepaymentDepositIndex = 0;
+
+
+    /* FUNCIONES GENERALES */
+    function escapeHtml(value) {
+        return $("<div>").text(value ?? "").html();
+    }
+
+    function numberValue(value) {
+        let raw = String(value ?? "").trim();
+
+        if (!raw) {
+            return 0;
+        }
+
+        raw = raw
+            .replace(/CLP/gi, "")
+            .replace(/\$/g, "")
+            .replace(/\s/g, "");
+
+        if (/^-?\d+$/.test(raw)) {
+            return Number(raw);
+        }
+
+        if (raw.includes(",") && raw.includes(".")) {
+            raw = raw.replace(/\./g, "").replace(",", ".");
+
+        } else if (raw.includes(",")) {
+            const parts = raw.split(",");
+
+            if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+                raw = raw.replace(/,/g, "");
+            } else {
+                raw = raw.replace(",", ".");
+            }
+
+        } else if (raw.includes(".")) {
+            const parts = raw.split(".");
+
+            if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) {
+                raw = raw.replace(/\./g, "");
+            }
+        }
+
+        const result = Number(raw);
+        return Number.isFinite(result) ? result : 0;
+    }
+
+    function formatCLP(value) {
+        return new Intl.NumberFormat("es-CL", {
+            style: "currency",
+            currency: "CLP",
+            maximumFractionDigits: 0
+        }).format(Math.trunc(numberValue(value)));
+    }
+
+    function formatCLPInput(value) {
+        const amount = Math.max(Math.trunc(numberValue(value)), 0);
+        return amount > 0 ? amount.toLocaleString("es-CL") : "";
+    }
+
+    function formatMoneyElements(container) {
+        if (!container) {
+            return;
+        }
+
+        container.querySelectorAll(".money-value").forEach(function (input) {
+            input.value = formatCLP(input.value);
+        });
+
+        container.querySelectorAll(".money-text").forEach(function (element) {
+            element.textContent = formatCLP(element.textContent);
+        });
+
+        container.querySelectorAll(".money-option").forEach(function (option) {
+            const label = String(option.dataset.label || option.textContent || "").trim();
+            option.textContent = `${label} - ${formatCLP(option.dataset.amount || 0)}`;
+        });
+
+        container.querySelectorAll(".clp-input").forEach(function (input) {
+            input.value = formatCLPInput(input.value);
+        });
+    }
+
+    async function showError(title, message) {
+        if (window.AppSwalError) {
+            return AppSwalError(title, message);
+        }
+
+        if (window.Swal) {
+            return Swal.fire({
+                icon: "error",
+                title: title,
+                text: message,
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+        }
+
+        alert(`${title}: ${message}`);
+    }
+
+    async function showSuccess(title, message) {
+        if (window.AppSwalSuccess) {
+            return AppSwalSuccess(title, message);
+        }
+
+        if (window.Swal) {
+            return Swal.fire({
+                icon: "success",
+                title: title,
+                text: message,
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+        }
+
+        alert(message);
+    }
+
+    async function showConfirm(title, text, danger = false) {
+        if (window.AppSwalConfirm) {
+            return AppSwalConfirm({
+                title: title,
+                text: text,
+                confirmText: '<i class="bi bi-check-lg me-1"></i> Confirmar',
+                confirmClass: danger ? "btn-danger" : "btn-primary"
+            });
+        }
+
+        if (window.Swal) {
+            return Swal.fire({
+                icon: "question",
+                title: title,
+                text: text,
+                showCancelButton: true,
+                confirmButtonText: "Confirmar",
+                cancelButtonText: "Cancelar",
+                confirmButtonColor: danger ? "#dc3545" : "#0d6efd",
+                reverseButtons: true,
+                background: "var(--bs-body-bg)",
+                color: "var(--bs-body-color)"
+            });
+        }
+
+        return { isConfirmed: confirm(text) };
+    }
+
+    function validatePdfInputs(form) {
+        const maxSize = 10 * 1024 * 1024;
+
+        for (const input of form.querySelectorAll('input[type="file"]')) {
+            const file = input.files[0];
+
+            if (!file) continue;
+
+            if (!file.name.toLowerCase().endsWith(".pdf")) {
+                return "Todos los documentos deben estar en formato PDF.";
+            }
+
+            if (file.size > maxSize) {
+                return "Los documentos no pueden superar los 10 MB.";
+            }
+        }
+
+        return "";
+    }
+
+
+    /* DATATABLE CARTERA */
+    const table = $("#loanTable").DataTable({
+        processing: true,
+        serverSide: true,
+        responsive: false,
+        autoWidth: false,
+        pageLength: 10,
+
+        ajax: {
+            url: "{% url 'loan:portfolio_datatable' %}",
+            type: "GET",
+
+            dataSrc: function (json) {
+                if (json.error) {
+                    console.error(json.error);
+                    showError("Error", json.error);
+                    return [];
+                }
+
+                return json.data || [];
+            }
+        },
+
+        columns: [
+            { data: "id" },
+
+            {
+                data: null,
+                render: function (data, type, row) {
+                    return escapeHtml(row.employee_code || row.unique_code || "-");
+                }
+            },
+
+            {
+                data: "person_name",
+                render: value => escapeHtml(value)
+            },
+
+            {
+                data: "loan_type",
+                render: value => escapeHtml(value)
+            },
+
+            {
+                data: "concept",
+                render: value => escapeHtml(value)
+            },
+
+            {
+                data: "principal_balance",
+                render: value => formatCLP(value)
+            },
+
+            {
+                data: "start_date",
+                render: value => escapeHtml(value)
+            },
+
+            {
+                data: "collection_method",
+                render: value => escapeHtml(value)
+            },
+
+            { data: "remaining_term" },
+
+            {
+                data: "status",
+                render: function (value) {
+                    if (!value) return "-";
+
+                    return `
+                        <span class="badge bg-secondary">
+                            ${escapeHtml(value)}
+                        </span>
+                    `;
+                }
+            },
+
+            {
+                data: "id",
+                orderable: false,
+                searchable: false,
+
+                render: function (id) {
+                    return `
+                        <button type="button"
+                                class="btn btn-sm btn-primary btnLoanDetail"
+                                data-id="${id}"
+                                title="Ver detalle">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    `;
+                }
+            }
+        ],
+
+        order: [[0, "desc"]],
+
+        language: {
+            url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json"
+        }
+    });
+
+
+    /* ABRIR DETALLE */
+    $(document).on("click", ".btnLoanDetail", function () {
+        const loanId = Number($(this).data("id") || 0);
+
+        if (loanId <= 0) {
+            showError("Préstamo inválido", "No se pudo determinar el préstamo.");
+            return;
+        }
+
+        currentDetailTab = "#loanInformation";
+        openLoanDetail(loanId);
+    });
+
+    async function openLoanDetail(loanId, showModal = true) {
+        currentLoanId = Number(loanId || 0);
+
+        detailContent.innerHTML = `
+            <div class="modal-header">
+                <h5 class="modal-title">Préstamo #${currentLoanId}</h5>
+
+                <button type="button"
+                        class="btn-close"
+                        data-bs-dismiss="modal">
+                </button>
+            </div>
+
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border" role="status"></div>
+
+                <div class="mt-2 text-muted">
+                    Cargando préstamo...
+                </div>
+            </div>
+        `;
+
+        if (showModal) {
+            detailModal.show();
+        }
+
+        try {
+            const response = await fetch(
+                detailUrlTemplate.replace("999999", currentLoanId),
+                {
+                    headers: {
+                        "X-App-Request": "true"
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error("No se pudo cargar el préstamo.");
+            }
+
+            detailContent.innerHTML = await response.text();
+            initializeLoanModal();
+
+        } catch (error) {
+            console.error(error);
+
+            detailContent.innerHTML = `
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="alert alert-danger mb-0">
+                        ${escapeHtml(error.message)}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    window.openLoanDetail = openLoanDetail;
+
+    function initializeLoanModal() {
+        formatDetailMoney();
+
+        const target = document.querySelector(
+            `#loanDetailTabs button[data-bs-target="${currentDetailTab}"]`
+        );
+
+        if (target) {
+            bootstrap.Tab.getOrCreateInstance(target).show();
+        }
+
+        $("#loanDetailTabs button[data-bs-toggle='tab']")
+            .off("shown.bs.tab.loan")
+            .on("shown.bs.tab.loan", function () {
+                currentDetailTab = String($(this).data("bs-target") || "#loanInformation");
+            });
+    }
+
+    function formatDetailMoney() {
+        formatMoneyElements(detailContent);
+    }
+
+
+    /* ABRIR ACCION */
+    $(document).on("click", ".btnLoanAction", function () {
+        const action = String($(this).data("action") || "");
+        const installmentId = Number($(this).data("installment") || 0);
+        const params = {};
+
+        if (installmentId) {
+            params.installment_id = installmentId;
+        }
+
+        openLoanAction(action, params);
+    });
+
+    async function openLoanAction(action, params = {}) {
+        if (!currentLoanId || !action) {
+            return;
+        }
+
+        actionContent.innerHTML = `
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border"></div>
+                <div class="mt-2 text-muted">Cargando...</div>
+            </div>
+        `;
+
+        actionModal.show();
+
+        try {
+            let url = actionModalUrlTemplate
+                .replace("999999", currentLoanId)
+                .replace("ACTION", action);
+
+            const query = new URLSearchParams(params);
+
+            if ([...query].length) {
+                url += `?${query.toString()}`;
+            }
+
+            const response = await fetch(url, {
+                headers: {
+                    "X-App-Request": "true"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error("No se pudo cargar el formulario.");
+            }
+
+            actionContent.innerHTML = await response.text();
+            initializeActionModal();
+
+        } catch (error) {
+            actionContent.innerHTML = `
+                <div class="modal-header">
+                    <h5 class="modal-title">Error</h5>
+
+                    <button type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="alert alert-danger mb-0">
+                        ${escapeHtml(error.message)}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+
+    /* INICIALIZAR MODAL ACCION */
+    function initializeActionModal() {
+        paymentModuleIndex = 0;
+        prepaymentDepositIndex = 0;
+
+        formatMoneyElements(actionContent);
+
+        if (document.getElementById("paymentModuleTemplate")) {
+            document.getElementById("paymentModules").innerHTML = "";
+            addPaymentModule();
+            updatePaymentSummary();
+        }
+
+        if (document.getElementById("prepaymentDepositTemplate")) {
+            document.getElementById("prepaymentDeposits").innerHTML = "";
+            addPrepaymentDeposit();
+            updatePrepaymentSummary();
+        }
+
+        if (document.getElementById("amortizationContributionTable")) {
+            updateAmortizationSummary();
+        }
+
+        if (document.getElementById("overdueContributionTable")) {
+            updateOverdueContributionSummary();
+        }
+
+        $("#newCollectionMethod")
+            .off("change.loan")
+            .on("change.loan", function () {
+                const name = String(
+                    $(this).find("option:selected").data("name") || ""
+                ).toLowerCase();
+
+                $("#collectionDiprecaBlock").toggleClass(
+                    "d-none",
+                    !name.includes("dipreca")
+                );
+            });
+
+        $("#collectionApplyFrom")
+            .off("change.loan")
+            .on("change.loan", function () {
+                $("#collectionMonthsBlock").toggleClass(
+                    "d-none",
+                    $(this).val() !== "x_meses"
+                );
+            });
+    }
+
+
+    /* MODULOS PAGO DIVIDENDO */
+    function addPaymentModule() {
+        const template = document.getElementById("paymentModuleTemplate");
+
+        if (!template) {
+            return;
+        }
+
+        const html = template.innerHTML.replaceAll(
+            "__INDEX__",
+            paymentModuleIndex++
+        );
+
+        document.getElementById("paymentModules")
+            .insertAdjacentHTML("beforeend", html);
+    }
+
+    $(document).on("click", "#btnAddPaymentModule", addPaymentModule);
+
+    $(document).on("click", ".btnRemovePaymentModule", async function () {
+        const rows = document.querySelectorAll(".payment-module-row");
+
+        if (rows.length <= 1) {
+            await showError(
+                "Medio de pago requerido",
+                "Debe existir al menos un medio de pago."
+            );
+
+            return;
+        }
+
+        this.closest(".payment-module-row").remove();
+        updatePaymentSummary();
+    });
+
+    $(document).on("change", ".payment-method", function () {
+        const row = this.closest(".payment-module-row");
+        const option = this.options[this.selectedIndex];
+        const id = Number(option?.value || 0);
+        const name = String(option?.textContent || "").toLowerCase();
+
+        const isContribution = id === 1 || name.includes("aporte");
+        const isDeposit = id === 2 || name.includes("depósito") || name.includes("deposito");
+
+        row.querySelector(".module-contribution")
+            .classList.toggle("d-none", !isContribution);
+
+        row.querySelector(".module-detail")
+            .classList.toggle("d-none", !isDeposit);
+
+        row.querySelector(".module-document")
+            .classList.toggle("d-none", !isDeposit);
+
+        const detail = row.querySelector(".module-detail input");
+        const file = row.querySelector(".module-document input");
+
+        if (detail) detail.required = isDeposit;
+        if (file) file.required = isDeposit;
+    });
+
+    $(document).on("input", ".payment-module-amount", function () {
+        const row = this.closest(".payment-module-row");
+        const rawInput = row.querySelector(".payment-module-amount-raw");
+
+        const rawValue = String(this.value || "")
+            .replace(/\D/g, "");
+
+        if (!rawValue) {
+            this.value = "";
+            rawInput.value = "";
+            updatePaymentSummary();
+            return;
+        }
+
+        rawInput.value = rawValue;
+        this.value = formatCLP(rawValue);
+
+        updatePaymentSummary();
+    });
+
+    function updatePaymentSummary() {
+        const form = document.getElementById("loanActionForm");
+
+        if (!form || !form.dataset.targetAmount) {
+            return;
+        }
+
+        const target = numberValue(form.dataset.targetAmount);
+
+        const total = [...document.querySelectorAll(".payment-module-amount-raw")]
+            .reduce((sum, input) => sum + numberValue(input.value), 0);
+
+        const totalElement = document.getElementById("paymentModulesTotal");
+        const differenceElement = document.getElementById("paymentModulesDifference");
+
+        if (totalElement) {
+            totalElement.textContent = formatCLP(total);
+        }
+
+        if (differenceElement) {
+            differenceElement.textContent = formatCLP(target - total);
+        }
+    }
+
+
+    /* PREPAGO */
+    function addPrepaymentDeposit() {
+        const template = document.getElementById("prepaymentDepositTemplate");
+
+        if (!template) {
+            return;
+        }
+
+        const html = template.innerHTML.replaceAll(
+            "__INDEX__",
+            prepaymentDepositIndex++
+        );
+
+        document.getElementById("prepaymentDeposits")
+            .insertAdjacentHTML("beforeend", html);
+    }
+
+    $(document).on("click", "#btnAddPrepaymentDeposit", addPrepaymentDeposit);
+
+    $(document).on("click", ".btnRemovePrepaymentDeposit", async function () {
+        const rows = document.querySelectorAll(".prepayment-deposit-row");
+
+        if (rows.length <= 1) {
+            await showError(
+                "Depósito requerido",
+                "Debe existir al menos un depósito."
+            );
+
+            return;
+        }
+
+        this.closest(".prepayment-deposit-row").remove();
+        updatePrepaymentSummary();
+    });
+
+    $(document).on("input", ".prepayment-deposit-amount", updatePrepaymentSummary);
+
+    function updatePrepaymentSummary() {
+        const total = [...document.querySelectorAll(".prepayment-deposit-amount")]
+            .reduce((sum, input) => sum + numberValue(input.value), 0);
+
+        const element = document.getElementById("prepaymentTotal");
+
+        if (element) {
+            element.textContent = formatCLP(total);
+        }
+    }
+
+
+    /* ============================================================
+    # FORMATO CLP EN CAMPOS MONETARIOS
+    ============================================================ */
+    $(document).on("input", ".clp-input", function () {
+        const digits = String(this.value || "").replace(/\D/g, "");
+        this.value = digits ? Number(digits).toLocaleString("es-CL") : "";
+    });
+
+
+    /* AMORTIZACION */
+    function clampContributionInput(input) {
+        const max = Math.max(numberValue(input.dataset.max), 0);
+        let value = Math.max(numberValue(input.value), 0);
+
+        if (value > max) {
+            value = max;
+        }
+
+        input.value = value > 0 ? formatCLPInput(value) : "";
+        return value;
+    }
+
+    function contributionInputsTotal(selector) {
+        return [...document.querySelectorAll(selector)]
+            .filter(input => !input.disabled)
+            .reduce((sum, input) => sum + clampContributionInput(input), 0);
+    }
+
+    function updateAmortizationSummary() {
+        const summary = document.getElementById("amortizationSummary");
+        const amountInput = document.getElementById("amortizationAmount");
+        const totalText = document.getElementById("amortizationTotalText");
+        const button = document.getElementById("btnSubmitLoanAction");
+
+        if (!summary || !amountInput || !totalText) {
+            return;
+        }
+
+        const principal = numberValue(summary.dataset.principal);
+        const total = contributionInputsTotal(".amortization-contribution-input");
+
+        amountInput.value = Math.trunc(total);
+        totalText.textContent = formatCLP(total);
+        totalText.classList.toggle("text-danger", total > principal);
+
+        if (button) {
+            button.disabled = total <= 0 || total > principal;
+        }
+    }
+
+    function updateOverdueContributionSummary() {
+        const summary = document.getElementById("overdueContributionSummary");
+        const totalText = document.getElementById("overdueContributionTotalText");
+        const differenceText = document.getElementById("overdueContributionDifferenceText");
+        const button = document.getElementById("btnSubmitLoanAction");
+
+        if (!summary || !totalText || !differenceText) {
+            return;
+        }
+
+        const target = numberValue(summary.dataset.target);
+        const total = contributionInputsTotal(".overdue-contribution-input");
+        const difference = target - total;
+
+        totalText.textContent = formatCLP(total);
+        differenceText.textContent = formatCLP(difference);
+        differenceText.classList.toggle("text-success", difference === 0);
+        differenceText.classList.toggle("text-danger", difference !== 0);
+
+        if (button) {
+            button.disabled = target <= 0 || total !== target;
+        }
+    }
+
+    $(document).on("input", ".amortization-contribution-input", updateAmortizationSummary);
+    $(document).on("input", ".overdue-contribution-input", updateOverdueContributionSummary);
+
+
+    /* BUSCAR AVAL */
+    $(document).on("click", "#btnSearchGuarantor", searchGuarantor);
+
+    $(document).on("keydown", "#guarantorSearch", function (event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            searchGuarantor();
+        }
+    });
+
+    async function searchGuarantor() {
+        const input = document.getElementById("guarantorSearch");
+        const container = document.getElementById("guarantorSearchResults");
+        const search = String(input?.value || "").trim();
+
+        if (search.length < 2) {
+            await showError(
+                "Búsqueda requerida",
+                "Ingrese al menos 2 caracteres."
+            );
+
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border spinner-border-sm"></div>
+            </div>
+        `;
+
+        try {
+            const url = guarantorSearchUrlTemplate.replace("999999", currentLoanId)
+                + `?q=${encodeURIComponent(search)}`;
+
+            const response = await fetch(url, {
+                headers: {
+                    "X-App-Request": "true"
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message || "No se pudo realizar la búsqueda."
+                );
+            }
+
+            if (!data.results.length) {
+                container.innerHTML = `
+                    <div class="alert alert-secondary mb-0">
+                        No existen funcionarios disponibles.
+                    </div>
+                `;
+
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="list-group">
+                    ${data.results.map(item => `
+                        <button type="button"
+                                class="list-group-item list-group-item-action btnSelectGuarantor"
+                                data-person="${item.person_id}">
+
+                            <div class="d-flex justify-content-between gap-3">
+                                <strong>${escapeHtml(item.name)}</strong>
+                                <span>${escapeHtml(item.code)}</span>
+                            </div>
+
+                            <small class="text-muted">
+                                ${escapeHtml(item.rut)}
+                            </small>
+                        </button>
+                    `).join("")}
+                </div>
+            `;
+
+        } catch (error) {
+            container.innerHTML = `
+                <div class="alert alert-danger mb-0">
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
+        }
+    }
+
+    $(document).on("click", ".btnSelectGuarantor", function () {
+        document.getElementById("guarantorPersonId").value = this.dataset.person;
+
+        document.querySelectorAll(".btnSelectGuarantor")
+            .forEach(button => button.classList.remove("active"));
+
+        this.classList.add("active");
+    });
+
+
+    /* ENVIAR FORMULARIO DE ACCION */
+    $(document).on("submit", "#loanActionForm", async function (event) {
+        event.preventDefault();
+
+        const form = this;
+
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const action = String(form.dataset.action || "");
+
+        if (action === "amortization") {
+            const summary = document.getElementById("amortizationSummary");
+            const principal = numberValue(summary?.dataset.principal);
+            const total = contributionInputsTotal(".amortization-contribution-input");
+
+            if (total <= 0) {
+                await showError("Aportes requeridos", "Debe ingresar al menos un aporte mayor a cero.");
+                return;
+            }
+
+            if (total > principal) {
+                await showError("Monto inválido", "La suma de los aportes no puede superar el saldo capital.");
+                return;
+            }
+
+            const amountInput = document.getElementById("amortizationAmount");
+            if (amountInput) amountInput.value = Math.trunc(total);
+        }
+
+        if (action === "overdue") {
+            const summary = document.getElementById("overdueContributionSummary");
+            const target = numberValue(summary?.dataset.target);
+            const total = contributionInputsTotal(".overdue-contribution-input");
+
+            if (total !== target) {
+                await showError(
+                    "Aportes incompletos",
+                    "La suma de los aportes debe coincidir exactamente con el total de dividendos insolutos."
+                );
+                return;
+            }
+        }
+
+        const pdfError = validatePdfInputs(form);
+
+        if (pdfError) {
+            await showError("Documento inválido", pdfError);
+            return;
+        }
+
+        form.querySelectorAll(".clp-input").forEach(function (input) {
+            input.value = String(Math.trunc(numberValue(input.value)));
+        });
+
+        const result = await showConfirm(
+            "Confirmar operación",
+            String(
+                form.dataset.confirm
+                || "¿Confirmas que deseas realizar esta operación?"
+            )
+        );
+
+        if (!result.isConfirmed) {
+            form.querySelectorAll(".clp-input").forEach(function (input) {
+                input.value = formatCLPInput(input.value);
+            });
+            return;
+        }
+
+        const button = document.getElementById("btnSubmitLoanAction");
+        const oldHtml = button?.innerHTML || "";
+
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="spinner-border spinner-border-sm me-2"></span>
+                Procesando...
+            `;
+        }
+
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "X-App-Request": "true"
+                },
+
+                body: new FormData(form)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message || "No se pudo completar la operación."
+                );
+            }
+
+            actionModal.hide();
+
+            await showSuccess(
+                "Operación realizada",
+                data.message
+            );
+
+            await openLoanDetail(
+                currentLoanId,
+                false
+            );
+
+            table.ajax.reload(
+                null,
+                false
+            );
+
+        } catch (error) {
+            await showError(
+                "No se pudo realizar la operación",
+                error.message
+            );
+
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = oldHtml;
+            }
+
+            form.querySelectorAll(".clp-input").forEach(function (input) {
+                input.value = formatCLPInput(input.value);
+            });
+        }
+    });
+
+
+    /* QUITAR AVAL */
+    $(document).on("click", ".btnRemoveGuarantor", async function () {
+        const relationId = Number($(this).data("relation") || 0);
+
+        if (!relationId) {
+            return;
+        }
+
+        const result = await showConfirm(
+            "Quitar aval",
+            "¿Confirmas que deseas quitar este aval del préstamo?",
+            true
+        );
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("relation_id", relationId);
+
+        try {
+            const url = actionPostUrlTemplate
+                .replace("999999", currentLoanId)
+                .replace("ACTION", "remove-guarantor");
+
+            const response = await fetch(url, {
+                method: "POST",
+
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "X-App-Request": "true"
+                },
+
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.status !== "ok") {
+                throw new Error(
+                    data.message || "No se pudo quitar el aval."
+                );
+            }
+
+            await showSuccess(
+                "Aval eliminado",
+                data.message
+            );
+
+            await openLoanDetail(
+                currentLoanId,
+                false
+            );
+
+        } catch (error) {
+            await showError(
+                "No se pudo quitar el aval",
+                error.message
+            );
+        }
+    });
+
+
+    /* DETALLE PAGO */
+    $(document).on("click", ".btnPaymentDetail", async function () {
+        const paymentId = Number($(this).data("payment") || 0);
+
+        if (!paymentId || !currentLoanId) {
+            return;
+        }
+
+        actionContent.innerHTML = `
+            <div class="modal-body text-center py-5">
+                <div class="spinner-border"></div>
+                <div class="mt-2 text-muted">Cargando pago...</div>
+            </div>
+        `;
+
+        actionModal.show();
+
+        try {
+            const url = paymentDetailUrlTemplate
+                .replace("999999", currentLoanId)
+                .replace("888888", paymentId);
+
+            const response = await fetch(url, {
+                headers: {
+                    "X-App-Request": "true"
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(
+                    "No se pudo cargar el detalle del pago."
+                );
+            }
+
+            actionContent.innerHTML = await response.text();
+
+            actionContent.querySelectorAll(".money-text")
+                .forEach(function (element) {
+                    element.textContent = formatCLP(
+                        element.textContent
+                    );
+                });
+
+        } catch (error) {
+            await showError(
+                "Error",
+                error.message
+            );
+
+            actionModal.hide();
+        }
+    });
+
+
+    /* PRESTAMO HIJO */
+    $(document).on("click", ".btnOpenChildLoan", function () {
+        const loanId = Number($(this).data("loan") || 0);
+
+        if (loanId > 0) {
+            currentDetailTab = "#loanInformation";
+            openLoanDetail(loanId, false);
+        }
+    });
+
+
+    /* MODALES SUPERPUESTOS */
+    actionElement.addEventListener("shown.bs.modal", function () {
+        const backdrops = document.querySelectorAll(".modal-backdrop");
+        const lastBackdrop = backdrops[backdrops.length - 1];
+
+        if (lastBackdrop) {
+            lastBackdrop.style.zIndex = "1060";
+        }
+    });
+
+    actionElement.addEventListener("hidden.bs.modal", function () {
+        actionContent.innerHTML = "";
+
+        if (detailElement.classList.contains("show")) {
+            document.body.classList.add("modal-open");
+        }
+    });
+
+    detailElement.addEventListener("hidden.bs.modal", function () {
+        detailContent.innerHTML = "";
+        currentLoanId = 0;
+        currentDetailTab = "#loanInformation";
+    });
+});
+</script>
+
+{% endblock %}

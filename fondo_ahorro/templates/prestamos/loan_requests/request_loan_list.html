@@ -1,0 +1,553 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitudes de préstamos{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid py-3">
+
+    <!-- ============================================================
+         ENCABEZADO
+    ============================================================ -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+
+        <div>
+            <h3 class="mb-1">
+                Solicitudes de préstamos
+            </h3>
+
+            <div class="text-muted">
+                Creación, revisión documental y resolución de solicitudes.
+            </div>
+        </div>
+
+        <a href="{% url 'loan_requests:create' %}"
+           class="btn btn-primary">
+
+            <i class="bi bi-plus-lg me-1"></i>
+            Nueva solicitud
+
+        </a>
+
+    </div>
+
+
+    <!-- ============================================================
+         DATATABLE
+    ============================================================ -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="loanRequestsTable" class="table table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Código</th>
+                            <th>RUT</th>
+                            <th>Nombre</th>
+                            <th class="text-center">Grado</th>
+                            <th>Tipo préstamo</th>
+                            <th>Concepto</th>
+                            <th>Monto</th>
+                            <th>Plazo</th>
+                            <th>Fecha</th>
+                            <th class="text-center">Estado</th>
+                            <th class="text-center">
+                                Acción
+                            </th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- ============================================================
+     MODAL DETALLE
+============================================================ -->
+<div class="modal fade"
+     id="requestLoanDetailModal"
+     tabindex="-1"
+     aria-hidden="true">
+
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+
+        <div class="modal-content"
+             id="requestLoanDetailModalContent">
+
+            <div class="modal-body text-center py-5">
+
+                <div class="spinner-border"
+                     role="status">
+                </div>
+
+                <div class="text-muted mt-2">
+                    Cargando solicitud...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+
+#loanRequestsTable td {
+    vertical-align: middle;
+}
+
+#loanRequestsTable th {
+    white-space: nowrap;
+}
+
+.badge-status {
+    font-size: .82rem;
+    padding: .45rem .65rem;
+}
+
+</style>
+
+
+<!-- ============================================================
+     DATATABLE
+============================================================ -->
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        /* ============================================================
+           MODAL
+        ============================================================ */
+
+        const detailModalElement =
+            document.getElementById(
+                "requestLoanDetailModal"
+            );
+
+        const detailModalContent =
+            document.getElementById(
+                "requestLoanDetailModalContent"
+            );
+
+        const detailModal =
+            bootstrap.Modal.getOrCreateInstance(
+                detailModalElement,
+                {
+                    focus: false
+                }
+            );
+
+
+        /* ============================================================
+           FUNCIONES GENERALES
+        ============================================================ */
+
+        function escapeHtml(value) {
+
+            return $("<div>")
+                .text(value ?? "")
+                .html();
+
+        }
+
+
+        function formatCLP(value) {
+
+            const number =
+                Number(value || 0);
+
+            return new Intl.NumberFormat(
+                "es-CL",
+                {
+                    style: "currency",
+                    currency: "CLP",
+                    maximumFractionDigits: 0
+                }
+            ).format(
+                Number.isFinite(number)
+                    ? number
+                    : 0
+            );
+
+        }
+
+
+        async function showError(
+            title,
+            message
+        ) {
+
+            if (window.AppSwalError) {
+
+                return AppSwalError(
+                    title,
+                    message
+                );
+
+            }
+
+            if (window.Swal) {
+
+                return Swal.fire({
+                    icon: "error",
+                    title: title,
+                    text: message,
+                    background:
+                        "var(--bs-body-bg)",
+                    color:
+                        "var(--bs-body-color)"
+                });
+
+            }
+
+            alert(
+                `${title}: ${message}`
+            );
+
+        }
+
+
+        /* ============================================================
+           DATATABLE
+        ============================================================ */
+
+        const table =
+            $("#loanRequestsTable")
+            .DataTable({
+
+                processing: true,
+
+                serverSide: true,
+
+                responsive: false,
+
+                autoWidth: false,
+
+                scrollX: true,
+
+                pageLength: 10,
+
+                ajax: {
+
+                    url:
+                        "{% url 'loan_requests:datatable' %}",
+
+                    type:
+                        "GET",
+
+                    error:
+                        function (
+                            xhr,
+                            error,
+                            thrown
+                        ) {
+
+                            console.error(
+                                "Error DataTable:",
+                                xhr.responseText
+                            );
+
+                            showError(
+                                "No se pudieron cargar las solicitudes",
+                                "Ocurrió un error al consultar las solicitudes de préstamos."
+                            );
+
+                        }
+
+                },
+
+
+                order: [
+                    [0, "desc"]
+                ],
+
+
+                columns: [
+
+                    {
+                        data: "id"
+                    },
+
+
+                    {
+                        data: "employee_code"
+                    },
+
+
+                    {
+                        data: "rut"
+                    },
+
+
+                    {
+                        data: "name"
+                    },
+
+
+                    {
+                        data: "grade",
+                        defaultContent: "-"
+                    },
+
+
+                    {
+                        data: "loan_type",
+                        defaultContent: "-"
+                    },
+
+
+                    {
+                        data: "concept",
+                        defaultContent: "-"
+                    },
+
+
+                    {
+                        data: "loan_amount",
+
+                        className:
+                            "text-end",
+
+                        render:
+                            function (data) {
+
+                                return formatCLP(
+                                    data
+                                );
+
+                            }
+
+                    },
+
+
+                    {
+                        data: "term",
+
+                        className:
+                            "text-center",
+
+                        render:
+                            function (data) {
+
+                                return (
+                                    `${data || 0} meses`
+                                );
+
+                            }
+
+                    },
+
+
+                    {
+                        data:
+                            "request_date"
+                    },
+
+
+                    {
+                        
+                        data: "status",
+
+                        render: function (data) {
+
+                            const value = String(
+                                data || ""
+                            ).trim().toUpperCase();
+
+                            let cls = "bg-secondary";
+
+                            if (
+                                value === "APROBADO" ||
+                                value === "APROBADO CONSEJO" ||
+                                value === "APROBADO CONSEJO CON MODIFICACIONES"
+                            ) {
+                                cls = "bg-info";
+
+                            } else if (value === "PAGADO") {
+                                cls = "bg-success";
+
+                            } else if (value === "RECHAZADO") {
+                                cls = "bg-danger";
+
+                            } else {
+                                cls = "bg-primary";
+                            }
+
+                            return `
+                                <span class="badge ${cls}">
+                                    ${escapeHtml(data || "")}
+                                </span>
+                            `;
+                        }
+                    },
+
+
+                    {
+                        data: null,
+
+                        orderable:
+                            false,
+
+                        searchable:
+                            false,
+
+                        className:
+                            "text-center text-nowrap",
+
+                        render:
+                            function (
+                                data,
+                                type,
+                                row
+                            ) {
+
+                                return `
+                                    <button
+                                        type="button"
+                                        class="
+                                            btn
+                                            btn-sm
+                                            btn-outline-primary
+                                            btnRequestLoanDetail
+                                        "
+                                        data-url="${
+                                            row.detail_modal_url
+                                        }"
+                                        data-id="${
+                                            row.id
+                                        }">
+
+                                        <i class="
+                                            bi
+                                            bi-eye
+                                            me-1
+                                        "></i>
+
+                                        Detalle
+
+                                    </button>
+                                `;
+
+                            }
+
+                    }
+
+                ],
+
+
+                language: {
+
+                    url:
+                        "https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json"
+
+                }
+
+            });
+
+
+        /* ============================================================
+           ABRIR DETALLE
+        ============================================================ */
+
+        $(document).on(
+            "click",
+            ".btnRequestLoanDetail",
+            async function () {
+
+                const url =
+                    this.dataset.url;
+
+
+                detailModalContent.innerHTML = `
+
+                    <div class="
+                        modal-body
+                        text-center
+                        py-5
+                    ">
+
+                        <div
+                            class="spinner-border"
+                            role="status">
+                        </div>
+
+                        <div class="
+                            text-muted
+                            mt-2
+                        ">
+                            Cargando solicitud...
+                        </div>
+
+                    </div>
+
+                `;
+
+
+                detailModal.show();
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            url,
+                            {
+                                headers: {
+
+                                    "X-App-Request":
+                                        "true"
+
+                                }
+                            }
+                        );
+
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            "No fue posible cargar el detalle de la solicitud."
+                        );
+
+                    }
+
+
+                    const html =
+                        await response.text();
+
+
+                    detailModalContent.innerHTML =
+                        html;
+
+
+                } catch (error) {
+
+                    detailModal.hide();
+
+
+                    await showError(
+                        "No se pudo cargar la solicitud",
+                        error.message
+                    );
+
+                }
+
+            }
+        );
+
+    }
+);
+
+</script>
+
+{% endblock %}

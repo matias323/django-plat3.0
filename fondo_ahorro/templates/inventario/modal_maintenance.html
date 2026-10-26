@@ -1,0 +1,410 @@
+<style>
+    #maintenanceContent .table td, #maintenanceContent .table th { vertical-align: middle; }
+    #maintenanceContent .nav-link { font-weight: 600; }
+</style>
+{% if permission_denied %}
+    <div class="modal-header">
+        <h5 class="modal-title">Mantenedor de clasificación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="alert alert-danger mb-0">No tiene permisos para utilizar el mantenedor.</div>
+    </div>
+{% else %}
+    <div class="modal-header">
+        <h5 class="modal-title">Mantenedor de clasificación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body" id="maintenanceContent">
+        <ul class="nav nav-tabs" id="maintenanceTabs">
+            <li class="nav-item">
+                <button class="nav-link active"
+                        data-bs-toggle="tab"
+                        data-bs-target="#assetClassPane"
+                        type="button">Clase de activo</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#classPane"
+                        type="button">Clase</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#subclassPane"
+                        type="button">Subclase</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link"
+                        data-bs-toggle="tab"
+                        data-bs-target="#officePane"
+                        type="button">Oficinas</button>
+            </li>
+        </ul>
+        <div class="tab-content mt-3">
+            <div class="tab-pane fade show active" id="assetClassPane">
+                <button class="btn btn-success mb-3 btn-new-maintenance"
+                        data-type="asset_class">Nueva clase de activo</button>
+                <table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Nombre</th><th>Estado</th><th style="width:130px;">Acciones</th></tr></thead><tbody>{% for row in asset_classes %}<tr><td>{{ row.name }}</td><td>{% if row.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-maintenance"
+        data-type="asset_class"
+        data-id="{{ row.id }}"
+        data-name="{{ row.name|escapejs }}"
+        data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table>
+            </div>
+            <div class="tab-pane fade" id="classPane">
+                <button class="btn btn-success mb-3 btn-new-maintenance" data-type="class">Nueva clase</button>
+                <table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Nombre</th><th>Estado</th><th style="width:130px;">Acciones</th></tr></thead><tbody>{% for row in classes %}<tr><td>{{ row.name }}</td><td>{% if row.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-maintenance"
+        data-type="class"
+        data-id="{{ row.id }}"
+        data-name="{{ row.name|escapejs }}"
+        data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table>
+            </div>
+            <div class="tab-pane fade" id="subclassPane">
+                <button class="btn btn-success mb-3 btn-new-maintenance" data-type="subclass">Nueva subclase</button>
+                <div class="table-responsive"><table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Subclase</th><th>Clase</th><th>Clase de activo</th><th>Cuenta contable</th><th>N° Cuenta</th><th>Vida útil</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{% for row in subclasses %}<tr><td>{{ row.obj.name }}</td><td>{{ row.obj.inventory_class.name }}</td><td>{{ row.obj.asset_class.name }}</td><td>{{ row.account_name }}</td><td>{{ row.account_number }}</td><td>{{ row.obj.useful_life_years }} años</td><td>{% if row.obj.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-subclass"
+        data-id="{{ row.obj.id }}"
+        data-name="{{ row.obj.name|escapejs }}"
+        data-life="{{ row.obj.useful_life_years }}"
+        data-class="{{ row.obj.inventory_class_id }}"
+        data-asset-class="{{ row.obj.asset_class_id }}"
+        data-account="{{ row.obj.accounting_account_id|default:'' }}"
+        data-active="{% if row.obj.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table></div>
+            </div>
+            <div class="tab-pane fade" id="officePane">
+                <button class="btn btn-success mb-3 btn-new-maintenance" data-type="office">Nueva oficina</button>
+                <table class="table table-bordered table-striped maintenance-table"><thead class="table-secondary"><tr><th>Oficina</th><th>Estado</th><th style="width:130px;">Acciones</th></tr></thead><tbody>{% for row in offices %}<tr><td>{{ row.name }}</td><td>{% if row.is_active %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-secondary">Inactivo</span>{% endif %}</td><td><button class="btn btn-sm btn-primary btn-edit-maintenance"
+        data-type="office"
+        data-id="{{ row.id }}"
+        data-name="{{ row.name|escapejs }}"
+        data-active="{% if row.is_active %}1{% else %}0{% endif %}">Editar</button></td></tr>{% endfor %}</tbody></table>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+    </div>
+    <div class="modal fade" id="maintenanceEditModal" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><form id="maintenanceForm">{% csrf_token %}<div class="modal-header"><h5 class="modal-title" id="maintenanceEditTitle">Editar registro</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">
+        <input type="hidden" name="type" id="maintenanceType"><input type="hidden" name="id" id="maintenanceId">
+        <div class="mb-3">
+            <label class="form-label">Nombre</label><input type="text"
+       name="name"
+       id="maintenanceName"
+       class="form-control"
+       required>
+        </div>
+        <div class="subclass-field mb-3">
+            <label class="form-label">Vida útil años</label><input type="number"
+       name="useful_life_years"
+       id="maintenanceLife"
+       class="form-control"
+       min="1">
+        </div>
+        <div class="subclass-field mb-3"><label class="form-label">Clase</label><select name="inventory_class" id="maintenanceClass" class="form-control"><option value="">Seleccione</option>{% for row in classes %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}</select></div>
+        <div class="subclass-field mb-3"><label class="form-label">Clase de activo</label><select name="asset_class" id="maintenanceAssetClass" class="form-control"><option value="">Seleccione</option>{% for row in asset_classes %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}</select></div>
+        <div class="subclass-field mb-3"><label class="form-label">Cuenta contable asociada</label><select name="accounting_account"
+        id="maintenanceAccount"
+        class="form-control"><option value="">Seleccione</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.number }} - {{ account.name }}</option>{% endfor %}</select></div>
+        <div class="mb-3">
+            <label class="form-label">Estado</label><select name="is_active"
+        id="maintenanceActive"
+        class="form-control">
+                <option value="1">Activo</option>
+                <option value="0">Inactivo</option>
+            </select>
+        </div>
+        </div>
+        <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Guardar</button><button type="button"
+        class="btn btn-secondary"
+        data-bs-dismiss="modal">Cancelar</button>
+        </div>
+        </form>
+        </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            const saveUrl = "{% url 'inventory:maintenance_save' %}";
+            const reloadUrl = "{% url 'inventory:maintenance_modal' %}";
+            const officesUrl = "{% url 'inventory:offices_list' %}";
+
+            function showMessage(title, message, icon = 'info') {
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    return window.Swal.fire({
+                        title: title,
+                        text: message,
+                        icon: icon
+                    });
+                }
+
+                if (window.swal && typeof window.swal.fire === 'function') {
+                    return window.swal.fire({
+                        title: title,
+                        text: message,
+                        icon: icon
+                    });
+                }
+
+                if (typeof window.swal === 'function') {
+                    try {
+                        return window.swal(title, message, icon);
+                    } catch (e) {
+                        console.warn('SweetAlert no compatible, usando alert().', e);
+                    }
+                }
+
+                alert(message);
+                return null;
+            }
+
+            function prepare(type) {
+                const form = $('#maintenanceForm')[0];
+
+                form.reset();
+                $('#maintenanceType').val(type);
+                $('#maintenanceId').val(0);
+                $('#maintenanceActive').val('1');
+
+                $('.subclass-field')
+                    .toggle(type === 'subclass')
+                    .find('input,select')
+                    .prop('required', type === 'subclass');
+
+                const titles = {
+                    asset_class: 'Nueva clase de activo',
+                    class: 'Nueva clase',
+                    subclass: 'Nueva subclase',
+                    office: 'Nueva oficina'
+                };
+
+                $('#maintenanceEditTitle').text(titles[type] || 'Nuevo registro');
+            }
+
+            function openEdit() {
+                const modal = document.getElementById('maintenanceEditModal');
+
+                if (window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modal).show();
+                } else if (window.inventoryShowModal) {
+                    window.inventoryShowModal('maintenanceEditModal');
+                }
+            }
+
+            function initializeMaintenanceTables() {
+                $('.maintenance-table').each(function () {
+                    if ($.fn.DataTable && !$.fn.DataTable.isDataTable(this)) {
+                        $(this).DataTable({
+                            pageLength: 10,
+                            lengthMenu: [5, 10, 25, 50, 100],
+                            responsive: true,
+                            autoWidth: false
+                        });
+                    }
+                });
+            }
+
+            function refreshOfficeSelector() {
+                const $office = $('#inventoryOffice');
+
+                if (!$office.length) {
+                    return;
+                }
+
+                const selected = $office.val() || '';
+
+                $.getJSON(officesUrl)
+                    .done(function (response) {
+                        $office.empty().append(
+                            $('<option>', {
+                                value: '',
+                                text: 'Seleccione'
+                            })
+                        );
+
+                        (response.data || []).forEach(function (office) {
+                            $office.append(
+                                $('<option>', {
+                                    value: office.id,
+                                    text: office.name
+                                })
+                            );
+                        });
+
+                        if (selected && $office.find('option[value="' + selected + '"]').length) {
+                            $office.val(selected);
+                        } else {
+                            $office.val('');
+                        }
+                    });
+            }
+
+            function restoreActiveTab(target) {
+                if (!target) {
+                    return;
+                }
+
+                const trigger = document.querySelector(
+                    '#maintenanceTabs [data-bs-target="' + target + '"]'
+                );
+
+                if (!trigger) {
+                    return;
+                }
+
+                if (window.bootstrap && bootstrap.Tab) {
+                    bootstrap.Tab.getOrCreateInstance(trigger).show();
+                } else {
+                    $('#maintenanceTabs .nav-link').removeClass('active');
+                    $('#maintenanceContent .tab-pane').removeClass('show active');
+
+                    $(trigger).addClass('active');
+                    $(target).addClass('show active');
+                }
+            }
+
+            function reloadMaintenance(activeTab) {
+                $('#maintenanceModalContent').load(reloadUrl, function (response, status, xhr) {
+                    if (status === 'error') {
+                        console.error(xhr.responseText);
+                        showMessage('Error', 'El registro se guardó, pero no se pudo actualizar el mantenedor.', 'error');
+                        return;
+                    }
+
+                    restoreActiveTab(activeTab);
+                    refreshOfficeSelector();
+
+                    if (window.reloadInventoryOffices) {
+                        window.reloadInventoryOffices();
+                    }
+                });
+            }
+
+            function closeEditAndReload(activeTab) {
+                const modalElement = document.getElementById('maintenanceEditModal');
+
+                if (window.bootstrap && bootstrap.Modal && modalElement) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+                    modalElement.addEventListener(
+                        'hidden.bs.modal',
+                        function () {
+                            reloadMaintenance(activeTab);
+                        },
+                        { once: true }
+                    );
+
+                    modal.hide();
+                    return;
+                }
+
+                if (window.inventoryHideModal) {
+                    window.inventoryHideModal('maintenanceEditModal');
+                }
+
+                reloadMaintenance(activeTab);
+            }
+
+            initializeMaintenanceTables();
+
+            $(document)
+                .off('click.maintenance', '.btn-new-maintenance')
+                .on('click.maintenance', '.btn-new-maintenance', function () {
+                    prepare($(this).data('type'));
+                    openEdit();
+                });
+
+            $(document)
+                .off('click.maintenance', '.btn-edit-maintenance')
+                .on('click.maintenance', '.btn-edit-maintenance', function () {
+                    const type = $(this).data('type');
+
+                    prepare(type);
+
+                    $('#maintenanceId').val($(this).data('id'));
+                    $('#maintenanceName').val($(this).data('name'));
+                    $('#maintenanceActive').val(String($(this).data('active')));
+
+                    $('#maintenanceEditTitle').text(
+                        'Editar ' +
+                        (
+                            type === 'asset_class'
+                                ? 'clase de activo'
+                                : type === 'office'
+                                    ? 'oficina'
+                                    : 'clase'
+                        )
+                    );
+
+                    openEdit();
+                });
+
+            $(document)
+                .off('click.maintenance', '.btn-edit-subclass')
+                .on('click.maintenance', '.btn-edit-subclass', function () {
+                    prepare('subclass');
+
+                    $('#maintenanceId').val($(this).data('id'));
+                    $('#maintenanceName').val($(this).data('name'));
+                    $('#maintenanceLife').val($(this).data('life'));
+                    $('#maintenanceClass').val($(this).data('class'));
+                    $('#maintenanceAssetClass').val($(this).data('asset-class'));
+                    $('#maintenanceAccount').val($(this).data('account'));
+                    $('#maintenanceActive').val(String($(this).data('active')));
+                    $('#maintenanceEditTitle').text('Editar subclase');
+
+                    openEdit();
+                });
+
+            $('#maintenanceForm')
+                .off('submit.maintenance')
+                .on('submit.maintenance', function (e) {
+                    e.preventDefault();
+
+                    const $form = $(this);
+                    const $button = $form.find('button[type="submit"]');
+
+                    if ($form.data('sending')) {
+                        return;
+                    }
+
+                    const activeTab = $('#maintenanceTabs .nav-link.active').attr('data-bs-target') || '#assetClassPane';
+
+                    $form.data('sending', true);
+                    $button.prop('disabled', true).text('Guardando...');
+
+                    $.ajax({
+                        url: saveUrl,
+                        type: 'POST',
+                        data: $form.serialize(),
+                        dataType: 'json',
+
+                        success: function (response) {
+                            if (response.status !== 'success') {
+                                showMessage('Error', response.message || 'No se pudo guardar.', 'error');
+                                return;
+                            }
+
+                            showMessage('Correcto', response.message, 'success');
+                            closeEditAndReload(activeTab);
+                        },
+
+                        error: function (xhr) {
+                            console.error(xhr.responseText);
+
+                            const message =
+                                xhr.responseJSON?.message ||
+                                'No se pudo guardar el registro.';
+
+                            showMessage('Error', message, 'error');
+                        },
+
+                        complete: function () {
+                            $form.data('sending', false);
+                            $button.prop('disabled', false).text('Guardar');
+                        }
+                    });
+                });
+        })();
+    </script>
+{% endif %}

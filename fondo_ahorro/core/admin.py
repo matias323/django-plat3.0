@@ -29,9 +29,9 @@ from .models import (
     PartnerVoluntaryDiscount,
     PartnerBalance,
     PartnerReentry,
-    PartnerNewContribution,
     PartnerMovementType,
     PartnerMovement,
+    PartnerContribution,
 )
 
 # USER
@@ -65,9 +65,9 @@ admin.site.register(PartnerContributionType)
 admin.site.register(PartnerVoluntaryDiscount)
 admin.site.register(PartnerBalance)
 admin.site.register(PartnerReentry)
-admin.site.register(PartnerNewContribution)
 admin.site.register(PartnerMovementType)
 admin.site.register(PartnerMovement)
+admin.site.register(PartnerContribution)
 
 # LOCATION
 admin.site.register(Region)

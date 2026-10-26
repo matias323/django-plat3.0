@@ -100,8 +100,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 inputBuscarPartner.focus();
             });
         }
-
-
     }
 
     initBuscador();
@@ -669,10 +667,103 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if (e.target && e.target.closest('#btn-registrar-incremento')) {
             e.preventDefault();
-            getData();
-            // ejecutarRegistroIncremento();
+            const form = getData();
+            Swal.fire({
+                icon: 'question',
+                title: 'Finalizar Incremento',
+                text: 'Está seguro de que desea finalizar el incremento?',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Si, Finalizar',
+                cancelButtonText: 'Cancelar',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    //incrementar
+                    ejecutarRegistroIncremento(form);
+                }
+            })
         }
     });
+
+    // ejecutar incremento
+    const ejecutarRegistroIncremento = async (formData) => {
+        // Spinner de carga
+        Swal.fire({
+            title: "Espere",
+            text: "Guardando datos...",
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => {
+                Swal.showLoading();
+            },
+        });
+        try {
+            const response = await fetch("/depositos/incremento/", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrftoken,
+                    "X-App-Request": "true",
+                },
+                body : formData,
+            });
+            const res = await response.json();
+            console.log(res)
+            Swal.fire({
+                icon: res.success ? "success" : "warning",
+                title: res.message
+            });
+
+
+            if(res.success){
+                setTimeout(() => {
+                    generatePdf(res.data)
+                }, 2000);
+                resetearFormulario()
+            }
+        } catch (error) {
+            console.error(error)
+            Swal.fire({
+                icon: "error",
+                title: "No se pudo guardar",
+                text: error.message || "No es posible procesar la solicitud",
+            })
+        }
+    }
+
+    // gerenar pdf 
+    const generatePdf = async (data) => {
+        try {
+            const response = await fetch(`/depositos/comprobante-incremento/pdf/${parseInt(data)}/`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': "application/json",
+                    'X-CSRFToken': csrftoken,
+                    'X-App-Request': 'true'
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error("No fue posible generar el PDF.");
+            }
+
+            const blob = await response.blob();
+            const pdfUrl = URL.createObjectURL(blob);
+            window.open(pdfUrl, '_blank');
+
+            setTimeout(() => {
+                URL.revokeObjectURL(pdfUrl);
+            }, 1000);
+
+        } catch (error) {
+            console.error(error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No fue posible generar el PDF.',
+            })
+        }
+    }
     
     /**
      * Obtener los datos de la solicitud
@@ -701,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 4. Obtener campos complementarios
-        const numeroOperacion = document.getElementById('input-ref-operacion')?.value.trim();
+        const numeroOperacion = document.getElementById('input-ref-operacion')?.value;
         const fechaOperacion = document.getElementById('input-fecha-operacion')?.value;
 
         const formData = new FormData();
@@ -718,7 +809,79 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('adjuntos', file);
         });
 
+        return formData;
+    }
+
+    function dataURLtoFile(dataurl, filename) {
+        // 1. Dividir la URL de datos por la coma para separar la metadata del contenido en Base64
+        const arr = dataurl.split(',');
         
+        // 2. Extraer el tipo MIME (ej. 'image/png', 'application/pdf') de la primera parte
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : '';
+        
+        // 3. Decodificar la cadena Base64 a datos binarios (string de caracteres binarios)
+        const bstr = atob(arr[1]);
+        
+        // 4. Crear un array de 8 bits sin signo de la misma longitud que el string binario
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        
+        // 5. Construir y retornar un objeto File utilizando esos datos binarios
+        return new File([u8arr], filename, { type: mime });
+    }
+
+    //btn cancelar
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.closest('#btn-cancelar-operacion')) {
+            e.preventDefault();
+            resetearFormulario();
+        }
+    })
+
+    function resetearFormulario() {
+        ahorrosState.selectedPerson = null;
+        ahorrosState.selectedAccount = null;
+        ahorrosState.incrementAmount = 0;
+        ahorrosState.attachedFiles = [];
+
+        document.getElementById('input-search-persona').value = '';
+        document.getElementById('input-monto-incremento').value = '';
+        document.getElementById('proyeccion-saldo-actual').textContent = '$ 0';
+        document.getElementById('input-ref-operacion').value = '';
+        document.getElementById('input-fecha-operacion').value = '';
+
+        document.getElementById('seccion-perfil-socio')?.classList.add('d-none');
+        document.getElementById('seccion-seleccion-cuentas')?.classList.add('d-none');
+        document.getElementById('placeholder-no-socio')?.classList.remove('d-none');
+        document.getElementById('seccion-formulario-incremento')?.classList.add('opacity-50', 'pointer-events-none');
+
+        const contenedorCuentas = document.getElementById('contenedor-cuentas-socio');
+        if (contenedorCuentas) contenedorCuentas.innerHTML = '';
+
+        const selectDestino = document.getElementById('select-cuenta-destino');
+        if (selectDestino) selectDestino.innerHTML = '';
+
+        renderizarListaArchivosAdjuntos();
+        recalcularProyeccionNuevoSaldo();
+    }
+
+    // Formatea el valor al detectar un cambio o cuando se escribe
+    ['change', 'keyup'].forEach((eventType) => {
+        document.addEventListener(eventType, (e) => {
+            if (e.target && e.target.closest('.input-int')) {
+                formatInt(e.target);
+            }
+        });
+    });
+
+    //SOLO NUMEROS ENTEROS
+    const formatInt = (input) => {
+        input.value = (input.value + '').replace(/[^0-9]/g, '');
     }
 
 

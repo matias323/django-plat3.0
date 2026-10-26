@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Informes de préstamos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <div class="mb-3">
+                <h3 class="mb-1">Informes</h3>
+                <p class="text-muted mb-0">Genera informes Excel de cartera, insolutos, dividendos pagados e intereses.</p>
+            </div>
+
+            <hr>
+
+            <!-- CARTERA DE PRÉSTAMOS -->
+            <section class="py-3 border-bottom">
+                <div class="mb-3">
+                    <h4 class="mb-1">Cartera de Préstamos</h4>
+                    <small class="text-muted">
+                        Todo el historial o filtrado por período, tipo, concepto, estado, método de cobro y tasa.
+                    </small>
+                </div>
+
+                <form id="formReportPortfolio" class="row g-3">
+                    <div class="col-md-2">
+                        <label for="portfolioDateFrom" class="form-label">Desde</label>
+                        <input type="date" class="form-control" id="portfolioDateFrom" name="fecha_desde">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioDateTo" class="form-label">Hasta</label>
+                        <input type="date" class="form-control" id="portfolioDateTo" name="fecha_hasta">
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioLoanType" class="form-label">Tipo</label>
+                        <select class="form-select" id="portfolioLoanType" name="id_tipo_prestamo">
+                            <option value="0">Todos</option>
+                            {% for item in loan_types %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioConcept" class="form-label">Concepto</label>
+                        <select class="form-select" id="portfolioConcept" name="id_tipo_concepto">
+                            <option value="0">Todos</option>
+                            {% for item in concepts %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioStatus" class="form-label">Estado</label>
+                        <select class="form-select" id="portfolioStatus" name="id_estado">
+                            <option value="0">Todos</option>
+                            {% for item in statuses %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioCollectionMethod" class="form-label">Método cobro</label>
+                        <select class="form-select" id="portfolioCollectionMethod" name="id_cobro_metodo">
+                            <option value="0">Todos</option>
+                            {% for item in collection_methods %}
+                                <option value="{{ item.id }}">{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="portfolioRate" class="form-label">Tasa</label>
+                        <select class="form-select" id="portfolioRate" name="id_tasa">
+                            <option value="0">Todas</option>
+                            {% for item in rates %}
+                                <option value="{{ item.id }}">{{ item.name }} - {{ item.rate|floatformat:2 }}%</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioMortgage" class="form-label">Hipotecario</label>
+                        <select class="form-select" id="portfolioMortgage" name="hipotecario">
+                            <option value="">Todos</option>
+                            <option value="1">Sí</option>
+                            <option value="0">No</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="portfolioOrder" class="form-label">Ordenar por</label>
+                        <select class="form-select" id="portfolioOrder" name="ordenar_por">
+                            <option value="created_at">Fecha creación</option>
+                            <option value="start_date">Fecha entrada</option>
+                            <option value="end_date">Fecha término</option>
+                            <option value="loan_type">Tipo</option>
+                            <option value="concept">Concepto</option>
+                            <option value="status">Estado</option>
+                            <option value="collection_method">Método cobro</option>
+                            <option value="rate">Tasa</option>
+                            <option value="name">Nombre</option>
+                            <option value="unique_code">Código préstamo</option>
+                            <option value="loan_amount">Monto préstamo</option>
+                            <option value="interest_amount">Interés préstamo</option>
+                            <option value="principal_balance">Saldo capital</option>
+                            <option value="interest_balance">Saldo interés</option>
+                            <option value="total_balance">Saldo total</option>
+                            <option value="mortgage">Hipotecario</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label for="portfolioDirection" class="form-label">Dirección</label>
+                        <select class="form-select" id="portfolioDirection" name="direccion">
+                            <option value="DESC">Descendente</option>
+                            <option value="ASC">Ascendente</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-4 d-flex align-items-end gap-2">
+                        <button type="button" class="btn btn-success" data-export-form="formReportPortfolio"
+                                data-export-url="{% url 'loan:report_portfolio_excel' %}">
+                            <span class="fa fa-file-excel me-1"></span> Descargar Excel
+                        </button>
+
+                        <button type="reset" class="btn btn-secondary">
+                            <span class="fa fa-eraser me-1"></span> Limpiar
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- INSOLUTOS -->
+            <section class="py-4 border-bottom">
+                <div class="mb-3">
+                    <h4 class="mb-1">Insolutos</h4>
+                    <small class="text-muted">
+                        Cuotas pendientes con vencimiento anterior al mes actual, todo o por rango de fechas.
+                    </small>
+                </div>
+
+                <form id="formReportUnpaid" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="unpaidDateFrom" class="form-label">Desde</label>
+                        <input type="date" class="form-control" id="unpaidDateFrom" name="fecha_desde">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="unpaidDateTo" class="form-label">Hasta</label>
+                        <input type="date" class="form-control" id="unpaidDateTo" name="fecha_hasta">
+                    </div>
+
+                    <div class="col-md-6 d-flex align-items-end gap-2">
+                        <button type="button" class="btn btn-success" data-export-form="formReportUnpaid"
+                                data-export-url="{% url 'loan:report_unpaid_excel' %}">
+                            <span class="fa fa-file-excel me-1"></span> Descargar Excel
+                        </button>
+
+                        <button type="reset" class="btn btn-secondary">
+                            <span class="fa fa-eraser me-1"></span> Limpiar
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- DIVIDENDOS PAGADOS -->
+            <section class="py-4 border-bottom">
+                <div class="mb-3">
+                    <h4 class="mb-1">Dividendos Pagados</h4>
+                    <small class="text-muted">Cuotas en estado pagado, todo o por rango de fechas.</small>
+                </div>
+
+                <form id="formReportPaid" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="paidDateFrom" class="form-label">Desde</label>
+                        <input type="date" class="form-control" id="paidDateFrom" name="fecha_desde">
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="paidDateTo" class="form-label">Hasta</label>
+                        <input type="date" class="form-control" id="paidDateTo" name="fecha_hasta">
+                    </div>
+
+                    <div class="col-md-6 d-flex align-items-end gap-2">
+                        <button type="button" class="btn btn-success" data-export-form="formReportPaid"
+                                data-export-url="{% url 'loan:report_paid_excel' %}">
+                            <span class="fa fa-file-excel me-1"></span> Descargar Excel
+                        </button>
+
+                        <button type="reset" class="btn btn-secondary">
+                            <span class="fa fa-eraser me-1"></span> Limpiar
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- INTERESES -->
+            <section class="pt-4">
+                <div class="mb-3">
+                    <h4 class="mb-1">Intereses</h4>
+                    <small class="text-muted">
+                        Genera un Excel con los intereses de las cuotas cuyo vencimiento esté dentro del rango.
+                    </small>
+                </div>
+
+                <form id="formReportInterest" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="interestDateFrom" class="form-label">Desde</label>
+                        <input type="date" class="form-control" id="interestDateFrom" name="desde" required>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label for="interestDateTo" class="form-label">Hasta</label>
+                        <input type="date" class="form-control" id="interestDateTo" name="hasta" required>
+                    </div>
+
+                    <div class="col-md-6 d-flex align-items-end gap-2">
+                        <button type="button" class="btn btn-success" data-export-form="formReportInterest"
+                                data-export-url="{% url 'loan:report_interest_excel' %}" data-require-dates="1">
+                            <span class="fa fa-file-excel me-1"></span> Descargar Excel
+                        </button>
+
+                        <button type="reset" class="btn btn-secondary">
+                            <span class="fa fa-eraser me-1"></span> Limpiar
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll("[data-export-form]").forEach(function (button) {
+        button.addEventListener("click", function () {
+            const form = document.getElementById(button.dataset.exportForm);
+            const url = button.dataset.exportUrl;
+
+            if (!form || !url) return;
+
+            if (button.dataset.requireDates === "1") {
+                const dateFrom = form.querySelector('input[name="desde"]');
+                const dateTo = form.querySelector('input[name="hasta"]');
+
+                if (!dateFrom.value || !dateTo.value) {
+                    alert("Debe seleccionar fecha desde y fecha hasta.");
+                    return;
+                }
+
+                if (dateFrom.value > dateTo.value) {
+                    alert("La fecha desde no puede ser mayor que la fecha hasta.");
+                    return;
+                }
+            }
+
+            const params = new URLSearchParams(new FormData(form));
+            window.open(`${url}?${params.toString()}`, "_blank");
+        });
+    });
+});
+</script>
+{% endblock %}

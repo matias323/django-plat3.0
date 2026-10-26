@@ -1,0 +1,964 @@
+{% load l10n %}
+
+{% if modal_error %}
+
+    <div class="modal-header">
+        <h5 class="modal-title">Error</h5>
+
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal">
+        </button>
+    </div>
+
+    <div class="modal-body">
+        <div class="alert alert-danger mb-0">
+            {{ modal_error }}
+        </div>
+    </div>
+
+{% else %}
+
+    <!-- HEADER -->
+    <div class="modal-header">
+        <div>
+            <h5 class="modal-title mb-0">
+                {% if action == "pay-installment" %}
+                    Pagar dividendo
+                {% elif action == "no-collection" %}
+                    No mandar a cobro
+                {% elif action == "prepayment" %}
+                    Prepago
+                {% elif action == "amortization" %}
+                    Amortización
+                {% elif action == "overdue" %}
+                    Amortización de insolutos
+                {% elif action == "insurance" %}
+                    Desgravamen
+                {% elif action == "collection-method" %}
+                    Cambiar método de cobro
+                {% elif action == "rate" %}
+                    Cambiar tasa
+                {% elif action == "add-guarantor" %}
+                    Agregar aval
+                {% elif action == "transfer-guarantors" %}
+                    Transferir préstamo a avales
+                {% elif action == "recover-guarantors" %}
+                    Recuperar préstamo desde avales
+                {% elif action == "document" %}
+                    Adjuntar documento
+                {% endif %}
+            </h5>
+
+            <small class="text-muted">
+                Préstamo #{{ loan.id }}
+            </small>
+        </div>
+
+        <button type="button"
+                class="btn-close"
+                data-bs-dismiss="modal">
+        </button>
+    </div>
+
+
+    <!-- FORMULARIO -->
+    <form id="loanActionForm"
+          action="{% url 'loan:action_post' loan.id action %}"
+          enctype="multipart/form-data"
+          data-action="{{ action }}"
+          {% if action == "pay-installment" %}data-target-amount="{{ installment.amount|unlocalize }}"{% endif %}
+          data-confirm="¿Confirmas que deseas registrar esta operación?">
+
+        <div class="modal-body">
+
+            <!-- PAGAR DIVIDENDO -->
+            {% if action == "pay-installment" %}
+
+                <input type="hidden" name="installment_id" value="{{ installment.id }}">
+
+                <div class="row g-3 mb-4">
+
+                    <div class="col-md-3">
+                        <label class="form-label">Cuota</label>
+                        <input type="text" class="form-control"
+                               value="{{ installment.installment_number }}"
+                               readonly>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha</label>
+                        <input type="text" class="form-control"
+                               value="{{ installment.due_date|date:'d-m-Y' }}"
+                               readonly>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Método cobro</label>
+                        <input type="text" class="form-control"
+                               value="{{ installment.collection_method }}"
+                               readonly>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Monto dividendo</label>
+                        <input type="text"
+                            class="form-control money-value"
+                            value="{{ installment.amount|unlocalize }}"
+                            readonly>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <strong>Medios de pago</strong>
+
+                    <button type="button"
+                            class="btn btn-sm btn-success"
+                            id="btnAddPaymentModule">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        Agregar medio
+                    </button>
+                </div>
+
+                <div id="paymentModules"></div>
+
+                <div class="row g-3 mt-2">
+                    <div class="col-md-6">
+                        <div class="alert alert-secondary mb-0">
+                            Total ingresado:
+                            <strong id="paymentModulesTotal">$0</strong>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="alert alert-secondary mb-0">
+                            Diferencia:
+                            <strong id="paymentModulesDifference">$0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <template id="paymentModuleTemplate">
+                    <div class="card mb-3 payment-module-row">
+                        <div class="card-body">
+
+                            <div class="row g-3 align-items-end">
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Medio de pago</label>
+
+                                    <select class="form-select payment-method"
+                                            name="modules[__INDEX__][method]"
+                                            required>
+                                        <option value="">Seleccione</option>
+
+                                        {% for method in external_methods %}
+                                            <option value="{{ method.id }}">
+                                                {{ method.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Monto</label>
+                                    <input type="text"
+                                        class="form-control payment-module-amount"
+                                        inputmode="numeric"
+                                        autocomplete="off"
+                                        placeholder="$0"
+                                        required>
+
+                                    <input type="hidden"
+                                        class="payment-module-amount-raw"
+                                        name="modules[__INDEX__][amount]"
+                                        value="">
+                                </div>
+
+
+                                <div class="col-md-3 module-contribution d-none">
+                                    <label class="form-label">Tipo de aporte</label>
+
+                                    <select class="form-select"
+                                            name="modules[__INDEX__][contribution]">
+                                        <option value="">Seleccione</option>
+
+                                        {% for contribution in contribution_options %}
+                                            <option value="{{ contribution.id }}"
+                                                    class="money-option"
+                                                    data-label="{{ contribution.description }}"
+                                                    data-amount="{{ contribution.amount|unlocalize }}"
+                                                    {% if contribution.amount <= 0 %}disabled{% endif %}>
+                                                {{ contribution.description }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+
+                                <div class="col-md-3 module-detail d-none">
+                                    <label class="form-label">Número depósito</label>
+
+                                    <input type="number"
+                                           class="form-control"
+                                           name="modules[__INDEX__][detail]"
+                                           min="1">
+                                </div>
+
+
+                                <div class="col-md-5 module-document d-none">
+                                    <label class="form-label">Comprobante PDF</label>
+
+                                    <input type="file"
+                                           class="form-control"
+                                           name="modules[__INDEX__][document]"
+                                           accept=".pdf,application/pdf">
+                                </div>
+
+
+                                <div class="col-md-1 ms-auto">
+                                    <button type="button"
+                                            class="btn btn-outline-danger w-100 btnRemovePaymentModule"
+                                            title="Quitar medio">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+
+            <!-- NO MANDAR A COBRO -->
+            {% elif action == "no-collection" %}
+
+                <div class="alert alert-info">
+                    Marque los dividendos que no deben enviarse a cobro.
+                    Los dividendos desmarcados volverán a estado pendiente.
+                </div>
+
+
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+
+                        <thead>
+                            <tr>
+                                <th class="text-center">No cobrar</th>
+                                <th>Cuota</th>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Estado actual</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for installment in installments_no_collection %}
+                                <tr>
+
+                                    <td class="text-center">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="installments"
+                                               value="{{ installment.id }}"
+                                               {% if installment.status_id == no_collection_status_id %}checked{% endif %}>
+                                    </td>
+
+                                    <td>{{ installment.installment_number }}</td>
+                                    <td>{{ installment.due_date|date:"d-m-Y" }}</td>
+                                    <td class="money-text">{{ installment.amount|unlocalize }}</td>
+                                    <td>{{ installment.status }}</td>
+
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        No existen dividendos disponibles para modificar.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+
+            <!-- PREPAGO -->
+            {% elif action == "prepayment" %}
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="alert alert-secondary mb-0">
+                            Saldo capital:
+                            <strong class="money-text">{{ loan.principal_balance|unlocalize }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-secondary mb-0">
+                            Mínimo 5%:
+                            <strong class="money-text">{{ minimum_prepayment|unlocalize }}</strong>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-secondary mb-0">
+                            Total:
+                            <strong id="prepaymentTotal">$0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button"
+                            class="btn btn-sm btn-success"
+                            id="btnAddPrepaymentDeposit">
+                        <i class="bi bi-plus-lg me-1"></i>
+                        Agregar depósito
+                    </button>
+                </div>
+
+                <div id="prepaymentDeposits"></div>
+
+                <template id="prepaymentDepositTemplate">
+                    <div class="card mb-3 prepayment-deposit-row">
+                        <div class="card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label class="form-label">Monto</label>
+
+                                    <input type="text"
+                                           class="form-control clp-input prepayment-deposit-amount"
+                                           name="deposits[__INDEX__][amount]"
+                                           inputmode="numeric"
+                                           autocomplete="off"
+                                           placeholder="0"
+                                           required>
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label class="form-label">Número depósito</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           name="deposits[__INDEX__][detail]"
+                                           min="1"
+                                           required>
+                                </div>
+
+                                <div class="col-md-5">
+                                    <label class="form-label">Comprobante PDF</label>
+                                    <input type="file"
+                                           class="form-control"
+                                           name="deposits[__INDEX__][document]"
+                                           accept=".pdf,application/pdf"
+                                           required>
+                                </div>
+
+                                <div class="col-md-1">
+                                    <button type="button"
+                                            class="btn btn-outline-danger w-100 btnRemovePrepaymentDeposit"
+                                            title="Quitar depósito">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+
+            <!-- AMORTIZACION -->
+            {% elif action == "amortization" %}
+
+                <input type="hidden" name="amount" id="amortizationAmount" value="0">
+
+                <div id="amortizationSummary" class="row g-3 mb-3"
+                     data-principal="{{ loan.principal_balance|unlocalize }}">
+                    <div class="col-md-4">
+                        <div class="form-control bg-light h-100">
+                            <strong>Saldo capital:</strong>
+                            <span class="money-text">{{ loan.principal_balance|unlocalize }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-control bg-light h-100">
+                            <strong>Aportes disponibles:</strong>
+                            <span class="money-text">{{ total_contributions_available|unlocalize }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-control bg-light h-100">
+                            <strong>Total amortización:</strong>
+                            <span id="amortizationTotalText">$0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Número resolución <small class="text-muted">(opcional)</small></label>
+                        <input type="number" class="form-control" name="resolution" min="1">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Resolución PDF <small class="text-muted">(opcional)</small></label>
+                        <input type="file" class="form-control" name="document" accept=".pdf,application/pdf">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-body">
+                        <strong>Aportes a utilizar</strong>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table id="amortizationContributionTable" class="table table-bordered table-sm align-middle mb-0">
+                                <thead class="table-secondary text-center">
+                                    <tr>
+                                        <th style="width:34%;">Aporte</th>
+                                        <th style="width:28%;">Disponible</th>
+                                        <th style="width:38%;">Monto a usar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contribution in contribution_options %}
+                                        <tr {% if contribution.amount <= 0 %}class="table-light text-muted"{% endif %}>
+                                            <td>{{ contribution.description }}</td>
+                                            <td class="text-center">
+                                                <span class="money-text">{{ contribution.amount|unlocalize }}</span>
+                                            </td>
+                                            <td>
+                                                <input type="text"
+                                                       class="form-control form-control-sm clp-input amortization-contribution-input"
+                                                       name="contribution_{{ contribution.id }}"
+                                                       data-max="{{ contribution.amount|unlocalize }}"
+                                                       inputmode="numeric"
+                                                       autocomplete="off"
+                                                       placeholder="0"
+                                                       {% if contribution.amount <= 0 %}disabled{% endif %}>
+                                                {% if contribution.amount <= 0 %}
+                                                    <small class="text-muted">Sin saldo disponible.</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted py-4">
+                                                No existen tipos de aporte activos.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3 mb-0">
+                    El monto de la amortización se calcula automáticamente con la suma de los aportes ingresados.
+                    Los aportes sin saldo aparecen bloqueados.
+                </div>
+
+
+            <!-- AMORTIZACION DE INSOLUTOS -->
+            {% elif action == "overdue" %}
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <div class="form-control bg-light h-100">
+                            <strong>Cantidad insolutos:</strong> {{ overdue_count }}
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-control bg-light h-100">
+                            <strong>Capital insoluto:</strong>
+                            <span class="money-text">{{ overdue_principal|unlocalize }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-control bg-light h-100">
+                            <strong>Interés insoluto:</strong>
+                            <span class="money-text">{{ overdue_interest|unlocalize }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-control bg-light h-100">
+                            <strong>Total a cubrir:</strong>
+                            <span class="money-text">{{ overdue_total|unlocalize }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm align-middle text-center">
+                        <thead class="table-secondary">
+                            <tr>
+                                <th>Cuota</th>
+                                <th>Fecha</th>
+                                <th>Capital</th>
+                                <th>Interés</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for installment in overdue_installments %}
+                                <tr>
+                                    <td>{{ installment.installment_number }}</td>
+                                    <td>{{ installment.due_date|date:"d-m-Y" }}</td>
+                                    <td><span class="money-text">{{ installment.principal|unlocalize }}</span></td>
+                                    <td><span class="money-text">{{ installment.interest|unlocalize }}</span></td>
+                                    <td><span class="money-text">{{ installment.amount|unlocalize }}</span></td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-muted py-4">No existen dividendos insolutos.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="overdueContributionSummary" class="row g-3 mb-3"
+                     data-target="{{ overdue_total|unlocalize }}">
+                    <div class="col-md-4">
+                        <div class="form-control bg-light h-100">
+                            <strong>Aportes disponibles:</strong>
+                            <span class="money-text">{{ total_contributions_available|unlocalize }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-control bg-light h-100">
+                            <strong>Total seleccionado:</strong>
+                            <span id="overdueContributionTotalText">$0</span>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-control bg-light h-100">
+                            <strong>Diferencia:</strong>
+                            <span id="overdueContributionDifferenceText" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header bg-body">
+                        <strong>Selecciona los aportes a utilizar</strong>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table id="overdueContributionTable" class="table table-bordered table-sm align-middle mb-0">
+                                <thead class="table-secondary text-center">
+                                    <tr>
+                                        <th style="width:34%;">Aporte</th>
+                                        <th style="width:28%;">Disponible</th>
+                                        <th style="width:38%;">Monto a usar</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contribution in contribution_options %}
+                                        <tr {% if contribution.amount <= 0 %}class="table-light text-muted"{% endif %}>
+                                            <td>{{ contribution.description }}</td>
+                                            <td class="text-center">
+                                                <span class="money-text">{{ contribution.amount|unlocalize }}</span>
+                                            </td>
+                                            <td>
+                                                <input type="text"
+                                                       class="form-control form-control-sm clp-input overdue-contribution-input"
+                                                       name="contribution_{{ contribution.id }}"
+                                                       data-max="{{ contribution.amount|unlocalize }}"
+                                                       inputmode="numeric"
+                                                       autocomplete="off"
+                                                       placeholder="0"
+                                                       {% if contribution.amount <= 0 %}disabled{% endif %}>
+                                                {% if contribution.amount <= 0 %}
+                                                    <small class="text-muted">Sin saldo disponible.</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="3" class="text-center text-muted py-4">
+                                                No existen tipos de aporte activos.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3 mb-0">
+                    Para amortizar insolutos, la suma de los aportes debe coincidir exactamente con el total insoluto.
+                </div>
+
+
+            <!-- DESGRAVAMEN -->
+            {% elif action == "insurance" %}
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label">Monto desgravamen</label>
+
+                        <input type="text"
+                               class="form-control clp-input"
+                               name="amount"
+                               data-max="{{ loan.principal_balance|unlocalize }}"
+                               inputmode="numeric"
+                               autocomplete="off"
+                               placeholder="0"
+                               required>
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <label class="form-label">Documento PDF</label>
+
+                        <input type="file"
+                               class="form-control"
+                               name="document"
+                               accept=".pdf,application/pdf"
+                               required>
+                    </div>
+
+                </div>
+
+
+            <!-- CAMBIO METODO COBRO -->
+            {% elif action == "collection-method" %}
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label">Método actual</label>
+
+                        <input type="text"
+                               class="form-control"
+                               value="{{ loan.collection_method }}"
+                               readonly>
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <label class="form-label">Nuevo método</label>
+
+                        <select class="form-select"
+                                id="newCollectionMethod"
+                                name="collection_method"
+                                required>
+                            <option value="">Seleccione</option>
+
+                            {% for method in collection_methods %}
+                                <option value="{{ method.id }}" data-name="{{ method.name }}">
+                                    {{ method.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+
+                    <div class="col-md-6 d-none" id="collectionDiprecaBlock">
+                        <label class="form-label">Código DIPRECA</label>
+
+                        <input type="text"
+                               class="form-control"
+                               name="dipreca_code"
+                               value="{{ dipreca_code }}"
+                               {% if dipreca_code %}readonly{% endif %}>
+
+                        {% if dipreca_code %}
+                            <small class="text-muted">
+                                Se utilizará automáticamente el código DIPRECA ya asociado a la persona.
+                            </small>
+                        {% endif %}
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <label class="form-label">Documento respaldo PDF</label>
+
+                        <input type="file"
+                               class="form-control"
+                               name="document"
+                               accept=".pdf,application/pdf"
+                               required>
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <label class="form-label">Aplicar desde</label>
+
+                        <select class="form-select"
+                                id="collectionApplyFrom"
+                                name="apply_from"
+                                required>
+                            <option value="">Seleccione</option>
+                            <option value="actual">Este mes</option>
+                            <option value="siguiente">Próximo mes</option>
+                            <option value="x_meses">Uno más adelante</option>
+                        </select>
+                    </div>
+
+
+                    <div class="col-md-6 d-none" id="collectionMonthsBlock">
+                        <label class="form-label">
+                            Cantidad de meses desde el mes actual
+                        </label>
+
+                        <input type="number"
+                               class="form-control"
+                               name="months"
+                               min="2"
+                               value="2">
+                    </div>
+
+                </div>
+
+
+            <!-- CAMBIO TASA -->
+            {% elif action == "rate" %}
+
+                <div class="row g-3">
+
+                    <div class="col-md-6">
+                        <label class="form-label">Tasa actual</label>
+
+                        <input type="text"
+                               class="form-control"
+                               value="{{ loan.rate }}"
+                               readonly>
+                    </div>
+
+
+                    <div class="col-md-6">
+                        <label class="form-label">Nueva tasa</label>
+
+                        <select class="form-select" name="rate" required>
+                            <option value="">Seleccione</option>
+
+                            {% for rate in rates %}
+                                <option value="{{ rate.id }}">
+                                    {{ rate.name }} - {{ rate.rate }}%
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+
+                    <div class="col-12">
+                        <label class="form-label">Documento respaldo PDF</label>
+
+                        <input type="file"
+                               class="form-control"
+                               name="document"
+                               accept=".pdf,application/pdf"
+                               required>
+                    </div>
+
+                </div>
+
+
+            <!-- AGREGAR AVAL -->
+            {% elif action == "add-guarantor" %}
+
+                <input type="hidden"
+                       id="guarantorPersonId"
+                       name="person_id"
+                       required>
+
+
+                <div class="row g-3 align-items-end mb-3">
+
+                    <div class="col-md-9">
+                        <label class="form-label">Buscar funcionario</label>
+
+                        <input type="text"
+                               class="form-control"
+                               id="guarantorSearch"
+                               placeholder="Código, RUT o nombre"
+                               autocomplete="off">
+                    </div>
+
+
+                    <div class="col-md-3">
+                        <button type="button"
+                                class="btn btn-primary w-100"
+                                id="btnSearchGuarantor">
+                            <i class="bi bi-search me-1"></i>
+                            Buscar
+                        </button>
+                    </div>
+
+                </div>
+
+
+                <div id="guarantorSearchResults"></div>
+
+
+            <!-- TRANSFERIR / RECUPERAR AVALES -->
+            {% elif action == "transfer-guarantors" or action == "recover-guarantors" %}
+
+                <div class="alert alert-warning">
+
+                    {% if action == "transfer-guarantors" %}
+                        Esta operación generará un préstamo hijo por cada aval activo.
+                    {% else %}
+                        Esta operación recuperará el saldo pendiente de los préstamos hijos al préstamo original.
+                    {% endif %}
+
+                </div>
+
+
+                <div class="row g-3">
+
+                    <div class="col-12">
+                        <label class="form-label">Observación</label>
+
+                        <textarea class="form-control"
+                                  name="observation"
+                                  rows="3"
+                                  minlength="5"
+                                  required></textarea>
+                    </div>
+
+
+                    <div class="col-12">
+                        <label class="form-label">Resolución PDF</label>
+
+                        <input type="file"
+                               class="form-control"
+                               name="document"
+                               accept=".pdf,application/pdf"
+                               required>
+                    </div>
+
+                </div>
+
+
+            <!-- DOCUMENTO PRESTAMO -->
+            {% elif action == "document" %}
+
+                <div class="row g-3">
+
+                    <div class="col-md-5">
+                        <label class="form-label">Tipo de documento</label>
+
+                        <select class="form-select"
+                                name="document_type"
+                                required>
+                            <option value="">Seleccione</option>
+
+                            {% for document_type in document_types %}
+                                <option value="{{ document_type.id }}">
+                                    {{ document_type.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+
+                    <div class="col-md-7">
+                        <label class="form-label">Archivo PDF</label>
+
+                        <input type="file"
+                               class="form-control"
+                               name="document"
+                               accept=".pdf,application/pdf"
+                               required>
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- FOOTER -->
+        <div class="modal-footer">
+            <button type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal">
+                Cancelar
+            </button>
+
+            <button type="submit"
+                    class="btn btn-primary"
+                    id="btnSubmitLoanAction">
+                <i class="bi bi-check-lg me-1"></i>
+                Guardar
+            </button>
+        </div>
+    </form>
+
+    <style>
+        /* MODAL DETALLE PRESTAMO */
+        #loanDetailModal .modal-dialog {
+            height: calc(100vh - 60px);
+            max-height: 850px;
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+
+        #loanDetailModal .modal-content {
+            height: 100%;
+            max-height: 850px;
+        }
+
+        #loanDetailModal .modal-body {
+            overflow-y: auto;
+        }
+
+        #loanDetailModal .tab-content {
+            min-height: 520px;
+        }
+
+
+        /* MODAL ACCIONES */
+        #loanActionModal {
+            z-index: 1070;
+        }
+
+        #loanActionModal .modal-dialog {
+            height: calc(100vh - 40px);
+            max-height: 900px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        #loanActionModal .modal-content {
+            height: 100%;
+            max-height: 900px;
+            overflow: hidden;
+        }
+
+        #loanActionModal #loanActionForm {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        #loanActionModal #loanActionForm > .modal-body {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #loanActionModal #loanActionForm > .modal-footer {
+            flex: 0 0 auto;
+            background: var(--bs-body-bg);
+        }
+
+
+        /* PANTALLAS PEQUEÑAS */
+        @media (max-height: 750px) {
+            #loanDetailModal .modal-dialog,
+            #loanActionModal .modal-dialog {
+                height: calc(100vh - 20px);
+                margin-top: 10px;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+
+{% endif %}
