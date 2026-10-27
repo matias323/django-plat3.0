@@ -18,6 +18,80 @@ class AdminUserProfileForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+class AdminUserPermissionsForm(forms.Form):
+    """Formulario para gestionar o actualizar los permisos específicos de UserPermission del usuario filtrado por rol activo"""
+    
+    def __init__(self, *args, **kwargs):
+        self.user_target = kwargs.pop('user_target', None)
+        self.selected_role_id = kwargs.pop('selected_role_id', None)
+        super().__init__(*args, **kwargs)
+        
+        self.permission_rows = []
+        
+        if self.user_target:
+            # 1. Obtenemos únicamente los IDs de los roles que el usuario tiene activos en RoleUser
+            roles_activos_ids = RoleUser.objects.filter(
+                user=self.user_target, 
+                is_active=True
+            ).values_list('role_id', flat=True)
+
+            # 2. Consultamos los permisos asegurando que pertenezcan a roles con is_active=True
+            user_perms_qs = UserPermission.objects.filter(
+                user=self.user_target,
+                role_id__in=roles_activos_ids
+            ).select_related('app', 'role', 'permission')
+            
+            # 3. Si se seleccionó un rol específico en el filtro de la vista, lo aplicamos también
+            if self.selected_role_id and self.selected_role_id.isdigit():
+                user_perms_qs = user_perms_qs.filter(role_id=int(self.selected_role_id))
+            
+            for up in user_perms_qs:
+                field_perm_name = f'perm_{up.pk}'
+                field_active_name = f'active_{up.pk}'
+                
+                self.fields[field_perm_name] = forms.ModelChoiceField(
+                    queryset=Permission.objects.all(),
+                    initial=up.permission_id,
+                    widget=forms.Select(attrs={'class': 'form-select form-select-sm'}),
+                    required=False
+                )
+                
+                self.fields[field_active_name] = forms.BooleanField(
+                    initial=getattr(up, 'is_active', True),
+                    required=False,
+                    widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+                )
+                
+                self.permission_rows.append({
+                    'up': up,
+                    'perm_field': self[field_perm_name],
+                    'active_field': self[field_active_name],
+                    'perm_field_name': field_perm_name,
+                    'active_field_name': field_active_name,
+                })
+
+    def save(self, user_audit=None):
+        if not self.user_target:
+            return
+            
+        for row in self.permission_rows:
+            up_obj = row['up']
+            perm_name = row['perm_field_name']
+            active_name = row['active_field_name']
+            
+            new_permission = self.cleaned_data.get(perm_name)
+            is_active_status = self.cleaned_data.get(active_name, True)
+            
+            if new_permission:
+                up_obj.permission = new_permission
+                
+            if hasattr(up_obj, 'is_active'):
+                up_obj.is_active = is_active_status
+                
+            try:
+                up_obj.save(user=user_audit)
+            except TypeError:
+                up_obj.save()
 
 class AdminPersonProfileForm(forms.ModelForm):
     """Formulario para editar los datos personales de la persona asociada"""
@@ -127,13 +201,13 @@ class AdminUserCreationForm(forms.ModelForm):
         return user
 
 
-
 class AdminUserRolesForm(forms.Form):
-    """Formulario para gestionar los roles asignados al usuario (RoleUser)"""
+    """Formulario para gestionar los roles asignados al usuario (RoleUser) con casillas tipo tarjeta"""
     roles = forms.ModelMultipleChoiceField(
         queryset=Role.objects.filter(is_active=True),
         required=False,
-        widget=forms.SelectMultiple(attrs={'class': 'form-select select2', 'size': '6'}),
+        # Cambiamos a CheckboxSelectMultiple para un diseño visual basado en tarjetas
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
         label="Roles Asignados"
     )
 
@@ -141,7 +215,6 @@ class AdminUserRolesForm(forms.Form):
         self.user_target = kwargs.pop('user_target', None)
         super().__init__(*args, **kwargs)
         if self.user_target:
-            # Preseleccionamos los roles que el usuario ya tiene activos en RoleUser
             roles_actuales = RoleUser.objects.filter(
                 user=self.user_target, 
                 is_active=True
