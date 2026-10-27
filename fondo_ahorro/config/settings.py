@@ -48,8 +48,6 @@ INSTALLED_APPS = [
     "applications.role",
 
     #devoluciones
-    "applications.devoluciones.dev_solicitud",
-    "applications.devoluciones.dev_consejo",
     "applications.devoluciones.repayment",
 
     #contabilidad

@@ -107,10 +107,20 @@ class ActiveAppSessionMiddleware:
                     return redirect(getattr(app_target, "url", "core:home"))
             return None
 
-        # ====================================================
-        # ACTUALIZAR APP ACTIVA
-        # ====================================================
-        if request.method == "GET" and current_app and session.app != current_app:
+        
+        # ============================================================
+        # ACTUALIZAR APLICACIÓN ACTIVA
+        # ============================================================
+
+        # if request.method == "GET" and current_app and session.app != current_app:
+        #     session.app = current_app
+        #     session.save(update_fields=["app"])
+
+        if (
+            request.method == "GET"
+            and isinstance(current_app, App)
+            and session.app_id != current_app.pk
+        ):
             session.app = current_app
             session.save(update_fields=["app"])
 
