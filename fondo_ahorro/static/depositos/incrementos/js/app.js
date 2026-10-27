@@ -667,7 +667,47 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', (e) => {
         if (e.target && e.target.closest('#btn-registrar-incremento')) {
             e.preventDefault();
-            const form = getData();
+            // 1. Validar persona seleccionada
+            if (ahorrosState.selectedPerson.length == 0) {
+                Swal.fire('Error', 'Por favor selecciona una persona antes de registrar.', 'error');
+                document.getElementById('input-search-persona')?.focus();
+                return;
+            }
+
+            // 2. Validar cuenta seleccionada entre las 3 opciones
+            if (ahorrosState.selectedAccount == null) {
+                Swal.fire('Error', 'Por favor selecciona una cuenta de ahorro antes de registrar.', 'error');
+                return;
+            }
+
+            // 3. Validar monto en Pesos Chilenos (debe ser entero y mayor a cero)
+            const monto = Math.round(Number(ahorrosState.incrementAmount) || 0);
+            if (monto <= 0) {
+                Swal.fire('Error', 'Por favor ingresa un monto a incrementar mayor a $0.', 'error');
+                document.getElementById('input-monto-incremento')?.focus();
+                return;
+            }
+
+            // 4. Obtener campos complementarios
+            const numeroOperacion = document.getElementById('input-ref-operacion')?.value;
+            const fechaOperacion = document.getElementById('input-fecha-operacion')?.value;
+
+            const formData = new FormData();
+
+            formData.append('monto', monto);
+            formData.append('numero_operacion', numeroOperacion);
+            formData.append('fecha_operacion', fechaOperacion);
+            formData.append('cuenta', ahorrosState.selectedAccount.contribution_type_id);
+            formData.append('persona', ahorrosState.selectedPerson.id_person);
+            formData.append('socio', ahorrosState.selectedPerson.id_partner);
+            formData.append('codigo_funcionario', ahorrosState.selectedPerson.codigo_funcionario);
+            ahorrosState.attachedFiles.forEach(f => {
+                const file = dataURLtoFile(f.dataUrl, f.name);
+                formData.append('adjuntos', file);
+            });
+
+            // const form = getData();
+            // console.log(form);
             Swal.fire({
                 icon: 'question',
                 title: 'Finalizar Incremento',
@@ -680,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }).then((result) => {
                 if (result.isConfirmed) {
                     //incrementar
-                    ejecutarRegistroIncremento(form);
+                    ejecutarRegistroIncremento(formData);
                 }
             })
         }
@@ -763,53 +803,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 text: 'No fue posible generar el PDF.',
             })
         }
-    }
-    
-    /**
-     * Obtener los datos de la solicitud
-     */
-    function getData() {
-        console.log(ahorrosState)
-        // 1. Validar persona seleccionada
-        if (!ahorrosState.selectedPerson) {
-            Swal.fire('Error', 'Por favor selecciona una persona antes de registrar.', 'error');
-            document.getElementById('input-search-persona')?.focus();
-            return;
-        }
-
-        // 2. Validar cuenta seleccionada entre las 3 opciones
-        if (!ahorrosState.selectedAccount) {
-            Swal.fire('Error', 'Por favor selecciona una cuenta de ahorro antes de registrar.', 'error');
-            return;
-        }
-
-        // 3. Validar monto en Pesos Chilenos (debe ser entero y mayor a cero)
-        const monto = Math.round(Number(ahorrosState.incrementAmount) || 0);
-        if (monto <= 0) {
-            Swal.fire('Error', 'Por favor ingresa un monto a incrementar mayor a $0.', 'error');
-            document.getElementById('input-monto-incremento')?.focus();
-            return;
-        }
-
-        // 4. Obtener campos complementarios
-        const numeroOperacion = document.getElementById('input-ref-operacion')?.value;
-        const fechaOperacion = document.getElementById('input-fecha-operacion')?.value;
-
-        const formData = new FormData();
-
-        formData.append('monto', monto);
-        formData.append('numero_operacion', numeroOperacion);
-        formData.append('fecha_operacion', fechaOperacion);
-        formData.append('cuenta', ahorrosState.selectedAccount.contribution_type_id);
-        formData.append('persona', ahorrosState.selectedPerson.id_person);
-        formData.append('socio', ahorrosState.selectedPerson.id_partner);
-        formData.append('codigo_funcionario', ahorrosState.selectedPerson.codigo_funcionario);
-        ahorrosState.attachedFiles.forEach(f => {
-            const file = dataURLtoFile(f.dataUrl, f.name);
-            formData.append('adjuntos', file);
-        });
-
-        return formData;
     }
 
     function dataURLtoFile(dataurl, filename) {

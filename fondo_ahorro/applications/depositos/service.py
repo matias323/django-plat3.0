@@ -146,6 +146,7 @@ class DepositoServices():
             person=socio.person,
             application=partner_movimiento,
             process_type=ProcessType.objects.get(pk=2), #incremento aportes
+            employee_grade=socio.person.employees.first().grade,
         )
         
         #obtener socio aporte

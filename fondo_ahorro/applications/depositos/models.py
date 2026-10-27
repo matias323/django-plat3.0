@@ -3,6 +3,7 @@ from django.conf import settings
 from core.models.base import BaseModel
 from core.models.person import Person
 from core.models.document import Document
+from core.models.employee import EmployeeGrade
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -72,6 +73,8 @@ class DepositApplication(BaseModel):
     application_object_id = models.PositiveBigIntegerField(null=True, blank=True, verbose_name="ID de Aplicacion")
     process_type = models.ForeignKey(ProcessType, on_delete=models.PROTECT, null=False, blank=False, verbose_name="Tipo de Proceso")
     person = models.ForeignKey(Person, on_delete=models.PROTECT, null=True, blank=False, verbose_name="Persona")
+    employee_grade = models.ForeignKey(EmployeeGrade, on_delete=models.PROTECT, null=True, blank=False, verbose_name="Grado Funcionario")
+    
 
     class Meta:
         db_table = "core_deposit_application"
@@ -128,7 +131,7 @@ class DepositApplication(BaseModel):
             "person" : self.person.get_full_name(),
             "rut" : self.person.get_rut(),
             "employee_codigo" : self.person.employees.first().code,
-            "employee_grade" : self.person.employees.first().grade.name
+            "employee_grade" : self.employee_grade.name,
         }
     
     # informacion que se envia al modulo de contabilidad

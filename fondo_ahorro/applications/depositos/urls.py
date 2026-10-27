@@ -5,7 +5,8 @@ from .views import (DepositoView,
                     DepositoIncrementoAportePDF,
                     DepositoSearchView, 
                     DepositosBusqueda,
-                    DepositoAppComprobantePDF)
+                    DepositoAppComprobantePDF,
+                    DepositoCartola)
 
 
 
@@ -15,6 +16,7 @@ urlpatterns = [
     #vistas
     path("incremento-aporte/", DepositoView.as_view(), name="incremento_aporte"),
     path("", DepositoSearchView.as_view(), name="depositos_busqueda"),
+    path("cartola/", DepositoCartola.as_view(), name="depositos_cartola"),
     
     #peticiones
     path("busqueda-partner/", DepositoPartnerSearch.as_view(), name="depositos_busqueda_partner"),
