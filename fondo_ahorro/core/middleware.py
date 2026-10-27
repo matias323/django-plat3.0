@@ -13,7 +13,6 @@ class ActiveAppSessionMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Mantenemos el lazy object seguro por si se usa en templates
         request.user_session = SimpleLazyObject(
             lambda: User.get_active_session(request.user) if request.user.is_authenticated else None
         )
@@ -38,17 +37,14 @@ class ActiveAppSessionMiddleware:
         # USUARIO NO AUTENTICADO
         # ====================================================
         if not request.user.is_authenticated:
-            return None  # Deja que el decorador @login_required o el flujo normal maneje la redirección si es necesario
+            return None  
 
         # Obtenemos la sesión activa de forma segura
         session = User.get_active_session(request.user)
 
         if not session:
-            # Si el usuario está autenticado pero no tiene sesión activa, 
-            # puedes redirigirlo a una vista de selección de app o dejarlo pasar a home/perfil
-            # Dependiendo de tu lógica, aquí podrías evitar hacer logout forzoso si es un usuario nuevo.
-            # Por ahora lo manejamos de forma amigable:
-            return None 
+           
+            return redirect('core:logout') 
 
         # ====================================================
         # DJANGO ADMIN
@@ -109,6 +105,7 @@ class ActiveAppSessionMiddleware:
                     )
 
                     return redirect(getattr(app_target, "url", "core:home"))
+            return None
 
         # ====================================================
         # ACTUALIZAR APP ACTIVA
@@ -117,7 +114,6 @@ class ActiveAppSessionMiddleware:
             session.app = current_app
             session.save(update_fields=["app"])
 
-        # Inyectamos la sesión real (ya no lazy) para el ciclo de la vista y templates
         request.user_session = session
 
         return None
