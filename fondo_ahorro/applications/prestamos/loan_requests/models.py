@@ -35,7 +35,7 @@ class RequestLoanState(BaseModel):
     is_paid_state = models.BooleanField(verbose_name="Estado pagado", default=False)
 
     class Meta:
-        db_table = "request_loan_states"
+        db_table = "solicitud_prestamo_estado"
         verbose_name = "Estado de solicitud de préstamo"
         verbose_name_plural = "Estados de solicitudes de préstamos"
         ordering = ["sequence", "id"]
@@ -131,7 +131,7 @@ class RequestLoan(BaseModel):
         return True
 
     class Meta:
-        db_table = "request_loan"
+        db_table = "solicitud_prestamo"
         verbose_name = "Solicitud de préstamo"
         verbose_name_plural = "Solicitudes de préstamos"
 
@@ -152,7 +152,7 @@ class RequestLoanDocumentRequirement(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_document_requirement"
+        db_table = "solicitud_prestamo_documento_tipo"
         verbose_name = "Documento requerido para solicitud de préstamo"
         verbose_name_plural = "Documentos requeridos para solicitudes de préstamo"
         ordering = ["id"]
@@ -160,7 +160,7 @@ class RequestLoanDocumentRequirement(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["document_type"],
-                name="unique_request_loan_document_requirement",
+                name="unique_solicitud_prestamo_documento_tipo",
             ),
         ]
 
@@ -194,14 +194,14 @@ class RequestLoanRequiredDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_required_document"
+        db_table = "solicitud_prestamo_documento_requerido"
         verbose_name = "Documento requerido de solicitud de préstamo"
         verbose_name_plural = "Documentos requeridos de solicitudes de préstamos"
         ordering = ["id"]
         constraints = [
             models.UniqueConstraint(
                 fields=["request_loan", "document_type"],
-                name="unique_request_loan_required_document",
+                name="unique_solicitud_prestamo_documento_requerido",
             ),
         ]
 
@@ -279,7 +279,7 @@ class RequestLoanDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_document"
+        db_table = "solicitud_prestamo_documento"
         verbose_name = "Documento de solicitud de préstamo"
         verbose_name_plural = "Documentos de solicitudes de préstamos"
         ordering = ["-id"]
@@ -332,7 +332,7 @@ class RequestLoanObservation(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_observation"
+        db_table = "solicitud_prestamo_observacion"
         verbose_name = "Observación de solicitud de préstamo"
         verbose_name_plural = "Observaciones de solicitudes de préstamos"
         ordering = ["-id"]
@@ -387,7 +387,7 @@ class RequestLoanAssignment(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_assignment"
+        db_table = "solicitud_prestamo_asignacion"
         verbose_name = "Asignación de solicitud de préstamo"
         verbose_name_plural = "Asignaciones de solicitudes de préstamos"
         ordering = ["-id"]
