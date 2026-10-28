@@ -356,26 +356,28 @@ document.addEventListener(
 
 
                     {
-                        // para de data : "status" a data : null, así el render recibe todo el objeto 'row' con los boolean de view.py
                         data: null,
                         render: function (data, type, row) {
+                            let cls = "bg-secondary"; // Color gris por defecto para 'Sin estado'
 
-                            let cls = "bg-secondary"; // color por defecto
+                            // Extraemos el código exacto inyectado desde views.py
+                            const code = row.state_code ? row.state_code.toUpperCase() : "";
 
-                            // leemos propiedades de la tabla RequestLoanState
-                            if ( row.is_rejected ) {
-                                cls = "bg-danger";
-                            } else if ( row.is_paid_state ) {
-                                cls = "bg-success";
-                            } else if ( row.is_approval_state ) {
-                                cls = "bg-info text-dark";
-                            } else if ( row.status_name !== "Sin Estado" ) {
-                                cls = "bg-primary";
+                            if (code === "REJECTED") {
+                                cls = "bg-danger"; // Rojo absoluto
+                            } else if (code === "VOID") {
+                                cls = "bg-secondary"; // Gris absoluto
+                            } else if (code === "PAID" || row.is_paid_state) {
+                                cls = "bg-success"; // Verde claro
+                            } else if (row.is_approval_state) {
+                                cls = "bg-info text-dark"; // Celeste
+                            } else if (row.status_name && row.status_name !== "Sin Estado") {
+                                cls = "bg-primary"; // Verde oscuro (Resto del proceso)
                             }
 
                             return `
-                                <span class="badge ${cls}">
-                                    ${escapeHtml(row.status_name || "")}
+                                <span class="badge ${cls} badge-status">
+                                    ${escapeHtml(row.status_name || "Sin estado")}
                                 </span>
                             `;
                         }

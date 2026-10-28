@@ -105,22 +105,20 @@
         <!-- ============================================================
             BARRA DE PROGRESO
         ============================================================ -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-body py-4">
-                <div class="text-center mb-3">
-                    <span class="text-muted d-block small mb-1">Estado de la solicitud</span>
-                    <strong class="fs-4">{{ progress.label }}</strong>
-                </div>
-                
-                <div class="progress" style="height: 25px; border-radius: 15px;">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated {{ progress.color }}" 
-                        role="progressbar" 
-                        style="width: {{ progress.percentage }}%; font-weight: bold; font-size: 14px;" 
-                        aria-valuenow="{{ progress.percentage }}" 
-                        aria-valuemin="0" 
-                        aria-valuemax="100">
-                        {{ progress.percentage }}%
-                    </div>
+        <div class="py-2 mb-4">
+            <div class="text-center mb-3">
+                <span class="text-muted d-block small mb-1">Estado de la solicitud</span>
+                <strong class="fs-4">{{ progress.label }}</strong>
+            </div>
+            
+            <div class="progress" style="height: 25px; border-radius: 15px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated {{ progress.color }}" 
+                    role="progressbar" 
+                    style="width: {{ progress.percentage }}%; font-weight: bold; font-size: 14px;" 
+                    aria-valuenow="{{ progress.percentage }}" 
+                    aria-valuemin="0" 
+                    aria-valuemax="100">
+                    {{ progress.percentage }}%
                 </div>
             </div>
         </div>

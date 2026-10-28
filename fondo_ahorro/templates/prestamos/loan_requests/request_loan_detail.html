@@ -195,17 +195,17 @@
                     </div>
                 </div>
 
-                {% if has_loan and can_edit %}
+                {% comment %} {% if has_loan and can_edit %}
                     <div class="alert alert-warning mt-3 mb-0">
                         <i class="bi bi-exclamation-triangle me-1"></i>
                         Esta solicitud fue aprobada por consejo con modificaciones.
                         Los datos pueden editarse y, al guardar, el préstamo y sus dividendos se recalcularán con los nuevos valores.
-                    </div>
-                {% elif has_loan %}
+                    </div> {% endcomment %}
+                {% comment %} {% if has_loan %}
                     <div class="alert alert-info mt-3 mb-0">
                         Esta solicitud ya generó un préstamo y sus datos se encuentran en solo lectura.
                     </div>
-                {% endif %}
+                {% endif %} {% endcomment %}
 
                 {% if can_edit or can_assign and not is_final %}
                     <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
@@ -229,25 +229,6 @@
 
                     </div>
                 {% endif %}
-                <!-- Visible solo para jefaturas -->
-                <!-- {% if not is_final and can_assign %}
-                <button type="button"
-                        class="btn btn-info text-white"
-                        data-bs-toggle="modal"
-                        data-bs-target="#assignModal">
-                    <i class="bi bi-person-lines-fill me-1"></i>
-                    Asignar responsable
-                </button>
-                {% endif %}
-
-                {% if can_edit %}
-                    <div class="d-flex justify-content-end mt-3">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save me-1"></i>
-                            Guardar cambios
-                        </button>
-                    </div>
-                {% endif %} -->
             </div>
         </div>
     </form>
@@ -255,61 +236,62 @@
     <!-- ============================================================
          CAMBIO DE ESTADO
     ============================================================ -->
+    
+    {% if request_states %}
     <div class="card shadow-sm mb-4">
         <div class="card-header">
             <strong>Estado de la solicitud</strong>
         </div>
 
         <div class="card-body">
-            {% if is_rejected %}
-                <div class="alert alert-danger mb-0">
-                    <i class="bi bi-x-circle me-1"></i>
-                    La solicitud fue rechazada en el estado
-                    <strong>{{ request_loan.state.name|default:"Ingresado" }}</strong>.
+            {% if can_change_state and has_next_state %}
+            <form method="post" class="row g-2 align-items-end">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_state">
+
+                <!-- Selector de Estado -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Siguiente estado</label>
+                    <select name="request_state"
+                            class="form-select"
+                            required>
+                        <option value="" selected disabled>Seleccione...</option>
+
+                        {% for state in request_states %}
+                            <option value="{{ state.id }}">{{ state.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
-            {% elif can_change_state and has_next_state %}
-                <form method="post" class="row g-2 align-items-end">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="change_state">
+                <!-- Campo de Observación -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Observación <span class="text-muted fw-normal">(Opcional)</span></label>
+                    <input type="text" name="observation_text" class="form-control" placeholder="Motivo del cambio de estado..." autocomplete="off">
+                </div>
 
-                    <div class="col-md-9">
-                        <label class="form-label fw-semibold">Siguiente estado</label>
-
-                        <select name="request_state"
-                                class="form-select"
-                                required>
-                            <option value="" selected disabled>Seleccione...</option>
-
-                            {% for state in request_states %}
-                                <option value="{{ state.id }}">
-                                    {{ state.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="col-md-3 d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-arrow-right-circle me-1"></i>
-                            Avanzar estado
-                        </button>
-                    </div>
-                </form>
+                <!-- Botón cambio de estado -->
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Avanzar estado
+                    </button>
+                </div>
+            </form>
 
             {% else %}
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted">Estado actual:</span>
-                    <span class="badge bg-success">
-                        {{ request_loan.state.name }}
-                    </span>
-                    <span class="text-muted small">
-                        No existen estados posteriores disponibles.
-                    </span>
-                </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted">Estado actual:</span>
+                <span class="badge bg-success">
+                    {{ request_loan.state.name }}
+                </span>
+                <span class="text-muted small">
+                    No existen estados posteriores disponibles.
+                </span>
+            </div>
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
     <!-- ============================================================
          BARRA DE PROGRESO
@@ -568,7 +550,7 @@
                             <td>{{ relation.created_at|date:"d-m-Y H:i" }}</td>
                             <td>{{ relation.get_action_display }}</td>
                             <td>{{ relation.observation.user }}</td>
-                            <td>{{ relation.observation.comment }}</td>
+                            <td>{{ relation.observation.comment|linebreaksbr }}</td>
                         </tr>
 
                         {% empty %}

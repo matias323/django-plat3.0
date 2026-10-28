@@ -297,16 +297,16 @@ def _get_progress_data(request_loan):
         return {"percentage": 0, "color": "bg-secondary", "label": "Sin Estado"}
 
     state = request_loan.state
-    label = state.name
+    code = state.code.upper()
 
-    if _request_is_rejected(request_loan) or "Rechaz" in label.upper():
-        return {"percentage": 100, "color": "bg-danger", "label": label}
+    if code == "REJECTED":
+        return {"percentage": 100, "color": "bg-danger", "label": state.name}
 
-    if "Efecto" in label.upper() or "Anulad" in label.upper():
-        return {"percentage": 100, "color": "bg-secondary", "label": label}
+    if code == "VOID":
+        return {"percentage": 100, "color": "bg-secondary", "label": state.name}
     
-    if state.is_paid_state:
-        return {"percentage": 100, "color": "bg-succes", "label": label}
+    if state.is_paid_state or code == "PAID":
+        return {"percentage": 100, "color": "bg-succes", "label": state.name}
 
     max_state = RequestLoanState.objects.filter(
         is_active=True,
@@ -320,7 +320,7 @@ def _get_progress_data(request_loan):
 
     percentage = max(15, min(percentage, 95))
 
-    return {"percentage": percentage, "color": "bg-primary", "label": label}
+    return {"percentage": percentage, "color": "bg-primary", "label": state.name}
 
 
 
@@ -434,9 +434,10 @@ def _next_request_loan_states(request_loan):
         return RequestLoanState.objects.none()
 
     current_state = request_loan.state
+    code = current_state.code.upper()
 
     # Si está pagado, se cierra el flujo
-    if current_state.is_paid_state:
+    if current_state.is_paid_state or code in ["REJECTED", "VOID"]:
         return RequestLoanState.objects.none()
 
     allowed_states = current_state.allowed_next_states.filter(is_active=True)
@@ -742,7 +743,8 @@ def request_loan_datatable(request):
             "request_date": item.request_date.strftime("%d-%m-%Y"),
 
             # se envía nombre real y no solo el texto hardcodeado, adjuntamos los boolean para que el front tome desición de diseño (color)
-            "status_name": ("Rechazado" if _request_is_rejected(item) else (item.state.name if item.state else entered_state.name)),
+            "status_name": item.state.name if item.state else "Sin estado",
+            "state_code": item.state.code if item.state else "",
             "is_rejected": _request_is_rejected(item),
             "is_approval_state": item.state.is_approval_state if item.state else False,
             "is_paid_state": item.state.is_paid_state if item.state else False,
@@ -1380,15 +1382,22 @@ def request_loan_detail(request, pk):
                     core_request.status = entered_status
                     _save_with_user(core_request, request.user, ["status"])
 
+                observation_text = request.POST.get("observation_text", "").strip()
+
+                comentario = (
+                    f"Estado modificado. "
+                    f"\nEstado anterior: {old_state.name if old_state else 'Sin estado'}. "
+                    f"\nNuevo estado: {new_state.name}."
+                )
+
+                if observation_text:
+                    comentario += f"\nComentario: {observation_text}"
+
                 _create_observation(
                     request,
                     request_loan,
                     RequestLoanObservation.Action.STATE_CHANGED,
-                    (
-                        f"Estado modificado. "
-                        f"Estado anterior: {old_state.name if old_state else 'Sin estado'}. "
-                        f"Nuevo estado: {new_state.name}."
-                    ),
+                    comentario,
                 )
 
                 if loan_created and created_loan:
@@ -1397,9 +1406,9 @@ def request_loan_detail(request, pk):
                         request_loan,
                         RequestLoanObservation.Action.REQUEST_APPROVED,
                         (
-                            f"Solicitud aprobada por consejo. "
-                            f"Se creó el préstamo #{created_loan.id} "
-                            f"con {request_loan.term} dividendos."
+                            f"\nSolicitud aprobada por consejo. "
+                            f"\nSe creó el préstamo #{created_loan.id} "
+                            f"\ncon {request_loan.term} dividendos."
                         ),
                     )
 
