@@ -46,8 +46,8 @@
             to right,
             #ffffff00 0%,
             #ffffff00 35%,
-            #007328 70%,
-            #007328 100%
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
         );
         color: #212529;
     }
@@ -385,7 +385,18 @@ document.addEventListener("DOMContentLoaded", function () {
         serverSide: true,
         ajax: {
             url: "{% url 'registrations:datatable' %}",
-            type: "GET"
+            type: "GET",
+            headers: {
+                "X-App-Request": "true"
+            },
+            dataType: "json",
+            error: function(xhr, status, error) {
+                console.error("Error DataTables Inscripciones");
+                console.error("HTTP:", xhr.status);
+                console.error("Estado:", status);
+                console.error("Error:", error);
+                console.error("Respuesta:", xhr.responseText);
+            }
         },
         columns: [
             { data: "id" },
@@ -768,7 +779,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                                 const managementButtons = statusCode === "pending"
                                     ? `
-                                        <button type="button" class="btn btn-sm btn-success btnApproveDocument"
+                                        <button type="button" class="btn btn-sm btn-primary btnApproveDocument"
                                                 data-registration="${registration.id}"
                                                 data-relation="${document.relation_id}"
                                                 data-name="${escapeHtml(document.type)}"
@@ -805,7 +816,7 @@ document.addEventListener("DOMContentLoaded", function () {
                                                     document.url
                                                         ? `
                                                             <a href="${escapeHtml(document.url)}" target="_blank"
-                                                            class="btn btn-sm btn-primary" title="Ver documento">
+                                                            class="btn btn-sm btn-info" title="Ver documento">
                                                                 <i class="bi bi-eye"></i>
                                                             </a>
                                                         `
@@ -1026,7 +1037,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     <div class="d-flex gap-2">
                         <button type="button"
-                                class="btn btn-success btnApproveRegistration"
+                                class="btn btn-primary btnApproveRegistration"
                                 data-id="${registration.id}"
                                 ${data.management.can_approve ? "" : "disabled"}>
 

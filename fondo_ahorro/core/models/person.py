@@ -3,6 +3,7 @@ from django.db import models
 from .base import BaseModel
 from .location import Commune
 from .document import Document
+from .bank import Banco, BancoCuentaTipo
 
 
 class PersonType(BaseModel):
@@ -74,7 +75,16 @@ class Person(BaseModel):
         return self.first_name+' '+self.last_name_1 +' '+self.last_name_2 +' -> '+self.person_type.description
 
     def get_rut(self):
-        return str(self.rut)+'-'+self.dv
+        if not self.rut:
+            return ""
+        
+        try:
+            # 3. Formatear el cuerpo con puntos de miles usando formato numérico
+            cuerpo_formateado = f"{int(self.rut):,}".replace(",", ".")
+            return f"{cuerpo_formateado}-{self.dv}"
+        except ValueError:
+            # Retorna el valor original limpio si el cuerpo no es numérico
+            return str(self.rut)+self.dv
 
     def get_full_name(self):
             return self.first_name+' '+self.second_name+' '+self.last_name_1+' '+self.last_name_2
@@ -259,3 +269,55 @@ class PersonDiprecaCode(BaseModel):
 
     def __str__(self):
         return f"{self.person} - {self.dipreca_code}"
+
+
+# ============================================================
+# PERSONA BANCO
+class PersonaBanco(BaseModel):
+
+    banco = models.ForeignKey(
+        'core.Banco',
+        verbose_name="Banco",
+        db_column="id_banco",
+        on_delete=models.PROTECT,
+        related_name="cuentas_personas",
+        null=True,
+        blank=True,
+    )
+
+    cuenta_tipo = models.ForeignKey(
+        'core.BancoCuentaTipo',
+        verbose_name="Tipo de Cuenta Bancaria",
+        db_column="id_cuenta_tipo",
+        on_delete=models.PROTECT,
+        related_name="cuentas_personas",
+        null=True,
+        blank=True,
+    )
+
+    n_cuenta = models.CharField(
+        verbose_name="Número de Cuenta",
+        max_length=50,
+        null=True,
+        blank=True,
+    )
+
+    persona = models.ForeignKey(
+        'core.Person',
+        verbose_name="Persona",
+        db_column="id_persona",
+        on_delete=models.PROTECT,
+        related_name="cuentas_bancarias",
+        null=False,
+        blank=False,
+    )
+
+    class Meta:
+        db_table = "persona_banco"
+        verbose_name = "Cuenta Bancaria de Persona"
+        verbose_name_plural = "Cuentas Bancarias de Personas"
+        ordering = ["persona", "banco"]
+
+    def __str__(self):
+
+        return f"{self.persona_id} - {self.banco_id} - {self.n_cuenta}"

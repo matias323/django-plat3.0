@@ -14,7 +14,7 @@ class DeliveryRecordType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_delivery_record_type"
+        db_table = "inventario_acta_entrega_tipo"
         verbose_name = "Tipo de acta de entrega"
         verbose_name_plural = "Tipos de acta de entrega"
         ordering = ["id"]
@@ -30,7 +30,7 @@ class DeliveryRecordStatus(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_delivery_record_status"
+        db_table = "inventario_acta_entrega_estado"
         verbose_name = "Estado de acta de entrega"
         verbose_name_plural = "Estados de acta de entrega"
         ordering = ["id"]
@@ -62,7 +62,7 @@ class DeliveryRecord(BaseModel):
     registration_date = models.DateTimeField(verbose_name="Fecha registro", auto_now_add=True)
 
     class Meta:
-        db_table = "inventory_delivery_record"
+        db_table = "inventario_acta_entrega"
         verbose_name = "Acta de entrega"
         verbose_name_plural = "Actas de entrega"
         ordering = ["-record_date", "-id"]
@@ -86,7 +86,7 @@ class DeliveryRecordProduct(BaseModel):
     observation = models.CharField(verbose_name="Observación", max_length=255, null=True, blank=True)
 
     class Meta:
-        db_table = "inventory_delivery_record_product"
+        db_table = "inventario_acta_entrega_producto"
         verbose_name = "Producto de acta"
         verbose_name_plural = "Productos de acta"
         constraints = [models.UniqueConstraint(fields=["record", "product"], name="uq_inventory_record_product")]
@@ -106,7 +106,7 @@ class DeliveryRecordDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "inventory_delivery_record_document"
+        db_table = "inventario_acta_entrega_documento"
         verbose_name = "Documento de acta"
         verbose_name_plural = "Documentos de acta"
         ordering = ["-id"]

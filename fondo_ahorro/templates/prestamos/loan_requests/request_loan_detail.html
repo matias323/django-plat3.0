@@ -382,7 +382,7 @@
                                 <td class="text-center">
                                     {% if row.can_upload %}
                                         <button type="button"
-                                                class="btn btn-sm btn-success btn-upload"
+                                                class="btn btn-sm btn-primary btn-upload"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#uploadDocumentModal"
                                                 data-url="{% url 'loan_requests:document_upload' request_loan.id row.required.id %}"
@@ -456,7 +456,7 @@
                                                                               class="d-inline"
                                                                               action="{% url 'loan_requests:document_approve' request_loan.id item.id %}">
                                                                             {% csrf_token %}
-                                                                            <button type="submit" class="btn btn-sm btn-success" title="Aprobar documento">
+                                                                            <button type="submit" class="btn btn-sm btn-primary" title="Aprobar documento">
                                                                                 <i class="bi bi-check-lg"></i>
                                                                             </button>
                                                                         </form>
@@ -598,7 +598,7 @@
                         Cancelar
                     </button>
 
-                    <button type="submit" class="btn btn-success">
+                    <button type="submit" class="btn btn-primary">
                         Adjuntar
                     </button>
                 </div>

@@ -10,7 +10,7 @@ class Fund(BaseModel):
     name = models.CharField(verbose_name="Fondo", max_length=100, null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_fund"
+        db_table = "inventario_fondo"
         verbose_name = "Fondo"
         verbose_name_plural = "Fondos"
         ordering = ["name"]
@@ -26,7 +26,7 @@ class AssetClass(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=255, null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_asset_class"
+        db_table = "inventario_clase_activo"
         verbose_name = "Clase de activo"
         verbose_name_plural = "Clases de activo"
         ordering = ["name"]
@@ -42,7 +42,7 @@ class InventoryClass(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=255, null=False, blank=False)
 
     class Meta:
-        db_table = "inventory_class"
+        db_table = "inventario_clase"
         verbose_name = "Clase"
         verbose_name_plural = "Clases"
         ordering = ["name"]
@@ -68,7 +68,7 @@ class Subclass(BaseModel):
     accounting_account_id = models.PositiveBigIntegerField(verbose_name="Cuenta contable", null=True, blank=True)
 
     class Meta:
-        db_table = "inventory_subclass"
+        db_table = "inventario_subclase"
         verbose_name = "Subclase"
         verbose_name_plural = "Subclases"
         ordering = ["asset_class__name", "inventory_class__name", "name"]

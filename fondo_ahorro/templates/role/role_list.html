@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-11">
+        
+        <!-- Cabecera de la sección -->
+        <div class="d-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h2 class="h3 mb-0 text-body-emphasis">
+                    <i class="bi bi-shield-lock-fill me-2 text-primary"></i>{{ titulo }}
+                </h2>
+            </div>
+            <div>
+                <a href="{% url 'role:role_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Nuevo Rol
+                </a>
+            </div>
+        </div>
+
+        <!-- Tabla de Roles -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>Descripción / Nombre</th>
+                                <th class="text-center">¿Es Único?</th>
+                                <th class="text-center">¿Es Socio?</th>
+                                <th class="text-center">Estado</th>
+                                <th class="text-end pe-4">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for role in roles %}
+                            <tr>
+                                <td class="ps-4 fw-semibold text-secondary">
+                                    <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">#{{ role.id }}</span>
+                                </td>
+                                <td>
+                                    <div class="fw-bold text-body">
+                                        {{ role.name }}
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    {% if role.is_unique %}
+                                        <span class="badge bg-info-subtle text-info border px-2 py-1"><i class="bi bi-check-circle me-1"></i>Sí</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if role.is_partner %}
+                                        <span class="badge bg-warning-subtle text-warning border px-2 py-1"><i class="bi bi-check-circle me-1"></i>Sí</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border px-2 py-1">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if role.is_active %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <!-- Botón de Editar -->
+                                        <a href="{% url 'role:role_update' role.pk %}" class="btn btn-outline-secondary" title="Editar Rol">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        
+                                        <!-- Botón de Activar/Desactivar -->
+                                        <form method="post" class="d-inline" onsubmit="return confirm('¿Estás seguro de cambiar el estado de este rol?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="role_id" value="{{ role.id }}">
+                                            {% if role.is_active %}
+                                                <button type="submit" class="btn btn-outline-danger" title="Desactivar Rol">
+                                                    <i class="bi bi-toggle-on"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-outline-success" title="Activar Rol">
+                                                    <i class="bi bi-toggle-off"></i>
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-secondary">
+                                    <i class="bi bi-shield-x display-6 d-block mb-2"></i>
+                                    No hay roles registrados en el sistema.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <nav aria-label="Paginación de roles" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item disabled">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

@@ -191,7 +191,7 @@
                                 <td class="text-center">
                                     {% if row.can_upload %}
                                         <a href="{% url 'loan_requests:detail' request_loan.id %}"
-                                           class="btn btn-sm btn-success"
+                                           class="btn btn-sm btn-primary"
                                            onclick="event.stopPropagation();"
                                            title="Agregar documento">
                                             <i class="bi bi-plus-lg"></i>
@@ -227,7 +227,7 @@
 
                                                                 <td>
                                                                     {% if item.status == "APPROVED" %}
-                                                                        <span class="badge bg-success">Aprobado</span>
+                                                                        <span class="badge bg-primary">Aprobado</span>
                                                                     {% elif item.status == "REJECTED" %}
                                                                         <span class="badge bg-danger">Rechazado</span>
                                                                     {% else %}
@@ -257,7 +257,7 @@
                                                                         <form method="post" class="d-inline"
                                                                               action="{% url 'loan_requests:document_approve' request_loan.id item.id %}">
                                                                             {% csrf_token %}
-                                                                            <button type="submit" class="btn btn-sm btn-success" title="Aprobar">
+                                                                            <button type="submit" class="btn btn-sm btn-primary" title="Aprobar">
                                                                                 <i class="bi bi-check-lg"></i>
                                                                             </button>
                                                                         </form>

@@ -6,57 +6,184 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css">
+
     <style>
+        /* ==========================================================
+        INVENTARIO - ESTILOS GENERALES
+        Compatible con Bootstrap 5.3 y DataTables 1.13.8
+        ========================================================== */
+
+        /* ----------------------------------------------------------
+        1. NAVEGACIÓN Y TABLAS
+        ---------------------------------------------------------- */
+
         .inventory-page .nav-tabs .nav-link {
             font-weight: 600;
         }
-        .inventory-page .table th {
-            white-space: nowrap;
-            vertical-align: middle;
-        }
+
+        .inventory-page .table th,
         .inventory-page .table td {
             vertical-align: middle;
         }
+
+        .inventory-page .table th {
+            white-space: nowrap;
+        }
+
+        /* ----------------------------------------------------------
+        2. CABECERAS DE TABLAS
+        Se adaptan automáticamente al tema activo.
+        ---------------------------------------------------------- */
+
+        .inventory-page {
+            --inventory-header-bg: #e9ecef;
+            --inventory-header-color: #212529;
+            --inventory-header-border: #ced4da;
+        }
+
+        [data-bs-theme="dark"] .inventory-page {
+            --inventory-header-bg: #343a40;
+            --inventory-header-color: #ffffff;
+            --inventory-header-border: #495057;
+        }
+
+        .inventory-page .table thead th {
+            background-color: var(--inventory-header-bg) !important;
+            color: var(--inventory-header-color) !important;
+            border-color: var(--inventory-header-border) !important;
+            font-weight: 600;
+        }
+
+        /* ----------------------------------------------------------
+        3. FILAS ESPECIALES - CONFIGURACIÓN DE COLORES
+        Los colores cambian según el tema.
+        ---------------------------------------------------------- */
+
+        /* Modo claro */
+        .inventory-page {
+            --inventory-depreciated-bg: #f8d7da;
+            --inventory-depreciated-color: #842029;
+            --inventory-depreciated-hover: #efb9c0;
+
+            --inventory-soon-bg: #fff3cd;
+            --inventory-soon-color: #664d03;
+            --inventory-soon-hover: #f4d98d;
+        }
+
+        /* Modo oscuro */
+        [data-bs-theme="dark"] .inventory-page {
+            --inventory-depreciated-bg: #632b32;
+            --inventory-depreciated-color: #ffffff;
+            --inventory-depreciated-hover: #813941;
+
+            --inventory-soon-bg: #665016;
+            --inventory-soon-color: #ffffff;
+            --inventory-soon-hover: #856a25;
+        }
+
+        /* ----------------------------------------------------------
+        4. FILAS DEPRECIADAS Y PRÓXIMAS A DEPRECIARSE
+        ---------------------------------------------------------- */
+
+        .inventory-page .table > tbody > tr.inventory-depreciated {
+            --bs-table-bg: var(--inventory-depreciated-bg);
+            --bs-table-color: var(--inventory-depreciated-color);
+            --bs-table-striped-bg: var(--inventory-depreciated-bg);
+            --bs-table-hover-bg: var(--inventory-depreciated-hover);
+            --bs-table-striped-color: var(--inventory-depreciated-color);
+            --bs-table-hover-color: var(--inventory-depreciated-color);
+            --bs-table-accent-bg: transparent;
+        }
+
+        .inventory-page .table > tbody > tr.inventory-soon {
+            --bs-table-bg: var(--inventory-soon-bg);
+            --bs-table-color: var(--inventory-soon-color);
+            --bs-table-striped-bg: var(--inventory-soon-bg);
+            --bs-table-hover-bg: var(--inventory-soon-hover);
+            --bs-table-striped-color: var(--inventory-soon-color);
+            --bs-table-hover-color: var(--inventory-soon-color);
+            --bs-table-accent-bg: transparent;
+        }
+
+        .inventory-page .table > tbody > tr.inventory-depreciated > *,
+        .inventory-page .table > tbody > tr.inventory-soon > * {
+            background-color: var(--bs-table-bg) !important;
+            color: var(--bs-table-color) !important;
+            box-shadow: none !important;
+        }
+
+        /* Color al pasar el cursor */
+        .inventory-page .table.table-hover > tbody > tr.inventory-depreciated:hover > *,
+        .inventory-page .table.table-hover > tbody > tr.inventory-soon:hover > * {
+            background-color: var(--bs-table-hover-bg) !important;
+            color: var(--bs-table-hover-color) !important;
+        }
+
+        /* ----------------------------------------------------------
+        5. FILTROS DE INVENTARIO
+        ---------------------------------------------------------- */
+
         .inventory-filters {
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
         }
+
         .inventory-filters .btn {
             min-width: 135px;
         }
-        .inventory-depreciated > td {
-            background: #f8d7da !important;
-        }
-        .inventory-soon > td {
-            background: #fff3cd !important;
-        }
+
+        /* ----------------------------------------------------------
+        6. BARRA DE HERRAMIENTAS
+        ---------------------------------------------------------- */
+
         .inventory-toolbar {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 10px;
             flex-wrap: wrap;
+            gap: 10px;
         }
+
+        /* ----------------------------------------------------------
+        7. SELECT2
+        ---------------------------------------------------------- */
+
         .inventory-page .select2-container {
             width: 100% !important;
         }
+
+        /* ----------------------------------------------------------
+        8. ACCIONES DE OFICINAS
+        ---------------------------------------------------------- */
+
         .inventory-office-actions {
             display: flex;
-            gap: 10px;
-            align-items: end;
+            align-items: flex-end;
             flex-wrap: wrap;
+            gap: 10px;
         }
+
         .inventory-office-actions > div {
             min-width: 260px;
             flex: 1;
         }
+
+        /* ----------------------------------------------------------
+        9. DISEÑO RESPONSIVE
+        ---------------------------------------------------------- */
+
         @media (max-width: 768px) {
             .inventory-filters .btn {
-                min-width: calc(50% - 4px);
+                min-width: calc(50% - 3px);
+            }
+
+            .inventory-office-actions > div {
+                min-width: 100%;
             }
         }
     </style>
+
     <div class="container-fluid inventory-page">
         {% if permission_denied %}
             <div class="alert alert-danger">No tiene permisos para acceder al módulo de inventario.</div>
@@ -513,7 +640,18 @@
                     pageLength: 25,
                     ajax: {
                         url: urls.invoicesData,
-                        type: 'GET'
+                        type: 'GET',
+                        headers: {
+                            'X-App-Request': 'true'
+                        },
+                        dataType: 'json',
+                        error: function(xhr, status, error) {
+                            console.error('Error DataTables Facturas');
+                            console.error('HTTP:', xhr.status);
+                            console.error('Estado:', status);
+                            console.error('Error:', error);
+                            console.error('Respuesta:', xhr.responseText);
+                        }
                     },
                     columns: [{
                         data: 'number'

@@ -26,19 +26,21 @@ urlpatterns = [
     path('', include('core.urls'),name="core"),
 
     #Devolucion
-    path('devolucion/solicitud/', include('applications.devoluciones.dev_solicitud.urls'),name="dev_solicitud"),
-    path('devolucion/consejo/', include('applications.devoluciones.dev_consejo.urls'),name="dev_consejo"),
+    path('devolucion/', include('applications.devoluciones.repayment.urls')),
     
     path('contabilidad/plan_cuentas/', include('applications.contabilidad.plan_cuentas.urls'),name="plan_cuentas"),
     path('contabilidad/periodo_contable/', include('applications.contabilidad.periodo_contable.urls'),name="periodo_contable"),
 
+    #Prestamos
     path("registrations/",include("applications.inscripcion.registrations.urls")),
     path("loans/",include("applications.prestamos.loan.urls")),
     path("loan_requests/",include("applications.prestamos.loan_requests.urls")),
+
+    #Inventario
     path("inventory/",include("applications.inventario.inventory.urls")),
 
-    
     path("apps/",include("applications.apps.urls")),
+    path("role/",include("applications.role.urls")),
 
 
 ]

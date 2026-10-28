@@ -12,7 +12,7 @@ from .models.session import Session
 
 from .models import Document, DocumentType
 from .models import Observation
-from .models import Request
+from .models import Request, RequestType, RequestStatus
 from .models.location import Region, Commune
 
 from .models import (
@@ -34,6 +34,8 @@ from .models import (
     PartnerContribution,
 )
 
+from .models.bank import Banco, BancoCuenta, BancoCuentaTipo
+
 # USER
 admin.site.register(Person)
 admin.site.register(PersonType)
@@ -51,6 +53,8 @@ admin.site.register(Observation)
 
 # REQUESTS
 admin.site.register(Request)
+admin.site.register(RequestType)
+admin.site.register(RequestStatus)
 
 # EMPLOYEE
 admin.site.register(Employee)
@@ -72,6 +76,11 @@ admin.site.register(PartnerContribution)
 # LOCATION
 admin.site.register(Region)
 admin.site.register(Commune)
+
+# BANK
+admin.site.register(Banco)
+admin.site.register(BancoCuenta)
+admin.site.register(BancoCuentaTipo)
 
 # @admin.register(Person)
 # class PersonAdmin(admin.ModelAdmin):
