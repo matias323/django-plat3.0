@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div id="devoConsejosPage" class="container-fluid py-3">
+
+    <!-- ========================================================
+         CABECERA
+    ========================================================= -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h3 class="mb-1">
+                <i class="bi bi-people-fill text-primary me-2"></i>
+                Gestión de consejos
+            </h3>
+            <p class="text-body-secondary mb-0">Registro y consulta de consejos</p>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         CREACIÓN DE CONSEJO
+    ========================================================= -->
+    <div class="card shadow-sm border-0 consejo-crear-card mb-4">
+        <div class="card-header bg-body d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-plus text-primary"></i>
+            <strong>Agregar consejo</strong>
+        </div>
+        <div class="card-body">
+            <form id="formCrearConsejo" class="row g-3 align-items-end" autocomplete="off">
+                {% csrf_token %}
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="consejoAnio">Año</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-calendar3"></i>
+                        </span>
+                        <select class="form-select" id="consejoAnio" name="anio" required>
+                            <option value="">Seleccione un año</option>
+                            {% for anio in anios %}
+                                <option value="{{ anio }}" {% if anio == anio_actual %}selected{% endif %}>
+                                    {{ anio }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4">
+                    <label class="form-label" for="consejoMes">Mes</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-calendar-month"></i>
+                        </span>
+                        <select class="form-select" id="consejoMes" name="mes" required>
+                            <option value="">Seleccione un mes</option>
+                            <option value="1">Enero</option>
+                            <option value="2">Febrero</option>
+                            <option value="3">Marzo</option>
+                            <option value="4">Abril</option>
+                            <option value="5">Mayo</option>
+                            <option value="6">Junio</option>
+                            <option value="7">Julio</option>
+                            <option value="8">Agosto</option>
+                            <option value="9">Septiembre</option>
+                            <option value="10">Octubre</option>
+                            <option value="11">Noviembre</option>
+                            <option value="12">Diciembre</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-4 d-grid">
+                    <button type="submit" class="btn btn-primary" id="btnCrearConsejo">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Agregar nuevo consejo
+                    </button>
+                </div>
+            </form>
+            <div class="form-text mt-3">
+                <i class="bi bi-info-circle me-1"></i>
+                Cada consejo se registra con fecha del primer día del mes seleccionado.
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================
+         LISTADO
+    ========================================================= -->
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-body d-flex align-items-center gap-2">
+            <i class="bi bi-table text-primary"></i>
+            <strong>Consejos registrados</strong>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="tablaConsejos" class="table table-hover align-middle w-100">
+                    <thead>
+                        <tr>
+                            <th>N.º</th>
+                            <th>Fecha del consejo</th>
+                            <th>Usuario creador</th>
+                            <th>Fecha de ingreso</th>
+                            <th class="text-center">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     ESTILOS EXCLUSIVOS DEL MÓDULO
+============================================================ -->
+<style>
+    #devoConsejosPage .consejo-crear-card {
+        max-width: 1050px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    #devoConsejosPage .card {
+        border-radius: 0.75rem;
+    }
+
+    #devoConsejosPage .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    #devoConsejosPage .card-body {
+        padding: 1.4rem;
+    }
+
+    #devoConsejosPage .input-group-text {
+        background: var(--bs-tertiary-bg);
+        color: var(--bs-secondary-color);
+    }
+
+    #devoConsejosPage #tablaConsejos th {
+        white-space: nowrap;
+    }
+
+    #devoConsejosPage #tablaConsejos td {
+        vertical-align: middle;
+    }
+
+    #devoConsejosPage #tablaConsejos thead th {
+        color: var(--bs-emphasis-color);
+        font-weight: 600;
+    }
+
+    #devoConsejosPage .consejo-estado {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 0.75rem;
+        font-weight: 600;
+    }
+
+    .swal2-container {
+        z-index: 20000 !important;
+    }
+</style>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+<!-- ============================================================
+     JAVASCRIPT DEL LISTADO Y CREACIÓN
+============================================================ -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const formulario = document.getElementById('formCrearConsejo');
+    const boton = document.getElementById('btnCrearConsejo');
+    const anio = document.getElementById('consejoAnio');
+    const mes = document.getElementById('consejoMes');
+    const urlCrear = "{% url 'devolucion:consejo_crear' %}";
+
+    // ========================================================
+    // FUNCIONES AUXILIARES
+    // ========================================================
+    function escaparHtml(valor) {
+        return $('<div>').text(valor ?? '').html();
+    }
+
+    function mostrarError(mensaje) {
+        if (window.AppSwalError) {
+            AppSwalError('Error', mensaje);
+        } else if (window.Swal) {
+            Swal.fire('Error', mensaje, 'error');
+        } else {
+            alert(mensaje);
+        }
+    }
+
+    function mostrarExito(mensaje) {
+        if (window.AppSwalSuccess) {
+            AppSwalSuccess('Consejo registrado', mensaje);
+        } else if (window.Swal) {
+            Swal.fire('Consejo registrado', mensaje, 'success');
+        } else {
+            alert(mensaje);
+        }
+    }
+
+    async function leerJson(response) {
+        const texto = await response.text();
+        try {
+            return JSON.parse(texto);
+        } catch (_) {
+            throw new Error(`El servidor devolvió una respuesta no válida (HTTP ${response.status}).`);
+        }
+    }
+
+    // ========================================================
+    // DATATABLE
+    // ========================================================
+    const tabla = $('#tablaConsejos').DataTable({
+        processing: true,
+        serverSide: true,
+        autoWidth: false,
+        scrollX: true,
+        pageLength: 10,
+        order: [[1, 'desc']],
+        ajax: {
+            url: "{% url 'devolucion:consejo_datatable' %}",
+            type: 'GET',
+            headers: { 'X-App-Request': 'true' },
+            error: function (xhr) {
+                console.error('Error al cargar consejos:', xhr.responseText);
+                mostrarError('No se pudo cargar el listado de consejos.');
+            }
+        },
+        columns: [
+            { data: 'id', className: 'fw-semibold' },
+            { data: 'fecha_consejo', render: escaparHtml },
+            { data: 'usuario', render: escaparHtml },
+            { data: 'fecha_creacion', render: escaparHtml },
+            {
+                data: 'estado',
+                className: 'text-center',
+                render: function (valor, tipo) {
+                    if (tipo !== 'display') return valor;
+                    const activado = valor === 'Activado';
+                    const color = activado ? 'success' : 'secondary';
+                    const icono = activado ? 'check-circle' : 'dash-circle';
+                    return `<span class="badge text-bg-${color} consejo-estado">
+                        <i class="bi bi-${icono}"></i>${escaparHtml(valor)}
+                    </span>`;
+                }
+            }
+        ],
+        language: {
+            url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json'
+        }
+    });
+
+    // ========================================================
+    // CREAR CONSEJO
+    // ========================================================
+    formulario.addEventListener('submit', async function (event) {
+        event.preventDefault();
+
+        if (!formulario.reportValidity()) return;
+
+        const nombreMes = mes.selectedOptions[0]?.textContent.trim();
+        const confirmarTexto = `¿Desea crear el consejo de ${nombreMes} de ${anio.value}?`;
+
+        if (window.Swal) {
+            const confirmacion = await Swal.fire({
+                icon: 'question',
+                title: 'Confirmar nuevo consejo',
+                text: confirmarTexto,
+                showCancelButton: true,
+                confirmButtonText: 'Crear consejo',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#198754'
+            });
+            if (!confirmacion.isConfirmed) return;
+        } else if (!confirm(confirmarTexto)) {
+            return;
+        }
+
+        const contenidoOriginal = boton.innerHTML;
+        boton.disabled = true;
+        boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
+        try {
+            const datos = new FormData(formulario);
+            const response = await fetch(urlCrear, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formulario.querySelector('[name="csrfmiddlewaretoken"]').value,
+                    'X-App-Request': 'true'
+                },
+                body: datos
+            });
+            const resultado = await leerJson(response);
+
+            if (!response.ok || resultado.status !== 'ok') {
+                throw new Error(resultado.message || 'No fue posible crear el consejo.');
+            }
+
+            tabla.ajax.reload(null, false);
+            mostrarExito(resultado.message);
+        } catch (error) {
+            mostrarError(error.message);
+        } finally {
+            boton.disabled = false;
+            boton.innerHTML = contenidoOriginal;
+        }
+    });
+});
+</script>
+
+{% endblock %}

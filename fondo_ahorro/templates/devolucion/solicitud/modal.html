@@ -227,8 +227,22 @@
                             </select>
                         </div>
                         <div class="col-12">
-                            <label class="form-label" for="devoNumeroCuenta">Número de cuenta</label>
-                            <input type="text" class="form-control" id="devoNumeroCuenta">
+                            <label class="form-label" for="devoNumeroCuenta">
+                                Número de cuenta
+                            </label>
+
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="devoNumeroCuenta"
+                                name="numero_cuenta"
+                                inputmode="numeric"
+                                pattern="[0-9]+"
+                                maxlength="50"
+                                autocomplete="off"
+                                title="El número de cuenta debe contener solo números"
+                                placeholder="Ingrese el número de cuenta"
+                            >
                         </div>
                     </div>
                 </div>
@@ -537,9 +551,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // El navegador restringe la escritura a dígitos y 9 posiciones.
-    // La vista Django valida nuevamente antes de crear cualquier registro.
     const telefonoInput = field('devoTelefono');
     const correoInput = field('devoCorreo');
+    const numeroCuentaInput = field('devoNumeroCuenta');
 
     telefonoInput.addEventListener('input', function () {
         this.value = this.value.replace(/\D/g, '').slice(0, 9);
@@ -550,17 +564,25 @@ document.addEventListener('DOMContentLoaded', function () {
         this.setCustomValidity('');
     });
 
+    numeroCuentaInput.addEventListener('input', function () {
+        // Eliminar cualquier carácter que no sea numérico
+        this.value = this.value.replace(/\D/g, '').slice(0, 50);
+
+        // Limpiar mensajes de validación anteriores
+        this.setCustomValidity('');
+    });
+
     crearBoton.addEventListener('click', async function () {
         const nombreTipo = String(tipoSelect.selectedOptions[0]?.dataset.nombre || '').toUpperCase();
         const claves = ['A1', 'A2', 'A3'].filter(k => new RegExp(`\\b${k}\\b`).test(nombreTipo));
         const valores = claves.map(k => ({ clave: k, valor: amount(field('devoMonto' + k).value) }));
 
-        if (!field('devoPersonaId').value || !tipoSelect.value || !field('devoMotivo').value ||
-            !field('devoDireccion').value.trim() || !regionSelect.value || !comunaSelect.value ||
-            !field('devoMetodoPago').value) {
-            mostrarError('Complete funcionario, tipo, motivo, dirección, región, comuna y método de pago.');
-            return;
-        }
+        // if (!field('devoPersonaId').value || !tipoSelect.value || !field('devoMotivo').value ||
+        //     !field('devoDireccion').value.trim() || !regionSelect.value || !comunaSelect.value ||
+        //     !field('devoMetodoPago').value) {
+        //     mostrarError('Complete funcionario, tipo, motivo, dirección, región, comuna y método de pago.');
+        //     return;
+        // }
 
         if (claves.length ? valores.some(v => v.valor <= 0) : amount(field('devoMontoGeneral').value) <= 0) {
             mostrarError('Ingrese un monto mayor a cero para cada aporte seleccionado.');
@@ -597,6 +619,17 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             if (!decision.isConfirmed) return;
         } else if (!confirm('¿Confirma crear la solicitud de devolución?')) {
+            return;
+        }
+
+        // Validar número de cuenta bancaria
+        if (numeroCuenta && !/^[0-9]+$/.test(numeroCuenta)) {
+            numeroCuentaInput.setCustomValidity(
+                'El número de cuenta debe contener solo números.'
+            );
+
+            numeroCuentaInput.reportValidity();
+            numeroCuentaInput.focus();
             return;
         }
 

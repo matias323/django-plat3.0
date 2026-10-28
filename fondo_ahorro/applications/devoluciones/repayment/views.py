@@ -18,7 +18,7 @@ from core.models.request import Request, RequestType, RequestStatus
 from core.models.partner import Partner, PartnerContribution, PartnerContributionType
 from .models import (
     DevoSolicitud, DevoSolicitudMotivo, DevoSolicitudTipo, DevoSolicitudEstado,
-    DevoSolicitudAporte, DevoSolicitudDetalle, DevoMetodoPago,
+    DevoSolicitudAporte, DevoSolicitudDetalle, DevoMetodoPago, DevoConsejo,
 )
 
 
@@ -248,9 +248,20 @@ def crear_solicitud(request):
     except ValidationError:
         return JsonResponse({'status': 'error', 'message': 'El correo no es válido.'}, status=400)
 
-    # Cuenta opcional para métodos sin transferencia. Si se indica, debe estar completa.
     cuenta = None
     numero_cuenta = post.get('numero_cuenta', '').strip()
+
+    
+    # VALIDAR NÚMERO DE CUENTA BANCARIA
+    if numero_cuenta and not re.fullmatch(r'[0-9]{1,50}', numero_cuenta):
+        return JsonResponse({
+            'status': 'error',
+            'message': (
+                'El número de cuenta debe contener únicamente'
+            )
+        }, status=400)
+
+
     if any((banco_id, cuenta_tipo_id, numero_cuenta)):
         relacion = BancoCuentaTipo.objects.filter(
             pk=cuenta_tipo_id, banco_id=banco_id, is_active=True,
@@ -438,3 +449,109 @@ def cambiar_estado_solicitud(request, pk):
         'estado_id': estado.pk,
         'estado_general_actualizado': sincronizado,
     })
+
+
+# ============================================================
+# CONSEJOS DE DEVOLUCIÓN
+# ============================================================
+from datetime import date
+from django.utils import timezone
+
+
+@login_required
+@require_GET
+def consejo_lista(request):
+    hoy = timezone.localdate()
+    return render(request, 'devolucion/consejo/consejo_lista.html', {
+        'anios': range(hoy.year - 5, hoy.year + 6),
+        'anio_actual': hoy.year,
+        'mes_actual': hoy.month,
+    })
+
+
+@login_required
+@require_GET
+def consejo_datatable(request):
+    try:
+        draw = max(0, int(request.GET.get('draw', 0)))
+        start = max(0, int(request.GET.get('start', 0)))
+        length = min(100, max(1, int(request.GET.get('length', 10))))
+        order_index = int(request.GET.get('order[0][column]', 0))
+    except (ValueError, TypeError):
+        return JsonResponse({'error': 'Parámetros inválidos.'}, status=400)
+
+    qs = DevoConsejo.objects.filter(is_active=True).select_related('user_create')
+    total = qs.count()
+    busqueda = request.GET.get('search[value]', '').strip()
+    if busqueda:
+        filtros = Q(user_create__username__icontains=busqueda)
+        if busqueda.isdigit():
+            filtros |= Q(pk=int(busqueda)) | Q(fecha_consejo__year=int(busqueda))
+        # Permite buscar fechas en formato YYYY-MM-DD.
+        try:
+            fecha = date.fromisoformat(busqueda)
+            filtros |= Q(fecha_consejo=fecha)
+        except ValueError:
+            pass
+        if 'activado'.startswith(busqueda.lower()):
+            filtros |= Q(estado=True)
+        if 'desactivado'.startswith(busqueda.lower()):
+            filtros |= Q(estado=False)
+        qs = qs.filter(filtros)
+
+    filtrados = qs.count()
+    columnas = {0: 'pk', 1: 'fecha_consejo', 2: 'user_create_id',
+                3: 'fecha_creacion', 4: 'estado'}
+    campo = columnas.get(order_index, 'fecha_consejo')
+    if request.GET.get('order[0][dir]', 'desc') == 'desc':
+        campo = '-' + campo
+
+    filas = qs.order_by(campo, '-pk')[start:start + length]
+    return JsonResponse({
+        'draw': draw,
+        'recordsTotal': total,
+        'recordsFiltered': filtrados,
+        'data': [
+            {
+                'id': c.pk,
+                'fecha_consejo': c.fecha_consejo.strftime('%d/%m/%Y'),
+                'usuario': str(c.user_create) if c.user_create else '—',
+                'fecha_creacion': c.fecha_creacion.strftime('%d/%m/%Y %H:%M') if c.fecha_creacion else '—',
+                'estado': 'Activado' if c.estado else 'Desactivado',
+            }
+            for c in filas
+        ],
+    })
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def consejo_crear(request):
+    try:
+        anio = int(request.POST.get('anio', ''))
+        mes = int(request.POST.get('mes', ''))
+        fecha = date(anio, mes, 1)
+    except (ValueError, TypeError):
+        return JsonResponse({
+            'status': 'error', 'message': 'Seleccione un año y mes válidos.'
+        }, status=400)
+
+    if anio < 2000 or anio > 2100:
+        return JsonResponse({
+            'status': 'error', 'message': 'El año debe estar entre 2000 y 2100.'
+        }, status=400)
+
+    if DevoConsejo.objects.filter(fecha_consejo=fecha, is_active=True).exists():
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Ya existe un consejo registrado para ese mes y año.'
+        }, status=409)
+
+    consejo = DevoConsejo(fecha_consejo=fecha, estado=True)
+    consejo.save(user=request.user)
+    return JsonResponse({
+        'status': 'ok',
+        'message': 'Consejo creado correctamente.',
+        'id': consejo.pk,
+    }, status=201)

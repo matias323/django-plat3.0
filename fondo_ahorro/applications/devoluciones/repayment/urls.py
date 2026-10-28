@@ -4,6 +4,13 @@ from . import views
 app_name = 'devolucion'
 urlpatterns = [
     path('', views.lista, name='lista'),
+
+    # Consejos
+    path('consejos/', views.consejo_lista, name='consejo_lista'),
+    path('consejos/datatable/', views.consejo_datatable, name='consejo_datatable'),
+    path('consejos/crear/', views.consejo_crear, name='consejo_crear'),
+
+    # Devolucion
     path('crear/', views.crear_solicitud, name='crear_solicitud'),
     path('regiones/<int:region_id>/comunas/', views.comunas_region, name='comunas_region'),
     path('bancos/<int:banco_id>/cuentas/', views.cuentas_banco, name='cuentas_banco'),

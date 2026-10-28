@@ -23,7 +23,6 @@
 
         {% if user.is_authenticated %}
           {% for app in navbar_apps %}
-
             {% if app.is_active %}
               {% if app.allowed_daughters %}
                 <!-- Nivel 1: App Padre con sub-menú (Hijas) -->
@@ -85,7 +84,6 @@
                 </li>
                 {% endif %}
               {% endif %}
-
             {% endif %}
             
           {% endfor %}
