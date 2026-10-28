@@ -1,0 +1,165 @@
+<!-- importar css -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'depositos/cartola/css/custom.css' %}">
+
+<!-- =====================================================================
+SECCIÓN 1: BUSCADOR REACTIVO EN VIVO DE SOCIOS / PERSONAS
+===================================================================== -->
+<section class="card border-0 shadow-sm mb-4 search-section">
+    <div class="card-body p-3 p-lg-4">
+        <div class="row align-items-center g-3">
+            <div class="col-12 col-lg-8">
+                <label class="form-label fw-bold text-dark mb-1 d-flex align-items-center justify-content-between">
+                    <span>
+                        <i class="bi bi-search text-primary me-1"></i> Búsqueda de Socios
+                    </span>
+                    <span class="badge bg-light text-secondary border fs-xs">Atajo: Presiona <strong>F2</strong></span>
+                </label>
+
+                <!-- Input de Búsqueda con Dropdown Flotante -->
+                <div class="live-search-container">
+                    <div class="input-group search-input-group">
+                        <span class="input-group-text bg-transparent border-0 text-muted ps-1">
+                            <i class="bi bi-search fs-5"></i>
+                        </span>
+                        <input type="text" 
+                                id="input-search-persona" 
+                                class="form-control" 
+                                placeholder="Escribe RUT, Nombres, Apellidos, Codigo Funcionario o Grado" 
+                                autocomplete="off">
+                        <button class="btn btn-link text-muted p-0 pe-2 d-none" id="btn-clear-search" type="button" title="Limpiar">
+                            <i class="bi bi-x-circle-fill fs-5"></i>
+                        </button>
+                    </div>
+
+                    <!-- Desplegable Flotante de Resultados en Vivo -->
+                    <div id="dropdown-search-results" class="live-search-dropdown shadow-lg">
+                        <!-- Resultados dinámicos renderizados por js/incremento_ahorros.js -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Placeholder Inicial (Si no hay persona seleccionada) -->
+<section id="placeholder-no-socio" class="card border-0 shadow-sm text-center py-5 mb-4">
+    <div class="card-body">
+        <div class="display-6 text-muted mb-3">
+            <i class="bi bi-person-bounding-box text-primary opacity-50"></i>
+        </div>
+        <h5 class="fw-bold text-dark">Ninguna persona o socio seleccionado</h5>
+        <p class="text-muted mb-0">Utiliza el buscador superior para encontrar un socio por su RUT o Nombre y cargar su cuenta de ahorros.</p>
+    </div>
+</section>
+
+<!-- =========================================================================
+        PASO 2: INFORMACIÓN PERSONAL Y DE LA CUENTA DE AHORROS
+========================================================================= -->
+<section id="seccion-perfil-socio" class="mb-4 d-none">
+    <div class="row g-3">
+        <!-- Ficha Personal del Titular -->
+        <div class="col-12 col-lg-12">
+            <div class="person-profile-card p-3 p-lg-4 h-100">
+                <div class="d-flex flex-wrap align-items-center gap-3 mb-3 pb-3 border-bottom">
+                    <!-- <img src="" alt="Avatar" id="perfil-avatar" class="person-hero-avatar"> -->
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                            <h4 class="fw-bold mb-0 text-dark" id="perfil-nombre">-</h4>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle" id="perfil-categoria">Socio Activo</span>
+                            <span class="badge bg-light text-secondary border font-monospace" id="perfil-id-socio">SOC-000</span>
+                        </div>
+                        <div class="text-muted small">
+                            <span class="me-3"><i class="bi bi-card-heading text-primary me-1"></i><strong>RUT:</strong> <span id="perfil-rut" class="font-monospace">-</span></span>
+                            <span><i class="bi bi-calendar-check text-primary me-1"></i><strong>Socio desde:</strong> <span id="perfil-fecha-afiliacion">-</span></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detalles de Contacto y Dirección -->
+                <div class="row g-2 text-secondary small">
+                    <div class="col-12 col-sm-6">
+                        <div class="p-2 bg-light rounded-2">
+                            <i class="bi bi-award text-primary me-1"></i>
+                            <strong>Grado:</strong> <span id="perfil-grado">-</span>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <div class="p-2 bg-light rounded-2">
+                            <i class="bi bi-person text-primary me-1"></i>
+                            <strong>Escalafon:</strong> <span id="perfil-escalafon">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =====================================================================
+SECCIÓN 4: PÍLDORAS DE BÚSQUEDA POR AÑO Y FILTROS AVANZADOS
+===================================================================== -->
+<section id="seccion-filtros-cartola" class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-3 p-lg-4">
+        
+        <!-- Barra superior de Selección Directa de Año (Píldoras) -->
+        <div class="mb-3">
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                <label class="form-label fw-bold text-dark fs-sm mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar-range text-primary"></i> Búsqueda de Movimientos por Año:
+                </label>
+                <span class="fs-xs text-muted">Haz clic en un año para ver la cartola correspondiente</span>
+            </div>
+        </div>
+
+        <hr class="my-3 text-secondary opacity-25">
+
+        <!-- Filtros combinados adicionales -->
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3">
+                <label for="filtro-select-cuenta" class="form-label fs-xs fw-semibold text-muted mb-1">Filtrar por Cuenta:</label>
+                <select id="filtro-select-cuenta" class="form-select form-select-sm">
+                    <option value="TODAS">Todas las Cuentas (Consolidado)</option>
+                    <option value="CTA-001-LIBRE">Ahorro a la Vista / Libre</option>
+                    <option value="CTA-001-VIVIENDA">Ahorro para la Vivienda</option>
+                    <option value="CTA-001-PLAZO">Ahorro a Plazo Fijo</option>
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
+                <label for="filtro-select-anio" class="form-label fs-xs fw-semibold text-muted mb-1">Año Específico:</label>
+                <select id="filtro-select-anio" class="form-select form-select-sm">
+                    <option value="TODOS">Todos los Años</option>
+                    <option value="2026" selected>Año 2026</option>
+                    <option value="2025">Año 2025</option>
+                    <option value="2024">Año 2024</option>
+                    <option value="2023">Año 2023</option>
+                </select>
+            </div>
+
+            <div class="col-6 col-md-3">
+                <label for="filtro-select-tipo" class="form-label fs-xs fw-semibold text-muted mb-1">Tipo Movimiento:</label>
+                <select id="filtro-select-tipo" class="form-select form-select-sm">
+                    <option value="">Todos los Tipos</option>
+                    <option value="ABONO">Abonos / Depósitos (+)</option>
+                    <option value="CARGO">Cargos / Retiros (-)</option>
+                    <option value="INTERES">Intereses Ganados</option>
+                    <option value="REAJUSTE">Reajustes UF</option>
+                </select>
+            </div>
+
+            <div class="col-12 col-md-1 col-lg-2 d-flex justify-content-end">
+                <button type="button" class="btn btn-outline-success btn-sm" id="btn-buscar-movimientos" title="Buscar">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+
+
+
+
+

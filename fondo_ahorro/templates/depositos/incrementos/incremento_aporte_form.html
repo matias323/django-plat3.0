@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
     {% if user.is_authenticated %}
-            <!-- mostrar catalogo cuentas -->
             {% include "depositos/incrementos/incremento_aporte_template.html" %} 
             <!-- Token CSRF para las peticiones -->
         {% csrf_token %}

@@ -1,0 +1,627 @@
+/* ==========================================================================
+   CSS DEDICADO - CARTOLA DE MOVIMIENTOS DE AHORROS
+   ========================================================================== */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #eff6ff;
+    --success-color: #059669;
+    --success-light: #ecfdf5;
+    --danger-color: #dc2626;
+    --danger-light: #fef2f2;
+    --warning-color: #d97706;
+    --warning-light: #fffbeb;
+    --info-color: #0284c7;
+    --info-light: #f0f9ff;
+    --clp-color: #065f46;
+    --clp-bg: #f0fdf4;
+    --border-subtle: #e2e8f0;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 10px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+body {
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar & Brand */
+.bg-dark-navy {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+.brand-icon-box {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
+.fs-xs { font-size: 0.72rem; }
+.fs-sm { font-size: 0.85rem; }
+
+.cell-currency-clp {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+/* ==========================================================================
+   BÚSQUEDA EN VIVO DE PERSONAS (LIVE SEARCH)
+   ========================================================================== */
+.live-search-container {
+    position: relative;
+    width: 100%;
+}
+
+.search-input-group {
+    background: #ffffff;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.25rem 0.5rem;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.search-input-group:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.search-input-group input {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.live-search-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    z-index: 1050;
+    max-height: 380px;
+    overflow-y: auto;
+    display: none;
+}
+
+.search-result-item {
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.15s ease;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item.active {
+    background-color: #f0fdf4;
+}
+
+.search-avatar-thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.quick-socio-chip {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.quick-socio-chip:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background-color: var(--primary-light);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   PERFIL DEL TITULAR Y HERO CONSOLIDADO
+   ========================================================================== */
+.socio-hero-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    box-shadow: var(--card-shadow);
+}
+
+.socio-avatar-img {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #10b981;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+
+.consolidated-balance-box {
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 60%, #047857 100%);
+    color: #ffffff;
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 8px 16px -2px rgba(6, 95, 70, 0.25);
+    position: relative;
+    overflow: hidden;
+}
+
+.consolidated-balance-box::after {
+    content: '';
+    position: absolute;
+    right: -20px;
+    bottom: -30px;
+    width: 140px;
+    height: 140px;
+    background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+}
+
+.consolidated-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+}
+
+/* ==========================================================================
+   TARJETAS INTERACTIVAS DE LAS 3 CUENTAS DE AHORRO
+   ========================================================================== */
+.account-type-card {
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.account-type-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--card-shadow-hover);
+    border-color: #93c5fd;
+}
+
+.account-type-card.active {
+    border-color: var(--primary-color);
+    background-color: #f8fbff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15), var(--card-shadow);
+}
+
+.account-type-card.account-libre.active {
+    border-color: #2563eb;
+    background-color: #f0f7ff;
+}
+
+.account-type-card.account-vivienda.active {
+    border-color: #059669;
+    background-color: #f0fdf4;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15), var(--card-shadow);
+}
+
+.account-type-card.account-plazo.active {
+    border-color: #d97706;
+    background-color: #fffbeb;
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15), var(--card-shadow);
+}
+
+.account-icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+}
+
+.account-balance-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.account-selected-indicator {
+    display: none;
+    position: absolute;
+    top: 10px;
+    right: 12px;
+}
+
+.account-type-card.active .account-selected-indicator {
+    display: block;
+}
+
+/* ==========================================================================
+   BARRA DE FILTRO POR AÑO (DESTACADO) & TABS DE CUENTAS
+   ========================================================================== */
+.year-pills-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.year-pill-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    border-radius: 24px;
+    padding: 0.4rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.year-pill-btn:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.year-pill-btn.active {
+    background-color: #0f172a;
+    border-color: #0f172a;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+}
+
+.year-pill-btn .year-count-badge {
+    background: rgba(0, 0, 0, 0.08);
+    color: inherit;
+    font-size: 0.72rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 12px;
+}
+
+.year-pill-btn.active .year-count-badge {
+    background: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+}
+
+/* Account filter pills */
+.account-tab-btn {
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.account-tab-btn:hover {
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.account-tab-btn.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   KPIS ANUALES DE LA CARTOLA
+   ========================================================================== */
+.annual-kpi-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease;
+}
+
+.annual-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.annual-kpi-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #64748b;
+    letter-spacing: 0.3px;
+    margin-bottom: 0.35rem;
+}
+
+.annual-kpi-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* ==========================================================================
+   TABLA DE LA CARTOLA DE MOVIMIENTOS
+   ========================================================================== */
+.table-cartola {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table-cartola thead th {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.75rem 0.85rem;
+    border-bottom: 2px solid #cbd5e1;
+    white-space: nowrap;
+}
+
+.table-cartola tbody tr {
+    transition: background-color 0.15s ease;
+}
+
+.table-cartola tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.table-cartola td {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.84rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.table-cartola tfoot td {
+    padding: 0.85rem;
+    background-color: #f8fafc;
+    border-top: 2px solid #cbd5e1;
+    font-size: 0.88rem;
+}
+
+.badge-operation-ref {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    background-color: #f1f5f9;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    padding: 0.25rem 0.45rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.badge-operation-ref:hover {
+    background-color: var(--primary-light);
+    border-color: #93c5fd;
+    color: var(--primary-color);
+}
+
+.badge-asiento-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-radius: 6px;
+    padding: 0.25rem 0.45rem;
+}
+
+.badge-asiento-link:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);
+}
+
+/* ==========================================================================
+   TICKET / COMPROBANTE OFICIAL DE MOVIMIENTO
+   ========================================================================== */
+.cartola-ticket-box {
+    background: #ffffff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 1.75rem;
+    max-width: 500px;
+    margin: 0 auto;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: #1e293b;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+
+.cartola-ticket-header {
+    text-align: center;
+    border-bottom: 2px dashed #e2e8f0;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+}
+
+.cartola-ticket-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0.35rem 0;
+    font-size: 0.85rem;
+}
+
+.cartola-ticket-divider {
+    height: 1px;
+    border-top: 1px dashed #cbd5e1;
+    margin: 0.75rem 0;
+}
+
+.cartola-financial-highlight {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 0.75rem 0;
+}
+
+.cartola-signatures {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 0.5rem;
+}
+
+.cartola-sig-line {
+    width: 140px;
+    border-top: 1px solid #94a3b8;
+    text-align: center;
+    padding-top: 4px;
+    font-size: 0.72rem;
+    color: #64748b;
+}
+
+/* ==========================================================================
+   FICHA DE ASIENTO CONTABLE
+   ========================================================================== */
+.table-accounting th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.65rem;
+}
+
+.table-accounting td {
+    padding: 0.65rem;
+    font-size: 0.82rem;
+    vertical-align: middle;
+}
+
+/* ==========================================================================
+   ESTILOS DE IMPRESIÓN OFICIAL (@media print)
+   ========================================================================== */
+.print-only-header {
+    display: none;
+}
+
+@media print {
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        font-size: 9pt;
+    }
+
+    .navbar,
+    .search-section,
+    .year-pills-container,
+    .account-tab-btn,
+    .btn,
+    .dropdown,
+    .no-print,
+    .pagination,
+    footer,
+    #placeholder-no-socio,
+    .badge-asiento-link,
+    .btn-action-col {
+        display: none !important;
+    }
+
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+    }
+
+    .print-only-header {
+        display: block !important;
+        border-bottom: 2px solid #000;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+    }
+
+    .socio-hero-card {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+    }
+
+    .consolidated-balance-box {
+        background: #f1f5f9 !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+    }
+
+    .consolidated-amount {
+        color: #000 !important;
+    }
+
+    .table-cartola thead th {
+        background-color: #e2e8f0 !important;
+        color: #000 !important;
+        border-bottom: 2px solid #000 !important;
+    }
+
+    .table-cartola td, .table-cartola th {
+        font-size: 8pt !important;
+        padding: 4px 6px !important;
+    }
+
+    .print-watermark {
+        position: fixed;
+        top: 45%;
+        left: 20%;
+        font-size: 4rem;
+        color: rgba(0, 0, 0, 0.04);
+        transform: rotate(-30deg);
+        pointer-events: none;
+        z-index: 9999;
+    }
+
+    .cartola-print-footer {
+        display: flex !important;
+        justify-content: space-between;
+        margin-top: 30px;
+        page-break-inside: avoid;
+    }
+}
