@@ -113,6 +113,12 @@
         #devolucionDetalleModal .modal-header { padding: 1rem; }
     }
 
+    #devolucionDetalleModal .dd-document-category { background: var(--bs-body-bg); }
+    #devolucionDetalleModal .dd-document-detail > td { border-left: 3px solid rgba(var(--bs-success-rgb), .35); }
+    #devolucionDetalleModal .dd-document-chevron { display:inline-block; transition:transform .18s ease; }
+    #devolucionDetalleModal .dd-toggle-category[aria-expanded="true"] .dd-document-chevron { transform:rotate(90deg); }
+    #devolucionDetalleModal .dd-document-actions { white-space:nowrap; }
+
     /* MONTOS Y APORTES SOLICITADOS */
     #devolucionDetalleModal .dd-aportes-container {
         display: flex;
@@ -145,6 +151,14 @@
         background: var(--bs-tertiary-bg);
     }
 
+    /* SweetAlert por encima del modal de devoluciones */
+    .swal2-container {
+        z-index: 20000 !important;
+    }
+
+    .swal2-textarea {
+        pointer-events: auto !important;
+    }
 </style>
 
 <div class="modal fade" id="devolucionDetalleModal" tabindex="-1" aria-labelledby="ddModalTitulo" aria-hidden="true" data-bs-backdrop="static">
@@ -319,6 +333,69 @@
                         </div>
                     </section>
 
+
+                    <!-- CONSEJO ASIGNADO -->
+                    <section class="dd-card">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-people"></i></span>
+                            <h6 class="dd-card-title">Consejo de devolución</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-lg-8">
+                                    <label for="ddConsejoNuevo" class="form-label dd-field-label">Consejo asignado</label>
+                                    <select id="ddConsejoNuevo" class="form-select" disabled>
+                                        <option value="">Sin consejo asignado</option>
+                                    </select>
+                                </div>
+                                <div class="col-lg-4">
+                                    <button id="ddGuardarConsejo" type="button" class="btn btn-outline-primary w-100" disabled>
+                                        <i class="bi bi-link-45deg me-1"></i>Guardar consejo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- DOCUMENTOS Y OBSERVACIONES -->
+                    <section class="dd-card" id="ddDocsSection">
+                        <div class="dd-card-header">
+                            <span class="dd-icon"><i class="bi bi-folder2-open"></i></span>
+                            <h6 class="dd-card-title">Documentación y observaciones</h6>
+                        </div>
+                        <div class="dd-card-body">
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#ddTabDocumentos" role="tab">
+                                        <i class="bi bi-file-earmark-text me-1"></i>Documentos
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#ddTabObservaciones" role="tab">
+                                        <i class="bi bi-chat-left-text me-1"></i>Observaciones
+                                    </button>
+                                </li>
+                            </ul>
+                            <div class="tab-content">
+                                <div class="tab-pane fade show active" id="ddTabDocumentos" role="tabpanel">
+                                    <p class="small text-body-secondary">Formatos: PDF, JPG o PNG, máximo 10 MB. Los documentos aprobados quedan bloqueados.</p>
+                                    <div class="table-responsive">
+                                        <table class="table table-hover align-middle">
+                                            <thead><tr><th style="width:40px">#</th><th>Documento</th><th>Adjuntos</th><th>Estado</th><th class="text-center">Acción</th></tr></thead>
+                                            <tbody id="ddDocsFilas"><tr><td colspan="5">Cargando...</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <!-- El botón de cada fila abre directamente el selector -->
+                                    <input type="file" id="ddDocArchivoDirecto" accept=".pdf,.jpg,.jpeg,.png" hidden>
+                                </div>
+                                <div class="tab-pane fade" id="ddTabObservaciones" role="tabpanel">
+                                    <p class="small text-body-secondary">Historial automático de acciones realizadas en la solicitud y sus documentos.</p>
+                                    <div id="ddObsListado" class="d-flex flex-column gap-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- ESTADO -->
                     <section class="dd-card mb-0">
                         <div class="dd-card-header">
@@ -360,13 +437,29 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const elemento = document.getElementById('devolucionDetalleModal');
-    const modal = bootstrap.Modal.getOrCreateInstance(elemento);
+    const modal = bootstrap.Modal.getOrCreateInstance(elemento, { focus: false });
     const contenido = document.getElementById('ddContenido');
     const cargando = document.getElementById('ddCargando');
     const selector = document.getElementById('ddEstadoNuevo');
     const guardar = document.getElementById('ddGuardar');
     const urlDetalle = "{% url 'devolucion:detalle_solicitud' 999999 %}";
     const urlEstado = "{% url 'devolucion:cambiar_estado_solicitud' 999999 %}";
+    const urlConsejos = "{% url 'devolucion:consejos_activos' %}";
+    const urlVincular = "{% url 'devolucion:vincular_consejo_solicitud' 999999 %}";
+    const selectorConsejo = document.getElementById('ddConsejoNuevo');
+    const guardarConsejo = document.getElementById('ddGuardarConsejo');
+    const ddDocsUrls = {
+        datos: "{% url 'devolucion:documentos_observaciones' 999999 %}",
+        subir: "{% url 'devolucion:documento_subir' 999999 %}",
+        estado: "{% url 'devolucion:documento_estado' 999999 888888 %}",
+        eliminar: "{% url 'devolucion:documento_eliminar' 999999 888888 %}",
+        ver: "{% url 'devolucion:documento_ver' 999999 888888 %}",
+    };
+    const ddEsc = value => { const e = document.createElement('div'); e.textContent = String(value ?? ''); return e.innerHTML; };
+    const ddUrl = (ruta, docId) => ruta.replace('999999', String(solicitudId)).replace('888888', String(docId ?? ''));
+    const ddCsrf = () => elemento.querySelector('[name=csrfmiddlewaretoken]').value;
+    let ddDocsVersion = 0;
+    let consejoInicial = '';
     let solicitudId = null;
     let estadoInicial = null;
     let version = 0;
@@ -401,11 +494,320 @@ document.addEventListener('DOMContentLoaded', function () {
         guardar.disabled = !solicitudId || this.value === String(estadoInicial);
     });
 
+
+    async function cargarConsejos(consejoId, consejoNombre) {
+        selectorConsejo.replaceChildren(new Option('Cargando consejos...', ''));
+        selectorConsejo.disabled = true;
+        guardarConsejo.disabled = true;
+        const response = await fetch(urlConsejos, {headers: {'X-App-Request': 'true'}});
+        const data = await response.json();
+        if (!response.ok || data.status !== 'ok') {
+            throw new Error(data.message || 'No fue posible cargar los consejos.');
+        }
+        selectorConsejo.replaceChildren(new Option('Sin consejo asignado', ''));
+        for (const item of data.results) {
+            selectorConsejo.add(new Option(item.nombre, String(item.id)));
+        }
+        const valor = consejoId == null ? '' : String(consejoId);
+        if (valor && !data.results.some(item => String(item.id) === valor)) {
+            selectorConsejo.add(new Option(
+                `${consejoNombre || 'Consejo #' + valor} (no disponible)`, valor
+            ));
+        }
+        selectorConsejo.value = valor;
+        consejoInicial = valor;
+        selectorConsejo.disabled = false;
+    }
+
+    selectorConsejo.addEventListener('change', function () {
+        guardarConsejo.disabled = !solicitudId || this.value === consejoInicial;
+    });
+
+    guardarConsejo.addEventListener('click', async function () {
+        if (!solicitudId || guardarConsejo.disabled) return;
+        const idActual = solicitudId;
+        const valor = selectorConsejo.value;
+        const confirmado = window.Swal
+            ? (await Swal.fire({icon: 'question', title: 'Asignar consejo',
+                text: '¿Desea guardar esta asignación?', showCancelButton: true,
+                confirmButtonText: 'Guardar', cancelButtonText: 'Cancelar'})).isConfirmed
+            : window.confirm('¿Desea guardar esta asignación?');
+        if (!confirmado) return;
+        guardarConsejo.disabled = true;
+        const datos = new FormData();
+        datos.append('consejo_id', valor);
+        try {
+            const respuesta = await fetch(urlVincular.replace('999999', String(idActual)), {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': elemento.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-App-Request': 'true'
+                },
+                body: datos
+            });
+            const resultado = await respuesta.json();
+            if (!respuesta.ok || resultado.status !== 'ok') {
+                throw new Error(resultado.message || 'No se pudo asignar el consejo.');
+            }
+            if (solicitudId !== idActual) return;
+            consejoInicial = valor;
+            window.recargarDevoluciones?.();
+            if (window.AppSwalSuccess) AppSwalSuccess('Consejo actualizado', resultado.message);
+            else if (window.Swal) Swal.fire('Consejo actualizado', resultado.message, 'success');
+            else alert(resultado.message);
+        } catch (error) {
+            avisarError(error.message);
+        } finally {
+            guardarConsejo.disabled = selectorConsejo.value === consejoInicial;
+        }
+    });
+
+    async function ddJson(url, {post = null} = {}) {
+        const config = {headers: {'X-App-Request': 'true'}};
+        if (post) {
+            config.method = 'POST';
+            config.headers['X-CSRFToken'] = ddCsrf();
+            config.body = post;
+        }
+        const res = await fetch(url, config);
+        const tipo = res.headers.get('content-type') || '';
+        if (!tipo.includes('application/json')) throw new Error(`Error HTTP ${res.status}: respuesta no JSON.`);
+        const data = await res.json();
+        if (!res.ok || data.status !== 'ok') throw new Error(data.message || 'No se pudo completar la operación.');
+        return data;
+    }
+
+    async function ddCargarDocs() {
+        if (!solicitudId) return;
+        const id = solicitudId;
+        const versionDocs = ++ddDocsVersion;
+        const datos = await ddJson(ddUrl(ddDocsUrls.datos));
+        if (id !== solicitudId || versionDocs !== ddDocsVersion) return;
+        const cuerpo = document.getElementById('ddDocsFilas');
+        cuerpo.replaceChildren();
+        const colores = {pendiente:'warning',aprobado:'success',rechazado:'danger',sin_documento:'secondary'};
+        const nombreEstado = estado => estado === 'sin_documento' ? 'Sin archivo' :
+            estado.charAt(0).toUpperCase() + estado.slice(1);
+
+        function crearBoton(texto, clase, accion, item, docId=null) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = `btn btn-sm ${clase}`;
+            b.innerHTML = texto;
+            b.dataset.accion = accion;
+            b.dataset.tipoId = String(item.tipo_id);
+            if (docId) b.dataset.docId = String(docId);
+            b.dataset.nombre = item.tipo;
+            b.title = b.textContent.trim();
+            return b;
+        }
+        datos.documentos.forEach((item, indice) => {
+            const fila = document.createElement('tr');
+            fila.className = 'dd-document-category';
+            const detalleId = `dd-documentos-${item.tipo_id}`;
+            fila.innerHTML = `<td>${indice + 1}</td>
+                <td><button type="button" class="btn btn-link text-body fw-semibold text-decoration-none p-0 dd-toggle-category"
+                    data-bs-toggle="collapse" data-bs-target="#${detalleId}" aria-expanded="false">
+                    <i class="bi bi-chevron-right dd-document-chevron me-2"></i>${ddEsc(item.tipo)}</button></td>
+                <td><span class="badge text-bg-secondary">${item.cantidad || 0} adjunto(s)</span></td>
+                <td><span class="badge text-bg-${colores[item.estado] || 'secondary'}">${nombreEstado(item.estado)}</span></td>
+                <td class="text-center dd-document-actions"></td>`;
+            const acciones = fila.querySelector('.dd-document-actions');
+            if (item.puede_adjuntar) {
+                acciones.appendChild(crearBoton('<i class="bi bi-plus-lg"></i>', 'btn-primary', 'subir', item));
+            } else {
+                acciones.innerHTML = '<i class="bi bi-lock text-body-secondary" title="Documento aprobado"></i>';
+            }
+            const detalle = document.createElement('tr');
+            detalle.className = 'collapse dd-document-detail';
+            detalle.id = detalleId;
+            const celda = document.createElement('td');
+            celda.colSpan = 5;
+            celda.className = 'p-3 bg-body-tertiary';
+            if (!item.historial.length) {
+                celda.innerHTML = '<span class="text-body-secondary">Sin documentos adjuntos en esta categoría.</span>';
+            } else {
+                const tabla = document.createElement('table');
+                tabla.className = 'table table-sm table-hover align-middle mb-0';
+                tabla.innerHTML = '<thead><tr><th>Archivo</th><th>Estado</th><th>Validado por</th><th>Fecha validación</th><th class="text-center">Acciones</th></tr></thead>';
+                const tbody = document.createElement('tbody');
+                item.historial.forEach(doc => {
+                    const tr = document.createElement('tr');
+                    const a = document.createElement('td');
+                    a.textContent = doc.nombre;
+                    const v = document.createElement('td');
+                    v.textContent = doc.validated_by || '—';
+                    const fechaValidacion = document.createElement('td');
+                    fechaValidacion.textContent = doc.validated_at || '—';
+                    const e = document.createElement('td');
+                    e.innerHTML = `<span class="badge text-bg-${colores[doc.estado] || 'secondary'}">${nombreEstado(doc.estado)}</span>` +
+                        (doc.vigente ? '' : ' <small class="text-body-secondary">Histórico</small>');
+                    if (doc.rejection_comment) {
+                        const nota = document.createElement('div');
+                        nota.className = 'small text-danger mt-1';
+                        nota.textContent = doc.rejection_comment;
+                        a.appendChild(nota);
+                    }
+                    const accionesDoc = document.createElement('td');
+                    accionesDoc.className = 'text-center text-nowrap';
+                    const botones = [crearBoton('<i class="bi bi-eye"></i>', 'btn-outline-primary me-1', 'ver', item, doc.id)];
+                    if (doc.vigente && doc.estado === 'pendiente') {
+                        botones.push(crearBoton('<i class="bi bi-check-lg"></i>', 'btn-outline-success me-1', 'aprobar', item, doc.id));
+                        botones.push(crearBoton('<i class="bi bi-x-lg"></i>', 'btn-outline-danger me-1', 'rechazar', item, doc.id));
+                    }
+                    if (doc.vigente && doc.estado !== 'aprobado') {
+                        botones.push(crearBoton('<i class="bi bi-trash"></i>', 'btn-outline-secondary', 'eliminar', item, doc.id));
+                    }
+                    botones.forEach(b => accionesDoc.appendChild(b));
+                    tr.append(a,e,v,fechaValidacion,accionesDoc);
+                    tbody.appendChild(tr);
+                });
+                tabla.appendChild(tbody);
+                celda.appendChild(tabla);
+            }
+            detalle.appendChild(celda);
+            cuerpo.append(fila, detalle);
+        });
+        if (!datos.documentos.length) cuerpo.innerHTML = '<tr><td colspan="5">No hay tipos configurados.</td></tr>';
+        const lista = document.getElementById('ddObsListado');
+        lista.replaceChildren();
+        for (const o of datos.observaciones) {
+            const elem = document.createElement('div');
+            elem.className = 'border rounded p-2';
+            const titulo = document.createElement('div');
+            titulo.className = 'small fw-semibold text-body-secondary mb-1';
+            titulo.textContent = `${o.fecha} · ${o.usuario} · ${o.accion.replaceAll('_',' ')}`;
+            const desc = document.createElement('div');
+            desc.textContent = o.descripcion;
+            elem.append(titulo, desc);
+            lista.appendChild(elem);
+        }
+        if (!datos.observaciones.length) lista.textContent = 'Sin observaciones registradas.';
+    }
+
+    document.getElementById('ddDocsFilas').addEventListener('click', async e => {
+        const b = e.target.closest('button[data-accion]');
+        if (!b || !solicitudId) return;
+        const accion=b.dataset.accion;
+        const doc=b.dataset.docId;
+        if (accion==='ver') {
+            window.open(ddUrl(ddDocsUrls.ver,doc),'_blank','noopener');
+            return;
+        }
+        if (accion==='subir') {
+            const archivoInput = document.getElementById('ddDocArchivoDirecto');
+            archivoInput.value = '';
+            archivoInput.dataset.tipoId = b.dataset.tipoId;
+            archivoInput.dataset.nombre = b.dataset.nombre;
+            archivoInput.dataset.solicitudId = String(solicitudId);
+            archivoInput.click();
+            return;
+        }
+        
+        let nota = '';
+        if (accion === 'rechazar') {
+            if (window.Swal) {
+                // Desactivar temporalmente la captura de foco de Bootstrap.
+                const modalActivo = bootstrap.Modal.getInstance(elemento);
+                const focusTrap = modalActivo?._focustrap;
+                focusTrap?.deactivate();
+                let resultado;
+                try {
+                    resultado = await Swal.fire({
+                        title: 'Rechazar documento',
+                        text: 'Ingrese el motivo del rechazo.',
+                        icon: 'warning',
+                        input: 'textarea',
+                        inputPlaceholder: 'Escriba el motivo del rechazo...',
+                        inputAttributes: {
+                            maxlength: '500',
+                            'aria-label': 'Motivo del rechazo'
+                        },
+                        showCancelButton: true,
+                        confirmButtonText: 'Rechazar documento',
+                        cancelButtonText: 'Cancelar',
+                        confirmButtonColor: '#dc3545',
+                        focusConfirm: false,
+                        returnFocus: false,
+                        inputValidator: (valor) => {
+                            if (!valor || !valor.trim()) {
+                                return 'Debe ingresar el motivo del rechazo.';
+                            }
+                        },
+                        didOpen: () => {
+                            Swal.getInput()?.focus();
+                        }
+                    });
+                } finally {
+                    // Recuperar el control de foco del modal principal.
+                    if (elemento.classList.contains('show')) { focusTrap?.activate(); }
+                }
+                if (!resultado.isConfirmed) return;
+                nota = resultado.value.trim();
+            } else {
+                nota = (prompt('Indique el motivo del rechazo:') || '').trim();
+            }
+            if (!nota) return;
+        } else {
+            const mensaje = accion === 'aprobar'
+                ? '¿Aprobar y bloquear este documento?'
+                : '¿Retirar este documento vigente? El historial se conservará.';
+            if (!confirm(mensaje)) return;
+        }
+
+        try {
+            const fd=new FormData(); fd.append('observacion',nota);
+            if (accion==='aprobar' || accion==='rechazar') fd.append('estado',accion==='aprobar'?'aprobado':'rechazado');
+            await ddJson(ddUrl(accion==='eliminar'?ddDocsUrls.eliminar:ddDocsUrls.estado,doc),{post:fd});
+            await ddCargarDocs();
+        } catch(err) { avisarError(err.message); }
+    });
+
+    document.getElementById('ddDocArchivoDirecto').addEventListener('change', async function () {
+        const archivo = this.files[0];
+        if (!archivo) return;
+        const idSolicitud = this.dataset.solicitudId;
+        const tipoId = this.dataset.tipoId;
+        const nombre = this.dataset.nombre;
+        const extensiones = ['pdf', 'jpg', 'jpeg', 'png'];
+        const ext = archivo.name.split('.').pop().toLowerCase();
+        if (!extensiones.includes(ext) || archivo.size === 0 || archivo.size > 10 * 1024 * 1024) {
+            avisarError('Seleccione un PDF, JPG o PNG de hasta 10 MB.');
+            this.value='';
+            return;
+        }
+        if (window.Swal) {
+            const r = await Swal.fire({
+                title: 'Adjuntar documento',
+                html: `<p class="mb-1">${ddEsc(nombre)}</p><p class="small text-body-secondary">${ddEsc(archivo.name)}</p>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Guardar documento',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#198754'
+            });
+            if (!r.isConfirmed) { this.value=''; return; }
+        } else if (!confirm(`¿Adjuntar ${archivo.name} como ${nombre}?`)) {
+            this.value=''; return;
+        }
+        const fd = new FormData();
+        fd.append('tipo_id', tipoId);
+        fd.append('archivo', archivo);
+        try {
+            const resp = await ddJson(ddDocsUrls.subir.replace('999999', idSolicitud), {post: fd});
+            if (String(solicitudId) === idSolicitud) await ddCargarDocs();
+            if (window.Swal) await Swal.fire({icon:'success', title:'Documento adjuntado', text:resp.message});
+        } catch(err) { avisarError(err.message); }
+        finally { this.value=''; }
+    });
+
     async function abrirDetalle(id) {
         const actual = ++version;
         solicitudId = id;
         estadoInicial = null;
         guardar.disabled = true;
+        guardarConsejo.disabled = true;
+        selectorConsejo.disabled = true;
         contenido.classList.add('d-none');
         cargando.classList.remove('d-none');
         modal.show();
@@ -421,6 +823,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (actual !== version) return;
 
             const d = resultado.solicitud;
+            await cargarConsejos(d.consejo_id, d.consejo_nombre);
+            if (actual !== version) return;
             campo('Titulo', '#' + d.id);
             campo('Id', '#' + d.id);
             campo('Solicitud', '#' + d.general_id);
@@ -473,6 +877,7 @@ document.addEventListener('DOMContentLoaded', function () {
             estadoInicial = d.estado_id;
             cargando.classList.add('d-none');
             contenido.classList.remove('d-none');
+            ddCargarDocs().catch(error => avisarError(error.message));
         } catch (error) {
             if (actual === version) {
                 modal.hide();
@@ -530,6 +935,7 @@ document.addEventListener('DOMContentLoaded', function () {
             estadoInicial = Number(selector.value);
             guardar.disabled = true;
             window.recargarDevoluciones?.();
+            ddCargarDocs().catch(console.error);
             if (window.AppSwalSuccess) AppSwalSuccess('Estado actualizado', resultado.message);
             else if (window.Swal) Swal.fire('Estado actualizado', resultado.message, 'success');
             else alert(resultado.message);
@@ -541,8 +947,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     elemento.addEventListener('hidden.bs.modal', function () {
         version++;
+        ddDocsVersion++;
+
         solicitudId = null;
         guardar.disabled = true;
+        guardarConsejo.disabled = true;
     });
 });
 </script>

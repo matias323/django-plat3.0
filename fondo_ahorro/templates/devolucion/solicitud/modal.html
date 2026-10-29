@@ -650,6 +650,35 @@ document.addEventListener('DOMContentLoaded', function () {
         for (const [key, value] of Object.entries(pares)) formData.append(key, value);
         for (const item of valores) formData.append('monto_' + item.clave.toLowerCase(), item.valor);
 
+
+        // ============================================================
+        // ENVIAR CONCEPTOS DE DEVOLUCIÓN
+        // ============================================================
+
+        // IDs existentes en devo_solicitud_concepto:
+        // 1 = 100%
+        // 2 = 50%
+        // 3 = 25%
+
+        if (claves.includes('A2')) {
+            const conceptoA2 = field('devoMitadA2').checked ? 2 : 1;
+
+            formData.append('conceptos', conceptoA2);
+        }
+
+        if (claves.includes('A3')) {
+            formData.append('conceptos', 1);
+        }
+
+        if (claves.includes('A1')) {
+            formData.append('conceptos', 1);
+        }
+
+        if (claves.length === 0) {
+            formData.append('conceptos', 1);
+        }
+
+
         const original = crearBoton.innerHTML;
         crearBoton.disabled = true;
         crearBoton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';

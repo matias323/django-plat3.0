@@ -101,11 +101,41 @@
                             <th>Usuario creador</th>
                             <th>Fecha de ingreso</th>
                             <th class="text-center">Estado</th>
+                            <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE SOLICITUDES ASOCIADAS AL CONSEJO -->
+<div class="modal fade" id="consejoSolicitudesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title fw-bold"><i class="bi bi-people me-2 text-primary"></i>Solicitudes del consejo <span id="csmNumero"></span></h5>
+                    <div class="small text-body-secondary" id="csmPeriodo"></div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                    <span class="badge text-bg-primary" id="csmCantidad">0 solicitudes</span>
+                    <span class="badge text-bg-secondary" id="csmEstado"></span>
+                </div>
+                <div id="csmCargando" class="text-center p-5 d-none"><div class="spinner-border text-primary"></div><div class="small mt-2">Cargando solicitudes...</div></div>
+                <div class="table-responsive" id="csmTablaWrapper">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light"><tr><th>N.º</th><th>Funcionario</th><th>RUT</th><th>Tipo</th><th>Motivo</th><th class="text-end">Monto general</th><th>Estado</th><th>Fecha</th></tr></thead>
+                        <tbody id="csmSolicitudes"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button></div>
         </div>
     </div>
 </div>
@@ -252,12 +282,80 @@ document.addEventListener('DOMContentLoaded', function () {
                         <i class="bi bi-${icono}"></i>${escaparHtml(valor)}
                     </span>`;
                 }
+            },
+            {
+                data: 'id', orderable: false, searchable: false, className: 'text-center',
+                render: function (valor, tipo) {
+                    if (tipo !== 'display') return valor;
+                    return `<button type="button" class="btn btn-sm btn-outline-primary btn-ver-solicitudes-consejo" data-id="${Number(valor)}" title="Ver solicitudes asociadas"><i class="bi bi-eye me-1"></i>Solicitudes</button>`;
+                }
             }
         ],
         language: {
             url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json'
         }
     });
+
+    // ========================================================
+    // SOLICITUDES ASOCIADAS AL CONSEJO
+    // ========================================================
+    const modalSolicitudesEl = document.getElementById('consejoSolicitudesModal');
+    const modalSolicitudes = bootstrap.Modal.getOrCreateInstance(modalSolicitudesEl, { focus: false });
+    const urlSolicitudes = "{% url 'devolucion:consejo_solicitudes' 999999 %}";
+    let consultaConsejo = 0;
+
+    $('#tablaConsejos').on('click', '.btn-ver-solicitudes-consejo', async function () {
+        const id = Number(this.dataset.id);
+        const consulta = ++consultaConsejo;
+        document.getElementById('csmNumero').textContent = `#${id}`;
+        document.getElementById('csmPeriodo').textContent = '';
+        document.getElementById('csmCantidad').textContent = '0 solicitudes';
+        document.getElementById('csmEstado').textContent = '';
+        document.getElementById('csmSolicitudes').replaceChildren();
+        document.getElementById('csmCargando').classList.remove('d-none');
+        document.getElementById('csmTablaWrapper').classList.add('d-none');
+        modalSolicitudes.show();
+        try {
+            const response = await fetch(urlSolicitudes.replace('999999', String(id)), {
+                headers: { 'X-App-Request': 'true' }
+            });
+            const data = await leerJson(response);
+            if (!response.ok || data.status !== 'ok') throw new Error(data.message || 'Error al consultar solicitudes.');
+            if (consulta !== consultaConsejo) return;
+            document.getElementById('csmPeriodo').textContent = `Consejo ${data.consejo.fecha}`;
+            document.getElementById('csmCantidad').textContent = `${data.cantidad} solicitud(es)`;
+            document.getElementById('csmEstado').textContent = data.consejo.estado;
+            const tbody = document.getElementById('csmSolicitudes');
+            if (!data.solicitudes.length) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-body-secondary py-4">Este consejo no tiene solicitudes asociadas.</td></tr>';
+            } else {
+                for (const item of data.solicitudes) {
+                    const estado = String(item.estado || '').toLowerCase();
+                    const color = estado.includes('rechaz') ? 'danger' : estado.includes('pagad') || estado.includes('aprobad') ? 'success' : 'primary';
+                    const monto = Number(item.monto_general || 0).toLocaleString('es-CL');
+                    tbody.insertAdjacentHTML('beforeend', `<tr>
+                        <td class="fw-semibold">#${Number(item.id)}</td>
+                        <td>${escaparHtml(item.funcionario)}</td><td>${escaparHtml(item.rut)}</td>
+                        <td>${escaparHtml(item.tipo)}</td><td>${escaparHtml(item.motivo)}</td>
+                        <td class="text-end">$ ${monto}</td>
+                        <td><span class="badge text-bg-${color}">${escaparHtml(item.estado)}</span></td>
+                        <td>${escaparHtml(item.fecha)}</td></tr>`);
+                }
+            }
+        } catch (error) {
+            if (consulta === consultaConsejo) {
+                document.getElementById('csmSolicitudes').innerHTML =
+                    `<tr><td colspan="8" class="text-center text-danger py-3">${escaparHtml(error.message)}</td></tr>`;
+                mostrarError(error.message);
+            }
+        } finally {
+            if (consulta === consultaConsejo) {
+                document.getElementById('csmCargando').classList.add('d-none');
+                document.getElementById('csmTablaWrapper').classList.remove('d-none');
+            }
+        }
+    });
+    modalSolicitudesEl.addEventListener('hidden.bs.modal', () => { consultaConsejo++; });
 
     // ========================================================
     // CREAR CONSEJO

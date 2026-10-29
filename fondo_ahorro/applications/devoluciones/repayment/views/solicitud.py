@@ -16,10 +16,21 @@ from core.models.bank import Banco, BancoCuentaTipo
 from core.models.person import PersonaBanco
 from core.models.request import Request, RequestType, RequestStatus
 from core.models.partner import Partner, PartnerContribution, PartnerContributionType
-from .models import (
-    DevoSolicitud, DevoSolicitudMotivo, DevoSolicitudTipo, DevoSolicitudEstado,
-    DevoSolicitudAporte, DevoSolicitudDetalle, DevoMetodoPago, DevoConsejo,
+from ..models import (
+    DevoSolicitud,
+    DevoSolicitudMotivo,
+    DevoSolicitudTipo,
+    DevoSolicitudEstado,
+    DevoSolicitudConcepto,
+    DevoTipoConcepto,
+    DevoSolicitudTipoConcepto,
+    DevoSolicitudAporte,
+    DevoSolicitudDetalle,
+    DevoMetodoPago,
+    DevoConsejo,
+    DevoObservacion,
 )
+
 
 
 def _full_name(person):
@@ -214,15 +225,33 @@ def crear_solicitud(request):
     except (ValueError, TypeError):
         return JsonResponse({'status': 'error', 'message': 'Hay campos con identificadores inválidos.'}, status=400)
 
-    employee = Employee.objects.filter(
-        person_id=persona_id, is_active=True, person__is_active=True
-    ).select_related('person', 'grade').first()
+    employee = Employee.objects.filter(person_id=persona_id, is_active=True, person__is_active=True).select_related('person', 'grade').first()
     tipo = DevoSolicitudTipo.objects.filter(pk=tipo_id, is_active=True).first()
     motivo = DevoSolicitudMotivo.objects.filter(pk=motivo_id, is_active=True).first()
-    comuna = Commune.objects.filter(
-        pk=comuna_id, region_id=region_id, region__is_active=True, is_active=True
-    ).first()
+    comuna = Commune.objects.filter(pk=comuna_id, region_id=region_id, region__is_active=True, is_active=True).first()
     metodo = DevoMetodoPago.objects.filter(pk=metodo_id, is_active=True).first()
+
+    # ============================================================
+    # OBTENER CONCEPTOS DEL TIPO DE DEVOLUCIÓN
+    tipos_conceptos = list(
+        DevoTipoConcepto.objects.filter(
+            solicitud_tipo=tipo,
+            is_active=True,
+            solicitud_concepto__is_active=True,
+        ).select_related(
+            'solicitud_concepto'
+        ).order_by('pk')
+    )
+
+    if not tipos_conceptos:
+        return JsonResponse({
+            'status': 'error',
+            'message': (
+                'El tipo de devolución seleccionado no tiene '
+                'conceptos configurados.'
+            )
+        }, status=400)
+    # ============================================================
 
     if not all((employee, tipo, motivo, comuna, metodo)):
         return JsonResponse({'status': 'error', 'message':
@@ -326,6 +355,19 @@ def crear_solicitud(request):
         direccion=direccion, comuna=comuna, telefono=telefono, correo=correo,
     ), request.user)
 
+    # ============================================================
+    # ASOCIAR CONCEPTOS A LA SOLICITUD DE DEVOLUCIÓN
+    for tipo_concepto in tipos_conceptos:
+
+        _guardar(
+            DevoSolicitudTipoConcepto(
+                solicitud_devolucion=devolucion,
+                tipo_concepto=tipo_concepto,
+            ),
+            request.user
+        )
+    # ============================================================
+
     for key, monto in importes.items():
         _guardar(DevoSolicitudAporte(
             solicitud_devolucion=devolucion, aporte_tipo=tipos_aporte[key], monto=monto
@@ -335,6 +377,11 @@ def crear_solicitud(request):
         solicitud_devolucion=devolucion, metodo_pago=metodo,
         persona=employee.person, persona_banco=cuenta,
     ), request.user)
+
+    DevoObservacion(
+        solicitud=devolucion, accion=DevoObservacion.Accion.SOLICITUD_CREADA,
+        descripcion=f'Se creó la solicitud de devolución #{devolucion.pk} con estado {estado_devo.nombre}.',
+    ).save(user=request.user)
 
     return JsonResponse({
         'status': 'ok', 'message': 'Solicitud de devolución creada correctamente.',
@@ -351,7 +398,7 @@ def detalle_solicitud(request, pk):
     devolucion = get_object_or_404(
         DevoSolicitud.objects.select_related(
             'tipo', 'motivo', 'estado', 'solicitud', 'solicitud__status',
-            'grado', 'comuna', 'comuna__region'
+            'grado', 'comuna', 'comuna__region', 'consejo'
         ).prefetch_related('aportes__aporte_tipo', 'detalles__persona',
                            'detalles__metodo_pago', 'detalles__persona_banco'),
         pk=pk, is_active=True
@@ -375,6 +422,8 @@ def detalle_solicitud(request, pk):
             'tipo': devolucion.tipo.nombre if devolucion.tipo else '—',
             'motivo': devolucion.motivo.descripcion if devolucion.motivo else '—',
             'estado_id': devolucion.estado_id,
+            'consejo_id': devolucion.consejo_id,
+            'consejo_nombre': str(devolucion.consejo) if devolucion.consejo else None,
             'estado': devolucion.estado.nombre,
             'estado_general': devolucion.solicitud.status.status_type,
             'fecha': devolucion.created_at.strftime('%d/%m/%Y %H:%M'),
@@ -428,8 +477,13 @@ def cambiar_estado_solicitud(request, pk):
         return JsonResponse({'status': 'ok', 'message': 'La solicitud ya tenía ese estado.',
                              'estado': estado.nombre, 'estado_id': estado.pk})
 
+    nombre_anterior = devolucion.estado.nombre if devolucion.estado else 'Sin estado'
     devolucion.estado = estado
     devolucion.save(user=request.user)
+    DevoObservacion(
+        solicitud=devolucion, accion=DevoObservacion.Accion.ESTADO_SOLICITUD,
+        descripcion=f'Estado de la solicitud cambiado de {nombre_anterior} a {estado.nombre}.',
+    ).save(user=request.user)
 
     # Sincronizar core.Request solo cuando exista un estado general equivalente.
     estado_general = RequestStatus.objects.filter(
@@ -451,107 +505,40 @@ def cambiar_estado_solicitud(request, pk):
     })
 
 
-# ============================================================
-# CONSEJOS DE DEVOLUCIÓN
-# ============================================================
-from datetime import date
-from django.utils import timezone
-
-
-@login_required
-@require_GET
-def consejo_lista(request):
-    hoy = timezone.localdate()
-    return render(request, 'devolucion/consejo/consejo_lista.html', {
-        'anios': range(hoy.year - 5, hoy.year + 6),
-        'anio_actual': hoy.year,
-        'mes_actual': hoy.month,
-    })
-
-
-@login_required
-@require_GET
-def consejo_datatable(request):
-    try:
-        draw = max(0, int(request.GET.get('draw', 0)))
-        start = max(0, int(request.GET.get('start', 0)))
-        length = min(100, max(1, int(request.GET.get('length', 10))))
-        order_index = int(request.GET.get('order[0][column]', 0))
-    except (ValueError, TypeError):
-        return JsonResponse({'error': 'Parámetros inválidos.'}, status=400)
-
-    qs = DevoConsejo.objects.filter(is_active=True).select_related('user_create')
-    total = qs.count()
-    busqueda = request.GET.get('search[value]', '').strip()
-    if busqueda:
-        filtros = Q(user_create__username__icontains=busqueda)
-        if busqueda.isdigit():
-            filtros |= Q(pk=int(busqueda)) | Q(fecha_consejo__year=int(busqueda))
-        # Permite buscar fechas en formato YYYY-MM-DD.
-        try:
-            fecha = date.fromisoformat(busqueda)
-            filtros |= Q(fecha_consejo=fecha)
-        except ValueError:
-            pass
-        if 'activado'.startswith(busqueda.lower()):
-            filtros |= Q(estado=True)
-        if 'desactivado'.startswith(busqueda.lower()):
-            filtros |= Q(estado=False)
-        qs = qs.filter(filtros)
-
-    filtrados = qs.count()
-    columnas = {0: 'pk', 1: 'fecha_consejo', 2: 'user_create_id',
-                3: 'fecha_creacion', 4: 'estado'}
-    campo = columnas.get(order_index, 'fecha_consejo')
-    if request.GET.get('order[0][dir]', 'desc') == 'desc':
-        campo = '-' + campo
-
-    filas = qs.order_by(campo, '-pk')[start:start + length]
-    return JsonResponse({
-        'draw': draw,
-        'recordsTotal': total,
-        'recordsFiltered': filtrados,
-        'data': [
-            {
-                'id': c.pk,
-                'fecha_consejo': c.fecha_consejo.strftime('%d/%m/%Y'),
-                'usuario': str(c.user_create) if c.user_create else '—',
-                'fecha_creacion': c.fecha_creacion.strftime('%d/%m/%Y %H:%M') if c.fecha_creacion else '—',
-                'estado': 'Activado' if c.estado else 'Desactivado',
-            }
-            for c in filas
-        ],
-    })
 
 
 @login_required
 @require_POST
 @transaction.atomic
-def consejo_crear(request):
-    try:
-        anio = int(request.POST.get('anio', ''))
-        mes = int(request.POST.get('mes', ''))
-        fecha = date(anio, mes, 1)
-    except (ValueError, TypeError):
-        return JsonResponse({
-            'status': 'error', 'message': 'Seleccione un año y mes válidos.'
-        }, status=400)
-
-    if anio < 2000 or anio > 2100:
-        return JsonResponse({
-            'status': 'error', 'message': 'El año debe estar entre 2000 y 2100.'
-        }, status=400)
-
-    if DevoConsejo.objects.filter(fecha_consejo=fecha, is_active=True).exists():
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Ya existe un consejo registrado para ese mes y año.'
-        }, status=409)
-
-    consejo = DevoConsejo(fecha_consejo=fecha, estado=True)
-    consejo.save(user=request.user)
+def vincular_consejo_solicitud(request, pk):
+    devolucion = get_object_or_404(
+        DevoSolicitud.objects.select_for_update(), pk=pk, is_active=True
+    )
+    valor = request.POST.get('consejo_id', '').strip()
+    if valor:
+        try:
+            consejo_id = int(valor)
+        except (TypeError, ValueError):
+            return JsonResponse({'status': 'error', 'message': 'Identificador inválido.'}, status=400)
+        consejo = DevoConsejo.objects.filter(
+            pk=consejo_id, is_active=True,
+            estado__nombre__iexact='Activado', estado__is_active=True,
+        ).first()
+        if not consejo:
+            return JsonResponse({'status': 'error', 'message': 'El consejo no está activo.'}, status=400)
+    else:
+        consejo = None
+    if devolucion.consejo_id != (consejo.pk if consejo else None):
+        anterior = f'Consejo #{devolucion.consejo_id}' if devolucion.consejo_id else 'Sin consejo'
+        devolucion.consejo = consejo
+        devolucion.save(user=request.user)
+        nuevo = f'Consejo #{consejo.pk}' if consejo else 'Sin consejo'
+        DevoObservacion(
+            solicitud=devolucion, accion=DevoObservacion.Accion.CONSEJO,
+            descripcion=f'Asignación de consejo modificada: {anterior} → {nuevo}.',
+        ).save(user=request.user)
     return JsonResponse({
         'status': 'ok',
-        'message': 'Consejo creado correctamente.',
-        'id': consejo.pk,
-    }, status=201)
+        'message': 'Consejo asignado correctamente.' if consejo else 'Solicitud sin consejo asignado.',
+        'consejo_id': consejo.pk if consejo else None,
+    })

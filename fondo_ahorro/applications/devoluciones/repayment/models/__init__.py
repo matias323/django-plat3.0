@@ -1,16 +1,10 @@
-from .consejo import (
-    DevoConsejo, 
+# Si tu models/__init__.py actual exporta otros modelos, CONSÉRVALOS también.
+from .consejo import DevoConsejo, DevoConsejoEstado
+from .solicitud import (
+    DevoSolicitudMotivo, DevoSolicitudConcepto, DevoSolicitudTipo,
+    DevoSolicitudEstado, DevoSolicitud, DevoSolicitudAporte,
+    DevoSolicitudDetalle, DevoTipoConcepto, DevoSolicitudTipoConcepto,
+    DevoMetodoPago,
 )
 
-from .solicitud import (
-    DevoSolicitud,
-    DevoSolicitudAporte,
-    DevoSolicitudConcepto,
-    DevoSolicitudDetalle,
-    DevoSolicitudEstado,
-    DevoSolicitudMotivo,
-    DevoSolicitudTipo,
-    DevoSolicitudTipoConcepto, 
-    DevoTipoConcepto,
-    DevoMetodoPago
-)
+from .documento import DevoDocumentoTipo, DevoDocumento, DevoObservacion
