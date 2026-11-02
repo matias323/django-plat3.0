@@ -126,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json()
+            console.log(data)
             dataResult = data.data
             // return
             if(!data.success) {
@@ -195,6 +196,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const socioId = item.dataset.socioId;
                 const socio = dataResult.find(p => p.id_partner == socioId);
                 if (socio) {
+                    if (socio.socio === "NO") {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'No es socio',
+                            text: 'La persona seleccionada no es socio.',
+                            showConfirmButton: true
+                        })
+                        return;
+                    }
                     seleccionarPersona(socio);
                     dropdown.classList.remove('show');
                     dropdown.innerHTML = '';
@@ -205,7 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function seleccionarPersona(persona) {
         ahorrosState.selectedPerson = persona;
-
         // Actualizar input de búsqueda
         const inputSearch = document.getElementById('input-search-persona');
         if (inputSearch) {

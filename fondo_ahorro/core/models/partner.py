@@ -255,8 +255,9 @@ class PartnerMovement(BaseModel):
             "contribution_type": {
                 "id": self.contribution_type_id,
                 "description": self.contribution_type.description,
+                "comment": self.contribution_type.comment,
             },
-            "created_at": self.created_at,
+            "created_at": self.created_at.strftime("%d-%m-%Y"),
             "updated_at": self.updated_at,
             "is_active": self.is_active,
         }

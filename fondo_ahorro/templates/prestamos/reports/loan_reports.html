@@ -3,15 +3,33 @@
 {% block title %}Informes de préstamos{% endblock %}
 
 {% block content %}
+
+<style>
+    .loan-header {
+        border: 1px solid #cfcfcf;
+        background: linear-gradient(
+            to right,
+            #ffffff00 0%,
+            #ffffff00 35%,
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
+        );
+        color: #212529;
+    }
+</style>
+
 <div class="container-fluid py-4">
+
+    <!-- TITULO -->
+    <div class="loan-header card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="mb-1"><i class="bi bi-file-earmark-bar-graph-fill text-primary fs-4"></i> Informes</h3>
+            <div class="text-muted">Genera informes Excel de cartera, insolutos, dividendos pagados e intereses.</div>
+        </div>
+    </div>
+
     <div class="card shadow-sm border-0">
         <div class="card-body p-4">
-            <div class="mb-3">
-                <h3 class="mb-1">Informes</h3>
-                <p class="text-muted mb-0">Genera informes Excel de cartera, insolutos, dividendos pagados e intereses.</p>
-            </div>
-
-            <hr>
 
             <!-- CARTERA DE PRÉSTAMOS -->
             <section class="py-3 border-bottom">
@@ -23,17 +41,17 @@
                 </div>
 
                 <form id="formReportPortfolio" class="row g-3">
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioDateFrom" class="form-label">Desde</label>
                         <input type="date" class="form-control" id="portfolioDateFrom" name="fecha_desde">
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioDateTo" class="form-label">Hasta</label>
                         <input type="date" class="form-control" id="portfolioDateTo" name="fecha_hasta">
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioLoanType" class="form-label">Tipo</label>
                         <select class="form-select" id="portfolioLoanType" name="id_tipo_prestamo">
                             <option value="0">Todos</option>
@@ -43,7 +61,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioConcept" class="form-label">Concepto</label>
                         <select class="form-select" id="portfolioConcept" name="id_tipo_concepto">
                             <option value="0">Todos</option>
@@ -53,7 +71,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioStatus" class="form-label">Estado</label>
                         <select class="form-select" id="portfolioStatus" name="id_estado">
                             <option value="0">Todos</option>
@@ -63,7 +81,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioCollectionMethod" class="form-label">Método cobro</label>
                         <select class="form-select" id="portfolioCollectionMethod" name="id_cobro_metodo">
                             <option value="0">Todos</option>
@@ -83,7 +101,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioMortgage" class="form-label">Hipotecario</label>
                         <select class="form-select" id="portfolioMortgage" name="hipotecario">
                             <option value="">Todos</option>
@@ -114,7 +132,7 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         <label for="portfolioDirection" class="form-label">Dirección</label>
                         <select class="form-select" id="portfolioDirection" name="direccion">
                             <option value="DESC">Descendente</option>
@@ -122,8 +140,8 @@
                         </select>
                     </div>
 
-                    <div class="col-md-4 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportPortfolio"
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="button" class="btn btn-primary" data-export-form="formReportPortfolio"
                                 data-export-url="{% url 'loan:report_portfolio_excel' %}">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>
@@ -156,7 +174,7 @@
                     </div>
 
                     <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportUnpaid"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportUnpaid"
                                 data-export-url="{% url 'loan:report_unpaid_excel' %}">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>
@@ -187,7 +205,7 @@
                     </div>
 
                     <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportPaid"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportPaid"
                                 data-export-url="{% url 'loan:report_paid_excel' %}">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>
@@ -220,7 +238,7 @@
                     </div>
 
                     <div class="col-md-6 d-flex align-items-end gap-2">
-                        <button type="button" class="btn btn-success" data-export-form="formReportInterest"
+                        <button type="button" class="btn btn-primary" data-export-form="formReportInterest"
                                 data-export-url="{% url 'loan:report_interest_excel' %}" data-require-dates="1">
                             <span class="fa fa-file-excel me-1"></span> Descargar Excel
                         </button>

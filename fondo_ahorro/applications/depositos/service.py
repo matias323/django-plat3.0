@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Q, Prefetch, Sum, Value
+from django.db.models import Q, Prefetch, Sum, Value, Case, F, When, IntegerField
 from core.models.person import Person
 from .models import Deposit, DepositApplication, ProcessType, DepositDocument
 from core.models.employee import Employee
@@ -31,7 +31,7 @@ class DepositoServices():
         querysetPerson = Person.objects.filter(
             is_active=True,
             employees__is_active=True,
-            partner__is_active=True
+            # partner__is_active=True
             )
 
         
@@ -95,9 +95,12 @@ class DepositoServices():
             cuenta_aporte = 110
         
         #socio
-        socio = Partner.objects.filter(pk=socio_id, is_active=True, person=persona_id).first()
+        socio = Partner.objects.filter(pk=socio_id, person=persona_id).first()
         if not socio:
             raise ValueError("El socio no existe")
+        
+        if socio.is_active == False:
+            raise ValueError("La persona no es Socio!")
         
         #fecha deposito
         # convertir fecha recibida desde HTTP
@@ -305,6 +308,149 @@ class DepositoServices():
         #     return depositos.first().deposit_to_dic()
         
         return [deposito.deposit_to_dic() for deposito in depositos]
+    
+    
+    #buscar movimeintos
+    def search_movimientos(anio = None, tipo = None, cuenta = None, persona_pk = None):
+        filters = Q(is_active=True)
+        
+        if anio:
+            filters &= Q(created_at__year=anio)
+            
+        if tipo:
+            filters &= Q(movement_type=tipo)
+            
+        if cuenta:
+            filters &= Q(contribution_type=cuenta)
+            
+        if persona_pk:
+            filters &= Q(partner__person=persona_pk)
+            
+        movimientos = PartnerMovement.objects.filter(filters).order_by("-created_at")
+        
+        return [movimiento.to_dict() for movimiento in movimientos]
+    
+    #saldo de socio anio
+    def saldo_anio(persona_pk, anio, cuenta = None):
+        fecha_inicio = date(anio, 1, 1)
+
+        # 1. Obtenemos los montos actuales de forma segura
+        contribuciones = PartnerContribution.objects.filter(
+            partner__person=persona_pk, contribution_type__in=[1, 2, 3]
+        ).values("contribution_type", "amount")
+
+        contri_dict = {c["contribution_type"]: int(c["amount"]) for c in contribuciones}
+        a1_actual = int(contri_dict.get(1, 0))
+        a2_actual = int(contri_dict.get(2, 0))
+        a3_actual = int(contri_dict.get(3, 0))
+        a1_inicio = a1_actual
+        a2_inicio = a2_actual
+        a3_inicio = a3_actual
+        saldo_actual = a1_actual + a2_actual + a3_actual
+
+        # 2. Filtro base para los movimientos posteriores a la fecha
+        filters = Q(is_active=True) & Q(partner__person=persona_pk) & Q(created_at__gte=fecha_inicio)
+        
+        if cuenta:
+            filters &= Q(contribution_type=cuenta)
+
+        # 3. Agregación inteligente considerando los tipos de movimientos (Giros, Depósitos, etc.)
+        # Aquí ajustas la condición de acuerdo a cómo guardas los giros y depósitos en tu BD.
+        # Por ejemplo: Si movement_type == 1 es Depósito (suma) y movement_type == 2 es Giro (resta).
+        movimientos_agregados = (
+            PartnerMovement.objects.filter(filters)
+            .values("contribution_type")
+            .annotate(
+                neto=Sum(
+                    Case(
+                        # giro
+                        When(movement_type=1, then=F("amount")),
+                        # depositos
+                        When(movement_type__gt=1, then=-F("amount")),
+                        # Por defecto por si hay otro tipo
+                        default=0,
+                        output_field=IntegerField(),
+                    ),
+                    output_field=IntegerField(),
+                )
+            )
+        )
+
+        mov_dict = {m["contribution_type"]: (m["neto"] or 0) for m in movimientos_agregados}
+
+        neto_a1 = mov_dict.get(1, 0)
+        neto_a2 = mov_dict.get(2, 0)
+        neto_a3 = mov_dict.get(3, 0)
+
+        # Como estamos calculando hacia atrás (saldo inicial),
+        # al saldo actual le "deshacemos" el efecto de los movimientos posteriores:
+        # Si un depósito sumó, para ir al pasado se resta; si un giro restó, para ir al pasado se suma.
+        a1_inicio += neto_a1
+        a2_inicio += neto_a2
+        a3_inicio += neto_a3
+        saldo_inicio = a1_inicio + a2_inicio + a3_inicio
+
+        return {
+            "a1_actual": a1_actual,
+            "a2_actual": a2_actual,
+            "a3_actual": a3_actual,
+            "saldo_actual": saldo_actual,
+            "saldo_inicio": saldo_inicio,
+            "a1_inicio": a1_inicio,
+            "a2_inicio": a2_inicio,
+            "a3_inicio": a3_inicio,
+        }
+        
+        # fecha_inicio = date(anio+1, 1, 1)
+        
+        # filters = Q(is_active=True)
+        # filters &= Q(partner__person=persona_pk)
+        # filters &= Q(created_at__gte=fecha_inicio)
+        
+        # movimientos = PartnerMovement.objects.filter(filters).select_related("contribution_type", "contribution_type")
+        
+        # a1_actual = int(PartnerContribution.objects.get(partner__person=persona_pk, contribution_type_id=1).amount)
+        # a2_actual = int(PartnerContribution.objects.get(partner__person=persona_pk, contribution_type_id=2).amount)
+        # a3_actual = int(PartnerContribution.objects.get(partner__person=persona_pk, contribution_type_id=3).amount)
+        
+        # saldo_inicio = a1_actual + a2_actual + a3_actual
+        # a1_inicio = a1_actual
+        # a2_inicio = a2_actual
+        # a3_inicio = a3_actual
+        # for movimiento in movimientos:
+        #     if movimiento.contribution_type == 1: #a1
+        #         a1_inicio += (
+        #                 movimiento.amount if movimiento.movement_type_id == 1 else -movimiento.amount
+        #             )
+        #     elif movimiento.contribution_type == 2: #a2
+        #         a2_inicio += (
+        #                 movimiento.amount if movimiento.movement_type_id == 1 else -movimiento.amount
+        #             )
+        #     elif movimiento.contribution_type == 3: #a3
+        #         a3_inicio += (
+        #                 movimiento.amount if movimiento.movement_type_id == 1 else -movimiento.amount
+        #             )
+            
+        #     saldo_inicio += movimiento.amount if movimiento.movement_type_id == 1 else -movimiento.amount
+            
+        # return [
+        #     {
+        #         "a1_actual": a1_actual,
+        #         "a2_actual": a2_actual,
+        #         "a3_actual": a3_actual,
+        #         "saldo_actual": a1_actual + a2_actual + a3_actual,
+        #         "saldo_inicio": saldo_inicio,
+        #         "a1_inicio": a1_inicio,
+        #         "a2_inicio": a2_inicio,
+        #         "a3_inicio": a3_inicio
+        #     }
+        # ]
+        
+            
+        
+    
+    
+
         
         
         

@@ -6,7 +6,8 @@ from .views import (DepositoView,
                     DepositoSearchView, 
                     DepositosBusqueda,
                     DepositoAppComprobantePDF,
-                    DepositoCartola)
+                    DepositoCartola,
+                    CartolaMovimientos)
 
 
 
@@ -22,6 +23,7 @@ urlpatterns = [
     path("busqueda-partner/", DepositoPartnerSearch.as_view(), name="depositos_busqueda_partner"),
     path("incremento/", DepositoIncrementoAporte.as_view(), name="depositos_incremento_aporte"),
     path("busqueda/", DepositosBusqueda.as_view(), name="depositos_buscar"),
+    path("cartola/movimientos/", CartolaMovimientos.as_view(), name="depositos_cartola_movimientos"),
     
     
     #pdf

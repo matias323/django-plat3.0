@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        
+        <!-- Tarjeta del Formulario Principal del Rol -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <div class="d-flex align-items-center justify-content-between">
+                    <h2 class="h3 mb-0 text-body-emphasis">
+                        <i class="bi bi-shield-fill-plus me-2 text-primary"></i>{{ titulo }}
+                    </h2>
+                    <a href="{% url 'role:role_list' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i> Volver
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card-body p-4">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+
+                    <!-- Campo Nombre -->
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">
+                            {{ form.name.label }}
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Checkboxes de configuración -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="form-check form-switch p-3  rounded border">
+                                {{ form.is_unique }}
+                                <label class="form-check-label fw-semibold ms-2" for="{{ form.is_unique.id_for_label }}">
+                                    {{ form.is_unique.label }}
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mt-3 mt-md-0">
+                            <div class="form-check form-switch p-3  rounded border">
+                                {{ form.is_partner }}
+                                <label class="form-check-label fw-semibold ms-2" for="{{ form.is_partner.id_for_label }}">
+                                    {{ form.is_partner.label }}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Estado Activo del Rol -->
+                    <div class="mb-4">
+                        <div class="form-check form-switch p-3  rounded border">
+                            {{ form.is_active }}
+                            <label class="form-check-label fw-semibold ms-2" for="{{ form.is_active.id_for_label }}">
+                                {{ form.is_active.label }}
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Botón Guardar Principal -->
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top">
+                        <a href="{% url 'role:role_list' %}" class="btn btn-light px-4">Cancelar</a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-save me-1"></i> Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- SECCIÓN SOLO VISIBLE EN EDICIÓN: Apps y Usuarios Asociados -->
+        {% if object %}
+        
+        <!-- 1. Aplicaciones Asociadas (RoleApp) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <h4 class="h5 mb-0 text-body-emphasis">
+                    <i class="bi bi-app-indicator me-2 text-primary"></i>Aplicaciones Asociadas 
+                </h4>
+            </div>
+            <div class="card-body p-0 mt-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Aplicación</th>
+                                <th class="text-center">Estado de Asociación</th>
+                                <th class="text-end pe-4">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ra in role_apps %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-body">{{ ra.app.name }}</td>
+                                <td class="text-center">
+                                    {% if ra.is_active %}
+                                        <span class="badge bg-success">Activa</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactiva</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <form method="post" class="d-inline" onsubmit="return confirm('¿Deseas cambiar el estado de esta aplicación para este rol?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="role_app_id" value="{{ ra.id }}">
+                                        {% if ra.is_active %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Desactivar">
+                                                <i class="bi bi-toggle-on"></i> Desactivar
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Activar">
+                                                <i class="bi bi-toggle-off"></i> Activar
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-secondary">
+                                    No hay aplicaciones asociadas a este rol.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Usuarios Asociados (RoleUser) -->
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-0 pt-4 px-4 pb-0">
+                <h4 class="h5 mb-0 text-body-emphasis">
+                    <i class="bi bi-people-fill me-2 text-primary"></i>Usuarios Asociados
+                </h4>
+            </div>
+            <div class="card-body p-0 mt-3">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4">Usuario</th>
+                                <th class="text-center">Estado del Rol en Usuario</th>
+                                <th class="text-end pe-4">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ru in role_users %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-body">{{ ru.user }}</td>
+                                <td class="text-center">
+                                    {% if ru.is_active %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    <form method="post" class="d-inline" onsubmit="return confirm('¿Deseas cambiar el estado de este usuario en el rol?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="role_user_id" value="{{ ru.id }}">
+                                        {% if ru.is_active %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Desactivar">
+                                                <i class="bi bi-toggle-on"></i> Desactivar
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Activar">
+                                                <i class="bi bi-toggle-off"></i> Activar
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-secondary">
+                                    No hay usuarios asignados a este rol.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

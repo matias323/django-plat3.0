@@ -1,0 +1,220 @@
+/* ============================================================================
+   FAH - TEMA PERSONALIZADO PARA BOOTSTRAP 5.3
+   ============================================================================
+   Archivo: core/static/core/css/theme.css
+
+   Este archivo debe cargarse DESPUÉS de bootstrap.min.css.
+   Los colores cambian automáticamente según el atributo data-bs-theme
+   del elemento <html>: "light" o "dark".
+   ============================================================================ */
+
+/* ============================================================================
+   1. PALETA DE COLORES - MODO CLARO
+   ============================================================================ */
+:root,
+[data-bs-theme="light"] {
+    --fah-primary: #007328;
+    --fah-primary-rgb: 0, 115, 40;
+    --fah-primary-hover: #005f21;
+    --fah-primary-active: #004f1b;
+    --fah-primary-contrast: #ffffff;
+    --fah-primary-focus: rgba(0, 115, 40, 0.25);
+    --fah-primary-soft: #57a872;
+
+    /* Sobrescribe las variables de color de Bootstrap. */
+    --bs-primary: var(--fah-primary);
+    --bs-primary-rgb: var(--fah-primary-rgb);
+    --bs-link-color: var(--fah-primary);
+    --bs-link-color-rgb: var(--fah-primary-rgb);
+    --bs-link-hover-color: var(--fah-primary-hover);
+}
+
+/* ============================================================================
+   2. PALETA DE COLORES - MODO OSCURO
+   ============================================================================ */
+[data-bs-theme="dark"] {
+    --fah-primary: #abb835;
+    --fah-primary-rgb: 53, 184, 107;
+    --fah-primary-hover: #ccca49;
+    --fah-primary-active: #8b9627;
+    --fah-primary-contrast: #000000;
+    --fah-primary-focus: rgba(175, 184, 53, 0.25);
+    --fah-primary-soft: #bfcc49;
+
+    --bs-primary: var(--fah-primary);
+    --bs-primary-rgb: var(--fah-primary-rgb);
+    --bs-link-color: var(--fah-primary);
+    --bs-link-color-rgb: var(--fah-primary-rgb);
+    --bs-link-hover-color: var(--fah-primary-hover);
+}
+
+/* ============================================================================
+   3. BOTONES PRIMARY
+   ============================================================================ */
+.btn-primary {
+    --bs-btn-color: var(--fah-primary-contrast);
+    --bs-btn-bg: var(--fah-primary);
+    --bs-btn-border-color: var(--fah-primary);
+
+    --bs-btn-hover-color: var(--fah-primary-contrast);
+    --bs-btn-hover-bg: var(--fah-primary-hover);
+    --bs-btn-hover-border-color: var(--fah-primary-hover);
+
+    --bs-btn-focus-shadow-rgb: var(--fah-primary-rgb);
+
+    --bs-btn-active-color: var(--fah-primary-contrast);
+    --bs-btn-active-bg: var(--fah-primary-active);
+    --bs-btn-active-border-color: var(--fah-primary-active);
+
+    --bs-btn-disabled-color: var(--fah-primary-contrast);
+    --bs-btn-disabled-bg: var(--fah-primary);
+    --bs-btn-disabled-border-color: var(--fah-primary);
+}
+
+/* ============================================================================
+   4. BOTONES OUTLINE PRIMARY
+   ============================================================================ */
+.btn-outline-primary {
+    --bs-btn-color: var(--fah-primary);
+    --bs-btn-border-color: var(--fah-primary);
+
+    --bs-btn-hover-color: var(--fah-primary-contrast);
+    --bs-btn-hover-bg: var(--fah-primary);
+    --bs-btn-hover-border-color: var(--fah-primary);
+
+    --bs-btn-focus-shadow-rgb: var(--fah-primary-rgb);
+
+    --bs-btn-active-color: var(--fah-primary-contrast);
+    --bs-btn-active-bg: var(--fah-primary-active);
+    --bs-btn-active-border-color: var(--fah-primary-active);
+
+    --bs-btn-disabled-color: var(--fah-primary);
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: var(--fah-primary);
+}
+
+/* ============================================================================
+   5. TEXTOS, FONDOS Y BORDES PRIMARY
+   ============================================================================ */
+.text-primary {
+    color: var(--fah-primary) !important;
+}
+
+.bg-primary {
+    background-color: rgba(var(--fah-primary-rgb), var(--bs-bg-opacity, 1)) !important;
+}
+
+.border-primary {
+    border-color: rgba(var(--fah-primary-rgb), var(--bs-border-opacity, 1)) !important;
+}
+
+/* Asegura que las variantes sutiles de Bootstrap respeten la paleta FAH. */
+.text-bg-primary {
+    color: var(--fah-primary-contrast) !important;
+    background-color: var(--fah-primary) !important;
+}
+
+/* ============================================================================
+   6. PESTAÑAS (TABS)
+   ============================================================================ */
+.nav-tabs {
+    --bs-nav-tabs-link-active-color: var(--fah-primary);
+    --bs-nav-tabs-link-hover-border-color: var(--bs-border-color)
+                                             var(--bs-border-color)
+                                             var(--bs-border-color);
+    --bs-nav-tabs-link-active-border-color: var(--bs-border-color)
+                                              var(--bs-border-color)
+                                              var(--bs-body-bg);
+}
+
+.nav-tabs .nav-link {
+    color: var(--fah-primary);
+}
+
+.nav-tabs .nav-link:hover,
+.nav-tabs .nav-link:focus {
+    color: var(--fah-primary-hover);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--fah-primary);
+    font-weight: 600;
+}
+
+/* ============================================================================
+   7. ENLACES DE NAVEGACIÓN
+   ============================================================================ */
+.nav-link {
+    color: var(--fah-primary);
+}
+
+.nav-link:hover,
+.nav-link:focus {
+    color: var(--fah-primary-hover);
+}
+
+/* ============================================================================
+   8. PAGINACIÓN
+   ============================================================================ */
+.pagination {
+    --bs-pagination-color: var(--fah-primary);
+    --bs-pagination-hover-color: var(--fah-primary-hover);
+    --bs-pagination-focus-color: var(--fah-primary);
+    --bs-pagination-focus-box-shadow: 0 0 0 0.25rem var(--fah-primary-focus);
+    --bs-pagination-active-color: var(--fah-primary-contrast);
+    --bs-pagination-active-bg: var(--fah-primary);
+    --bs-pagination-active-border-color: var(--fah-primary);
+}
+
+/* ============================================================================
+   9. FORMULARIOS
+   ============================================================================ */
+/* Checkbox y radio seleccionados. */
+.form-check-input:checked {
+    background-color: var(--fah-primary);
+    border-color: var(--fah-primary);
+}
+
+/* Resaltado del campo activo (input y select). */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--fah-primary-soft);
+    box-shadow: 0 0 0 0.25rem var(--fah-primary-focus);
+}
+
+/* Resaltado del checkbox/radio al recibir foco. */
+.form-check-input:focus {
+    border-color: var(--fah-primary-soft);
+    box-shadow: 0 0 0 0.25rem var(--fah-primary-focus);
+}
+
+/* ============================================================================
+   10. DEGRADADO DEL FONDO
+   ============================================================================ */
+.mi-zona {
+    background: linear-gradient(
+        to bottom,
+        transparent 15%,
+        transparent 90%,
+        rgba(0, 115, 40, 0.10) 95%,
+        rgba(0, 115, 40, 0.28) 100%
+    );
+}
+
+/* En modo oscuro se disminuye la intensidad para evitar exceso de contraste. */
+[data-bs-theme="dark"] .mi-zona {
+    background: linear-gradient(
+        to bottom,
+        transparent 15%,
+        transparent 90%,
+        rgba(53, 184, 107, 0.05) 95%,
+        rgba(53, 184, 107, 0.13) 100%
+    );
+}
+
+
+
+
+/* ============================================================================
+   FIN DEL TEMA FAH
+   ============================================================================ */

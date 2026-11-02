@@ -12,10 +12,10 @@
     {% if request.user_session %}
       {{request.user_session.app.name|default:'Ingresar'}} 
     {% endif %}
-    {% if request.resolver_match.url_name == 'login'  %}
+    {% if request.resolver_match.url_name == 'login' %}
       Ingresar
     {% endif %}
-    {% if request.resolver_match.url_name == 'registration'  %}
+    {% if request.resolver_match.url_name == 'registration' %}
       Registro
     {% endif %}
     | FAH
@@ -137,10 +137,28 @@
       --bs-btn-active-bg: var(--bs-tertiary-bg);
     }
 
-    html, body { height: 100%; margin: 0; display: flex; flex-direction: column; }
-    body { min-height: 100vh; }
-    main { flex: 1 0 auto; }
-    footer { flex-shrink: 0; }
+    html {
+        min-height: 100%;
+    }
+
+    body {
+        min-height: 100vh;
+        min-height: 100dvh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    main {
+        flex: 1 0 auto;
+    }
+
+    footer {
+        flex-shrink: 0;
+        width: 100%;
+        margin-top: auto;
+        border-top: 1px solid var(--bs-border-color);
+    }
 
     @media (prefers-color-scheme: dark) {
       [data-bs-theme="dark"] .navbar { border-bottom-color: rgba(255,255,255,.08); }
@@ -200,7 +218,7 @@
 
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="mi-zona">
   {% include "includes/nav.html" %}
 
   <main class="container py-4">
@@ -225,7 +243,11 @@
     </div>
   </footer>
 
+<!-- Bootstrap -->
 <script src="{% static 'core/bootstrap-5.3.8-dist/js/bootstrap.bundle.min.js' %}"></script>
+<link href="{% static 'core/bootstrap-5.3.8-dist/css/bootstrap.min.css' %}" rel="stylesheet">
+<link href="{% static 'core/css/theme.css' %}" rel="stylesheet">
+
 <!-- sweet alert -->
 <script src="{% static 'core/sweet-alert/sweetalert2.all.min.js' %}"></script>
 <!-- datatable -->

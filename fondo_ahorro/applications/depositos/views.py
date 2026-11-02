@@ -6,6 +6,8 @@ from .service import DepositoServices
 from .service_report import ReportService
 from datetime import datetime
 import json
+from core.models.partner import PartnerContributionType, PartnerMovement, PartnerMovementType
+from django.db.models.functions import ExtractYear
 
 from .models import ProcessType
 
@@ -54,7 +56,12 @@ class DepositoCartola(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        context["tipo_proceso"] = ProcessType.objects.all()
+        # context["movements_years"] = list(PartnerMovement.objects.dates("created_at", "year", order="DESC").values_list("created_at__year", flat=True).distinct())
+        context["movements_years"] = list(PartnerMovement.objects.annotate(year=ExtractYear("created_at")).values_list("year", flat=True).distinct().order_by("-year"))
+        
+        context["movements_types"] = list(PartnerMovementType.objects.all())
+        
+        context["contribution_types"] = list(PartnerContributionType.objects.all())
         
         return context
     
@@ -242,4 +249,27 @@ class DepositoAppComprobantePDF(View):
             return HttpResponse(str(e), status=HTTPStatus.BAD_REQUEST)
         except Exception as e:
             return HttpResponse(str(e), status=HTTPStatus.INTERNAL_SERVER_ERROR)
+        
+#cartola movimeiento
+class CartolaMovimientos(View):
+    def post(self, request):
+        data = json.loads(request.body)
+        print(data)
+                
+        anio = int(data.get("anio", 0))
+        tipo = int(data.get("tipo", 0))
+        cuenta = int(data.get("cuenta", 0))
+        persona = int(data.get("persona", 0))
+        
+        anio = int(anio) if anio > 0 else None
+        tipo = int(tipo) if tipo > 0 else None
+        cuenta = int(cuenta) if cuenta > 0 else None
+        persona = int(persona) if persona > 0 else None
+        
+        if persona == None:
+            return JsonResponse({"success":False, "message":"No se ha seleccionado una persona"}, status=HTTPStatus.BAD_REQUEST)
+        
+        movimientos = DepositoServices.search_movimientos(anio, tipo, cuenta, persona)
+        saldos = DepositoServices.saldo_anio(persona, anio, cuenta)
+        return JsonResponse({"success":True, "data":movimientos, "saldo":saldos}, status=HTTPStatus.OK)
         

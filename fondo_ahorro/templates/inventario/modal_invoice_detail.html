@@ -19,7 +19,7 @@
             <span class="detail-label">Estado</span>
             <input class="form-control 
                 {% if invoice.status == 1 and invoice.is_active %}
-                    text-success
+                    text-primary
                 {% else %}
                     text-danger
                 {% endif %}
@@ -91,7 +91,7 @@
                 <input type="file" name="invoice_documents" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp" multiple required>
             </div>
             <div class="col-md-4">
-                <button class="btn btn-success">
+                <button class="btn btn-primary">
                     <span class="bi bi-upload"></span>
                     Subir documentos
                 </button>

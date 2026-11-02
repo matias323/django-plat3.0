@@ -1,40 +1,22 @@
 {% extends "base.html" %}
-
 {% block title %}Solicitudes de préstamos{% endblock %}
-
 {% block content %}
 
 <div class="container-fluid py-3">
 
-    <!-- ============================================================
-         ENCABEZADO
-    ============================================================ -->
+    <!-- ENCABEZADO -->
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-
         <div>
-            <h3 class="mb-1">
-                Solicitudes de préstamos
-            </h3>
-
-            <div class="text-muted">
-                Creación, revisión documental y resolución de solicitudes.
-            </div>
+            <h3 class="mb-1">Solicitudes de préstamos</h3>
+            <div class="text-muted">Creación, revisión documental y resolución de solicitudes.</div>
         </div>
 
-        <a href="{% url 'loan_requests:create' %}"
-           class="btn btn-primary">
-
-            <i class="bi bi-plus-lg me-1"></i>
-            Nueva solicitud
-
+        <a href="{% url 'loan_requests:create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Nueva solicitud
         </a>
-
     </div>
 
-
-    <!-- ============================================================
-         DATATABLE
-    ============================================================ -->
+    <!-- DATATABLE -->
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="table-responsive">
@@ -64,28 +46,13 @@
 </div>
 
 
-<!-- ============================================================
-     MODAL DETALLE
-============================================================ -->
-<div class="modal fade"
-     id="requestLoanDetailModal"
-     tabindex="-1"
-     aria-hidden="true">
-
+<!-- MODAL DETALLE -->
+<div class="modal fade" id="requestLoanDetailModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-
-        <div class="modal-content"
-             id="requestLoanDetailModalContent">
-
+        <div class="modal-content" id="requestLoanDetailModalContent">
             <div class="modal-body text-center py-5">
-
-                <div class="spinner-border"
-                     role="status">
-                </div>
-
-                <div class="text-muted mt-2">
-                    Cargando solicitud...
-                </div>
+                <div class="spinner-border" role="status"></div>
+                <div class="text-muted mt-2"> Cargando solicitud...</div>
             </div>
         </div>
     </div>
@@ -93,7 +60,6 @@
 
 
 <style>
-
 #loanRequestsTable td {
     vertical-align: middle;
 }
@@ -106,13 +72,10 @@
     font-size: .82rem;
     padding: .45rem .65rem;
 }
-
 </style>
 
 
-<!-- ============================================================
-     DATATABLE
-============================================================ -->
+<!-- DATATABLE -->
 
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -122,50 +85,23 @@
 
 <script>
 
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
+document.addEventListener("DOMContentLoaded", function () {
 
-        /* ============================================================
-           MODAL
+        /* MODAL 
         ============================================================ */
+        const detailModalElement = document.getElementById("requestLoanDetailModal");
+        const detailModalContent = document.getElementById("requestLoanDetailModalContent");
 
-        const detailModalElement =
-            document.getElementById(
-                "requestLoanDetailModal"
-            );
-
-        const detailModalContent =
-            document.getElementById(
-                "requestLoanDetailModalContent"
-            );
-
-        const detailModal =
-            bootstrap.Modal.getOrCreateInstance(
-                detailModalElement,
-                {
-                    focus: false
-                }
-            );
+        const detailModal = bootstrap.Modal.getOrCreateInstance(detailModalElement,{ focus: false });
 
 
-        /* ============================================================
-           FUNCIONES GENERALES
+        /* FUNCIONES GENERALES
         ============================================================ */
-
-        function escapeHtml(value) {
-
-            return $("<div>")
-                .text(value ?? "")
-                .html();
-
-        }
-
+        function escapeHtml(value) { return $("<div>").text(value ?? "").html(); }
 
         function formatCLP(value) {
 
-            const number =
-                Number(value || 0);
+            const number = Number(value || 0);
 
             return new Intl.NumberFormat(
                 "es-CL",
@@ -183,10 +119,7 @@ document.addEventListener(
         }
 
 
-        async function showError(
-            title,
-            message
-        ) {
+        async function showError(title,message) {
 
             if (window.AppSwalError) {
 
@@ -356,42 +289,30 @@ document.addEventListener(
 
 
                     {
-                        
-                        data: "status",
+                        // para de data : "status" a data : null, así el render recibe todo el objeto 'row' con los boolean de view.py
+                        data: null,
+                        render: function (data, type, row) {
 
-                        render: function (data) {
+                            let cls = "bg-secondary"; // color por defecto
 
-                            const value = String(
-                                data || ""
-                            ).trim().toUpperCase();
-
-                            let cls = "bg-secondary";
-
-                            if (
-                                value === "APROBADO" ||
-                                value === "APROBADO CONSEJO" ||
-                                value === "APROBADO CONSEJO CON MODIFICACIONES"
-                            ) {
-                                cls = "bg-info";
-
-                            } else if (value === "PAGADO") {
-                                cls = "bg-success";
-
-                            } else if (value === "RECHAZADO") {
+                            // leemos propiedades de la tabla RequestLoanState
+                            if ( row.is_rejected ) {
                                 cls = "bg-danger";
-
-                            } else {
+                            } else if ( row.is_paid_state ) {
+                                cls = "bg-success";
+                            } else if ( row.is_approval_state ) {
+                                cls = "bg-info text-dark";
+                            } else if ( row.status_name !== "Sin Estado" ) {
                                 cls = "bg-primary";
                             }
 
                             return `
                                 <span class="badge ${cls}">
-                                    ${escapeHtml(data || "")}
+                                    ${escapeHtml(row.status_name || "")}
                                 </span>
                             `;
                         }
                     },
-
 
                     {
                         data: null,

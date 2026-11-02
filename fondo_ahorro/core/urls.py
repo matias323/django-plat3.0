@@ -26,8 +26,11 @@ app_name = "core"
 urlpatterns = [
     path("", home_view.HomeView.as_view(), name="home"),
     path("login/", login_view.LoginView.as_view(template_name="registration/login.html"), name="login"),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('logout/', login_view.LogoutView.as_view(), name='logout'),
     path("registration/", RegistrationView.as_view(template_name="registration/registration.html"), name="register"),
+
+    path('sesiones/', login_view.SessionView.as_view(), name='session'),
+
 
     path('perfil/', perfil_view.UserProfileView.as_view(), name='perfil'),
     path('usuarios/', UserListView.as_view(), name='user_list'),

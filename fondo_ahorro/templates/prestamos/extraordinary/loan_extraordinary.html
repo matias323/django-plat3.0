@@ -2,12 +2,32 @@
 {% load l10n %}
 
 {% block content %}
-<div class="container-fluid py-2">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <h2 class="text-center mb-3">Crear préstamo extraordinario</h2>
-            <hr>
 
+<style>
+    .loan-header {
+        border: 1px solid #cfcfcf;
+        background: linear-gradient(
+            to right,
+            #ffffff00 0%,
+            #ffffff00 35%,
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
+        );
+        color: #212529;
+    }
+</style>
+
+<div class="container-fluid py-2">
+    <!-- TITULO -->
+    <div class="loan-header card shadow-sm mb-4">
+        <div class="card-body">
+            <h3 class="mb-1"><i class="bi bi-file-earmark-plus-fill text-primary fs-4"></i> Crear préstamo extraordinario</h3>
+            <div class="text-muted">Creacion de préstamos excepcionales.</div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">        
+        <div class="card-body">
             {% if config_error %}
                 <div class="alert alert-danger">{{ config_error }}</div>
             {% endif %}

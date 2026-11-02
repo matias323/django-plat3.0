@@ -14,7 +14,7 @@ class ActiveAppSessionMiddleware:
 
     def __call__(self, request):
         request.user_session = SimpleLazyObject(
-            lambda: User.get_active_session(request.user)
+            lambda: User.get_active_session(request.user) if request.user.is_authenticated else None
         )
 
         return self.get_response(request)
@@ -24,84 +24,38 @@ class ActiveAppSessionMiddleware:
 
         # ====================================================
         # RUTAS QUE NO DEBEN VALIDAR LA SESIÓN DE APLICACIÓN
-        if resolver and resolver.app_name == "core" and resolver.url_name in {
+        # ====================================================
+        if resolver and resolver.url_name in {
             "login",
             "logout",
             "register",
             "perfil",
-
         }:
             return None
 
         # ====================================================
         # USUARIO NO AUTENTICADO
+        # ====================================================
         if not request.user.is_authenticated:
-            # logout(request)
-            
-            # messages.error(
-            #     request,
-            #     "Tu sesión expiró. Debes iniciar sesión nuevamente.",
-            # )
+            return None  
 
-            # return redirect("core:login") ???
-            return None
-
-        # ====================================================
-        # SUPERUSUARIO
-        if request.user.is_superuser:
-            return None
-
-        # ====================================================
-        # DJANGO ADMIN
-        if resolver and resolver.app_name == "admin":
-            return None
-
-        # ====================================================
-        # SESIÓN ACTIVA DEL SISTEMA
+        # Obtenemos la sesión activa de forma segura
         session = User.get_active_session(request.user)
 
         if not session:
-            if request.headers.get("X-App-Request") == "true":
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": "Sesión no válida o expirada.",
-                    },
-                    status=401,
-                )
+           
+            return redirect('core:logout') 
 
-            # El usuario sigue autenticado en Django pero su
-            # sesión interna ya no existe. Cerramos la sesión
-            # Django para evitar el bucle /login/ -> /login/.
-            logout(request)
-
-            messages.error(
-                request,
-                "Tu sesión expiró. Debes iniciar sesión nuevamente.",
-            )
-
-            return redirect("core:login")
+        # ====================================================
+        # DJANGO ADMIN
+        # ====================================================
+        if resolver and resolver.app_name == "admin" and request.user.is_superuser:
+            return None
 
         # ====================================================
         # APLICACIÓN ACTUAL
+        # ====================================================
         current_app = App.get_app_by_request(request)
-
-        if not current_app:
-            if request.headers.get("X-App-Request") == "true":
-                return JsonResponse(
-                    {
-                        "success": False,
-                        "message": "No tienes permisos para acceder a este recurso.",
-                    },
-                    status=403,
-                )
-
-            messages.error(
-                request,
-                "No tienes permisos para acceder.",
-            )
-
-            return redirect("core:home")
 
         app_target = (
             current_app
@@ -111,11 +65,10 @@ class ActiveAppSessionMiddleware:
 
         # ============================================================
         # VALIDACIÓN DE ESCRITURA
+        # ============================================================
         if request.method in ["POST", "PUT", "PATCH", "DELETE"]:
-            resolver = request.resolver_match
             role = getattr(session, "role", None)
 
-            # ============================================================
             # EXCEPCIONES DE AUTOSERVICIO
             is_partner_registration_create = (
                 role
@@ -126,7 +79,7 @@ class ActiveAppSessionMiddleware:
                 and request.method == "POST"
             )
 
-            if not is_partner_registration_create:
+            if not is_partner_registration_create and app_target:
                 user_permission = (
                     UserPermission.objects
                     .filter(
@@ -151,23 +104,25 @@ class ActiveAppSessionMiddleware:
                         "No tienes permisos para realizar cambios.",
                     )
 
-                    return redirect("core:home")
+                    return redirect(getattr(app_target, "url", "core:home"))
+            return None
 
-        # ====================================================
-        # ACTUALIZAR APP ACTIVA
+        
+        # ============================================================
+        # ACTUALIZAR APLICACIÓN ACTIVA
+        # ============================================================
+
+        # if request.method == "GET" and current_app and session.app != current_app:
+        #     session.app = current_app
+        #     session.save(update_fields=["app"])
+
         if (
             request.method == "GET"
             and isinstance(current_app, App)
-            and session
-            # and session.app != current_app
+            and session.app_id != current_app.pk
         ):
             session.app = current_app
             session.save(update_fields=["app"])
-
-
-
-        # para saber el rol en el html creamos el user_session en la request-
-        #entonces ahora en el html podemos hacer {{request.user_sesison.role.name}} -> "Desarrollo".
 
         request.user_session = session
 

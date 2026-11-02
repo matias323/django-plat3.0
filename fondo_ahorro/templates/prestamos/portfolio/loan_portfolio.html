@@ -41,19 +41,30 @@
             margin-bottom: 15px;
         }
     }
+
+    .loan-header {
+        border: 1px solid #cfcfcf;
+        background: linear-gradient(
+            to right,
+            #ffffff00 0%,
+            #ffffff00 35%,
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
+        );
+        color: #212529;
+    }
 </style>
 
 
 <div class="container-fluid py-4">
 
     <!-- TITULO -->
-    <div class="card shadow-sm mb-4">
+    <div class="loan-header card shadow-sm mb-4">
         <div class="card-body">
-            <h3 class="mb-1">Cartera de préstamos</h3>
+            <h3 class="mb-1"><i class="bi bi-wallet-fill text-primary fs-4"></i> Cartera de préstamos</h3>
             <div class="text-muted">Administración y consulta de préstamos.</div>
         </div>
     </div>
-
 
     <!-- TABLA -->
     <div class="card shadow-sm">
@@ -857,7 +868,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         totalText.textContent = formatCLP(total);
         differenceText.textContent = formatCLP(difference);
-        differenceText.classList.toggle("text-success", difference === 0);
+        differenceText.classList.toggle("text-primary", difference === 0);
         differenceText.classList.toggle("text-danger", difference !== 0);
 
         if (button) {

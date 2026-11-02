@@ -81,7 +81,7 @@
             <!-- FUNCIONARIO -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <strong>Funcionario</strong>
+                    <strong><i class="bi bi-person-badge text-primary"></i> Funcionario</strong>
                 </div>
 
                 <div class="card-body">
@@ -117,7 +117,7 @@
             <!-- INFORMACION FINANCIERA -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <strong>Información financiera</strong>
+                    <strong><i class="bi bi-bank2 text-primary"></i> Información financiera</strong>
                 </div>
 
                 <div class="card-body">
@@ -184,7 +184,7 @@
             <!-- DATOS PRESTAMO -->
             <div class="card">
                 <div class="card-header">
-                    <strong>Datos del préstamo</strong>
+                    <strong><i class="bi bi-file-earmark-text-fill text-primary"></i> Datos del préstamo</strong>
                 </div>
 
                 <div class="card-body">
@@ -251,62 +251,68 @@
         <!-- DIVIDENDOS -->
         <div class="tab-pane fade" id="loanInstallments">
 
-            <div class="d-flex justify-content-end gap-2 mb-3">
-                <button type="button" class="btn btn-outline-secondary btnLoanAction" data-action="no-collection">
-                    <i class="bi bi-slash-circle me-1"></i>
-                    No mandar a cobro
-                </button>
-            </div>
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <strong><i class="bi bi-calendar-check-fill text-primary"></i> Dividendos</strong>
+                </div>
 
-            <div class="table-responsive">
-                <table class="table table-hover table-bordered align-middle text-center w-100">
-                    <thead>
-                        <tr>
-                            <th>Cuota</th>
-                            <th>Método cobro</th>
-                            <th>Fecha</th>
-                            <th>Monto</th>
-                            <th>Capital</th>
-                            <th>Interés</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
+                <div class="d-flex justify-content-end gap-2 mb-2">
+                    <button type="button" class="btn btn-outline-danger btnLoanAction mt-2 me-2" data-action="no-collection">
+                        <i class="bi bi-slash-circle me-1"></i>
+                        No mandar a cobro
+                    </button>
+                </div>
 
-                    <tbody>
-                        {% for row in installment_rows %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered align-middle text-center w-100">
+                        <thead>
                             <tr>
-                                <td>{{ row.installment.installment_number }}</td>
-                                <td>{{ row.installment.collection_method.name }}</td>
-                                <td>{{ row.installment.due_date|date:"d-m-Y"|default:"-" }}</td>
-                                <td class="money-text">{{ row.installment.amount|unlocalize }}</td>
-                                <td class="money-text">{{ row.installment.principal|unlocalize }}</td>
-                                <td class="money-text">{{ row.installment.interest|unlocalize }}</td>
-                                <td>{{ row.installment.status.name }}</td>
+                                <th>Cuota</th>
+                                <th>Método cobro</th>
+                                <th>Fecha</th>
+                                <th>Monto</th>
+                                <th>Capital</th>
+                                <th>Interés</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
 
-                                <td>
-                                    {% if row.can_pay %}
-                                        <button type="button"
-                                                class="btn btn-sm btn-success btnLoanAction"
-                                                data-action="pay-installment"
-                                                data-installment="{{ row.installment.id }}"
-                                                title="Pagar dividendo">
-                                            <i class="bi bi-cash"></i>
-                                        </button>
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="8" class="text-muted py-4">
-                                    No existen dividendos registrados.
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        <tbody>
+                            {% for row in installment_rows %}
+                                <tr>
+                                    <td>{{ row.installment.installment_number }}</td>
+                                    <td>{{ row.installment.collection_method.name }}</td>
+                                    <td>{{ row.installment.due_date|date:"d-m-Y"|default:"-" }}</td>
+                                    <td class="money-text">{{ row.installment.amount|unlocalize }}</td>
+                                    <td class="money-text">{{ row.installment.principal|unlocalize }}</td>
+                                    <td class="money-text">{{ row.installment.interest|unlocalize }}</td>
+                                    <td>{{ row.installment.status.name }}</td>
+
+                                    <td>
+                                        {% if row.can_pay %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-primary btnLoanAction"
+                                                    data-action="pay-installment"
+                                                    data-installment="{{ row.installment.id }}"
+                                                    title="Pagar dividendo">
+                                                <i class="bi bi-cash"></i>
+                                            </button>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-muted py-4">
+                                        No existen dividendos registrados.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -350,7 +356,7 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h5>Prepago</h5>
+                            <h5><i class="bi bi-fast-forward-fill text-primary"></i> Prepago</h5>
 
                             <p class="text-muted">
                                 Registra uno o más depósitos. El total debe ser al menos el 5% del saldo capital.
@@ -367,7 +373,7 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h5>Amortización</h5>
+                            <h5><i class="bi bi-graph-down-arrow text-primary"></i> Amortización</h5>
 
                             <p class="text-muted">
                                 Utiliza los aportes disponibles del socio para generar una solicitud de amortización.
@@ -384,7 +390,7 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h5>Amortización de insolutos</h5>
+                            <h5><i class="bi bi-exclamation-triangle-fill text-primary"></i> Amortización de insolutos</h5>
 
                             <p class="text-muted">
                                 Total insoluto:
@@ -405,7 +411,7 @@
                 <div class="col-md-6">
                     <div class="card h-100">
                         <div class="card-body">
-                            <h5>Desgravamen</h5>
+                            <h5><i class="bi bi-shield-fill-check text-primary"></i> Desgravamen</h5>
 
                             <p class="text-muted">
                                 Registra una solicitud de pago por desgravamen con documento de respaldo.
@@ -427,7 +433,7 @@
 
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center gap-3">
-                    <strong>Método de cobro actual</strong>
+                    <strong><i class="bi bi-credit-card-fill text-primary"></i> Método de cobro actual</strong>
 
                     <button type="button" class="btn btn-sm btn-primary btnLoanAction"
                             data-action="collection-method">
@@ -505,7 +511,7 @@
 
             <div class="card mb-3">
                 <div class="card-header d-flex justify-content-between align-items-center gap-3">
-                    <strong>Tasa actual</strong>
+                    <strong><i class="bi bi-calculator-fill text-primary"></i> Tasa actual</strong>
 
                     <button type="button" class="btn btn-sm btn-primary btnLoanAction" data-action="rate">
                         <i class="bi bi-percent me-1"></i>
@@ -573,56 +579,62 @@
         <!-- HISTORIAL -->
         <div class="tab-pane fade" id="loanHistory">
 
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle text-center">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tipo pago</th>
-                            <th>Dividendo</th>
-                            <th>Monto</th>
-                            <th>Usuario</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <strong><i class="bi bi-clock-history text-primary"></i> Historial</strong>
+                </div>
 
-                    <tbody>
-                        {% for payment in payments %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle text-center">
+                        <thead>
                             <tr>
-                                <td>{{ payment.created_at|date:"d-m-Y H:i" }}</td>
-                                <td>{{ payment.payment_type }}</td>
-
-                                <td>
-                                    {% if payment.installment %}
-                                        Cuota {{ payment.installment.installment_number }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-
-                                <td class="money-text">{{ payment.amount|unlocalize }}</td>
-                                <td>{{ payment.user_create|default:"-" }}</td>
-                                <td>{{ payment.status }}</td>
-
-                                <td>
-                                    <button type="button"
-                                            class="btn btn-sm btn-primary btnPaymentDetail"
-                                            data-payment="{{ payment.id }}"
-                                            title="Ver detalle">
-                                        <i class="bi bi-eye"></i>
-                                    </button>
-                                </td>
+                                <th>Fecha</th>
+                                <th>Tipo pago</th>
+                                <th>Dividendo</th>
+                                <th>Monto</th>
+                                <th>Usuario</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
                             </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-muted py-4">
-                                    No existen pagos registrados.
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+
+                        <tbody>
+                            {% for payment in payments %}
+                                <tr>
+                                    <td>{{ payment.created_at|date:"d-m-Y H:i" }}</td>
+                                    <td>{{ payment.payment_type }}</td>
+
+                                    <td>
+                                        {% if payment.installment %}
+                                            Cuota {{ payment.installment.installment_number }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="money-text">{{ payment.amount|unlocalize }}</td>
+                                    <td>{{ payment.user_create|default:"-" }}</td>
+                                    <td>{{ payment.status }}</td>
+
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-sm btn-primary btnPaymentDetail"
+                                                data-payment="{{ payment.id }}"
+                                                title="Ver detalle">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-muted py-4">
+                                        No existen pagos registrados.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -630,73 +642,77 @@
         <!-- AVALES -->
         <div class="tab-pane fade" id="loanGuarantors">
 
-            <div class="d-flex flex-wrap gap-2 mb-3">
-                <button type="button" class="btn btn-primary btnLoanAction" data-action="add-guarantor">
-                    <i class="bi bi-person-plus me-1"></i>
-                    Agregar aval
-                </button>
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <strong><i class="bi bi-people-fill text-primary"></i> Avales</strong>
+                </div>
 
-                <button type="button" class="btn btn-warning btnLoanAction" data-action="transfer-guarantors">
-                    <i class="bi bi-arrow-left-right me-1"></i>
-                    Transferir a avales
-                </button>
+                <div class="d-flex justify-content-center gap-3 mb-2 mt-2">
+                    <button type="button" class="btn btn-primary btnLoanAction" data-action="add-guarantor">
+                        <i class="bi bi-person-plus me-1"></i> Agregar aval
+                    </button>
 
-                <button type="button" class="btn btn-success btnLoanAction" data-action="recover-guarantors">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>
-                    Recuperar préstamos
-                </button>
-            </div>
+                    <button type="button" class="btn btn-warning btnLoanAction" data-action="transfer-guarantors">
+                        <i class="bi bi-arrow-left-right me-1"></i> Transferir a avales
+                    </button>
+
+                    <button type="button" class="btn btn-info btnLoanAction" data-action="recover-guarantors">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Recuperar préstamos
+                    </button>
+                </div>
 
 
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle text-center">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>RUT</th>
-                            <th>Nombre</th>
-                            <th>Préstamo hijo</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for row in guarantor_rows %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle text-center">
+                        <thead>
                             <tr>
-                                <td>{{ row.relation.id }}</td>
-                                <td>{{ row.rut }}</td>
-                                <td>{{ row.name }}</td>
+                                <th>ID</th>
+                                <th>RUT</th>
+                                <th>Nombre</th>
+                                <th>Préstamo hijo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
 
-                                <td>
-                                    {% if row.child_loan %}
+                        <tbody>
+                            {% for row in guarantor_rows %}
+                                <tr>
+                                    <td>{{ row.relation.id }}</td>
+                                    <td>{{ row.rut }}</td>
+                                    <td>{{ row.name }}</td>
+
+                                    <td>
+                                        {% if row.child_loan %}
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary btnOpenChildLoan"
+                                                    data-loan="{{ row.child_loan.id }}">
+                                                #{{ row.child_loan.id }}
+                                            </button>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+
+                                    <td>
                                         <button type="button"
-                                                class="btn btn-sm btn-outline-primary btnOpenChildLoan"
-                                                data-loan="{{ row.child_loan.id }}">
-                                            #{{ row.child_loan.id }}
+                                                class="btn btn-sm btn-danger btnRemoveGuarantor"
+                                                data-relation="{{ row.relation.id }}"
+                                                title="Quitar aval">
+                                            <i class="bi bi-x-lg"></i>
                                         </button>
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-muted py-4">
+                                        Este préstamo no posee avales.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-                                <td>
-                                    <button type="button"
-                                            class="btn btn-sm btn-danger btnRemoveGuarantor"
-                                            data-relation="{{ row.relation.id }}"
-                                            title="Quitar aval">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-muted py-4">
-                                    Este préstamo no posee avales.
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
             </div>
         </div>
 
@@ -704,54 +720,59 @@
         <!-- DOCUMENTACION -->
         <div class="tab-pane fade" id="loanDocuments">
 
-            <div class="d-flex justify-content-end mb-3">
-                <button type="button" class="btn btn-primary btnLoanAction" data-action="document">
-                    <i class="bi bi-paperclip me-1"></i>
-                    Adjuntar documento
-                </button>
-            </div>
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3">
+                    <strong><i class="bi bi-folder-fill text-primary"></i> Documentación</strong>
+                </div>
+
+                <div class="d-flex justify-content-end mb-2 mt-2">
+                    <button type="button" class="btn btn-primary btnLoanAction me-2" data-action="document">
+                        <i class="bi bi-paperclip me-1"></i>
+                        Adjuntar documento
+                    </button>
+                </div>
 
 
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle text-center">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Tipo</th>
-                            <th>Documento</th>
-                            <th>Ver</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for row in document_rows %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle text-center">
+                        <thead>
                             <tr>
-                                <td>{{ row.relation.created_at|date:"d-m-Y H:i" }}</td>
-                                <td>{{ row.relation.document_type }}</td>
-                                <td>{{ row.relation.document }}</td>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Documento</th>
+                                <th>Ver</th>
+                            </tr>
+                        </thead>
 
-                                <td>
-                                    {% if row.url %}
-                                        <a href="{{ row.url }}" target="_blank" class="btn btn-sm btn-primary">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-muted py-4">
-                                    No existen documentos asociados.
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        <tbody>
+                            {% for row in document_rows %}
+                                <tr>
+                                    <td>{{ row.relation.created_at|date:"d-m-Y H:i" }}</td>
+                                    <td>{{ row.relation.document_type }}</td>
+                                    <td>{{ row.relation.document }}</td>
+
+                                    <td>
+                                        {% if row.url %}
+                                            <a href="{{ row.url }}" target="_blank" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-muted py-4">
+                                        No existen documentos asociados.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-
     </div>
 </div>
 

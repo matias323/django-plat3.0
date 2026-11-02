@@ -619,7 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     data: 'origen',
                     render: function (data, type, row) {
                         if (!data) return '-';
-                        return `<button type="button" class="btn btn-sm btn-doc-ref-trigger btn-origen d-inline-flex align-items-center gap-1 font-monospace" id="${row.id}" title="Clic para ver proceso de origen y documentos adjuntos">
+                        return `<button type="button" class="btn btn-outline-secondary btn-sm btn-doc-ref-trigger btn-origen d-inline-flex align-items-center gap-1 font-monospace" id="${row.id}" title="Clic para ver proceso de origen y documentos adjuntos">
                             <i class="bi bi-file-earmark-ruled"></i>
                             <span>${data.voucher_number}</span>
                         </button>`;

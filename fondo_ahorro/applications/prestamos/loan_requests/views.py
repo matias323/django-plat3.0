@@ -337,16 +337,20 @@ def _request_timeline(request_loan):
 
 
 def _request_data_can_be_edited(request_loan):
+    # Si está rechazado, no se modifica
     if _request_is_rejected(request_loan):
         return False
 
+    # Si no tiene estado (por error de datos), no se modifica
     if not request_loan.state_id:
         return False
 
-    return request_loan.state.code in {
-        REQUEST_LOAN_STATE_ENTERED,
-        REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED,
-    }
+    # Si la solicitud ya está pagada, no se modifica
+    if request_loan.state.is_paid_state:
+        return True
+
+    # Para el resto de casos (por ahora), si se permite modificar
+    return True
 
 
 def _sync_existing_loan_from_request(request, request_loan, loan):
@@ -772,7 +776,13 @@ def request_loan_datatable(request):
             "loan_amount": float(item.loan_amount or 0),
             "term": item.term,
             "request_date": item.request_date.strftime("%d-%m-%Y"),
-            "status": ("Rechazado" if _request_is_rejected(item) else (item.state.name if item.state else entered_state.name)),
+
+            # se envía nombre real y no solo el texto hardcodeado, adjuntamos los boolean para que el front tome desición de diseño (color)
+            "status_name": ("Rechazado" if _request_is_rejected(item) else (item.state.name if item.state else entered_state.name)),
+            "is_rejected": _request_is_rejected(item),
+            "is_approval_state": item.state.is_approval_state if item.state else False,
+            "is_paid_state": item.state.is_paid_state if item.state else False,
+
             "detail_url": reverse("loan_requests:detail", args=[item.id]),
             "detail_modal_url": reverse("loan_requests:detail_modal", args=[item.id]),
         })
@@ -1284,10 +1294,7 @@ def request_loan_detail(request, pk):
                     ],
                 )
 
-                if (
-                    existing_loan
-                    and request_loan.state.code == REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED
-                ):
+                if existing_loan:
                     _sync_existing_loan_from_request(
                         request,
                         request_loan,
@@ -1309,7 +1316,6 @@ def request_loan_detail(request, pk):
                         + (
                             " El préstamo y sus dividendos fueron recalculados."
                             if existing_loan
-                            and request_loan.state.code == REQUEST_LOAN_STATE_COUNCIL_APPROVED_MODIFIED
                             else ""
                         )
                     ),
@@ -1447,6 +1453,36 @@ def request_loan_detail(request, pk):
 
         return redirect("loan_requests:detail", pk=pk)
 
+    # Indicamos cuales son los ID que pueden asignar o deribar responsabilidades a personas
+    # En este caso, las jefaturas deriban a sus áreas.
+    can_assign = request.user.groups.filter(name__in=["Jefe Prestamos", "Jefe Contabilidad"]).exists()
+
+    if action == "assign_group":
+        if not can_assign:
+            message.error(request,  "No tiene permisos para asignar solicitudes.")
+            return redirect("loan_request:detail", pk=pk)
+
+        employee_id = request.POST.get("assigment_employee")
+        area_name = _normalize_spaces(request.POST.get("assigment_area"))
+
+        if employee_id and area_name:
+            assigned_emp = Employee.objects.filter(pk=employee_id, is_active=True).select_related("person").first()
+            if assigned_emp:
+                emp_name = _person_full_name(assigned_emp.person)
+                _create_observation(
+                    request,
+                    request_loan,
+                    RequestLoanObservation.Action.COMMENT,
+                    f"Solicitud asignada a: {emp_name} ({area_name}).",
+                )
+                message.success(request, f"Solicitud asignada correctamente a {emp_name} ({area_name}).")
+            else:
+                message.error(request, "El trabajador seleccionado no es válido.")
+        else:
+            message.error(request, "Debe seleccionar un área y un responsable.")
+        
+        return redirect("loan_request:detail", pk=pk)
+
     required_documents = (
         request_loan.required_documents
         .filter(is_active=True)
@@ -1511,6 +1547,34 @@ def request_loan_detail(request, pk):
         request_loan
     )
 
+    # Se lee asignación de persona y área
+    assigment_obs = (
+        request_loan.observations
+        .filter(
+            is_active = True,
+            observation__comment__startswith = "Solicitud asignada a: "
+            )
+            .select_related("observation")
+            .order_by("-id")
+            .first()
+    )
+
+    current_assigment = "Sin asignar"
+    if assigment_obs and assigment_obs.comment:
+        current_assigment = (
+            assigment_obs.observation.comment
+            .replace("icitud asignada a: ", "")
+            .strip()
+            .rstrip(".")
+        )
+
+    active_employees = (
+        Employee.objects
+        .filter(is_active = True)
+        .select_related("person")
+        .order_by("person__first_name", "person__last_name_1")
+    )
+
     person = request_loan.employee.person
     is_final = _request_is_final(request_loan)
     has_loan = bool(existing_loan)
@@ -1532,6 +1596,9 @@ def request_loan_detail(request, pk):
         "has_loan": has_loan,
         "is_final": is_final,
         "is_rejected": _request_is_rejected(request_loan),
+        "can_assign": can_assign,
+        "current_assigment": current_assigment,
+        "active_employees": active_employees,
     }
 
     return render(

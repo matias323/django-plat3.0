@@ -7,41 +7,55 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    .loan-header {
+        border: 1px solid #cfcfcf;
+        background: linear-gradient(
+            to right,
+            #ffffff00 0%,
+            #ffffff00 35%,
+            var(--bs-primary) 70%,
+            var(--bs-primary) 100%
+        );
+        color: #212529;
+    }
+
+    .btn-nav {
+        width: 110px;
+        height: 40px;
+    }
+</style>
+
 <div class="container-fluid py-4">
 
-    <div class="card shadow-sm border-0">
-
+    <!-- TITULO -->
+    <div class="loan-header card shadow-sm mb-4">
         <div class="card-body">
+            <h3 class="mb-1"><i class="bi bi-credit-card-2-front-fill text-primary fs-4"></i> Gestor de pagos</h3>
+            <div class="text-muted">Revisa, aprueba, rechaza o gestiona reversas de las solicitudes de pago.</div>
+        </div>
+    </div>
 
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-                <div>
-                    <h3 class="mb-1">Gestor de pagos</h3>
-                    <p class="text-muted mb-0">
-                        Revisa, aprueba, rechaza y gestiona reversas de las solicitudes de pago.
-                    </p>
-                </div>
-            </div>
-
-            <hr>
-
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
             <div class="d-flex flex-wrap gap-2 mb-4">
-                <button type="button" class="btn btn-warning payment-filter active" data-filter="pending">
+                <button type="button" class="btn btn-nav btn-warning payment-filter active" data-filter="pending">
                     Pendientes
                 </button>
 
-                <button type="button" class="btn btn-success payment-filter" data-filter="approved">
+                <button type="button" class="btn btn-nav btn-success payment-filter" data-filter="approved">
                     Aprobados
                 </button>
 
-                <button type="button" class="btn btn-danger payment-filter" data-filter="rejected">
+                <button type="button" class="btn btn-nav btn-danger payment-filter" data-filter="rejected">
                     Rechazados
                 </button>
 
-                <button type="button" class="btn btn-secondary payment-filter" data-filter="reversed">
+                <button type="button" class="btn btn-nav btn-secondary payment-filter" data-filter="reversed">
                     Reversados
                 </button>
 
-                <button type="button" class="btn btn-primary payment-filter" data-filter="all">
+                <button type="button" class="btn btn-nav btn-info payment-filter" data-filter="all">
                     Todos
                 </button>
             </div>
@@ -456,7 +470,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (row.can_approve) {
                         buttons.push(`
-                            <button type="button" class="btn btn-sm btn-success btn-payment-action"
+                            <button type="button" class="btn btn-sm btn-primary btn-payment-action"
                                     data-id="${row.id}" data-mode="approve"
                                     data-payment-type="${escapeHtml(row.payment_type)}"
                                     data-amount="${escapeHtml(row.amount)}" title="Aprobar">
@@ -488,7 +502,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (row.can_approve_reversal) {
                         buttons.push(`
-                            <button type="button" class="btn btn-sm btn-success btn-payment-reversal-decision"
+                            <button type="button" class="btn btn-sm btn-primary btn-payment-reversal-decision"
                                     data-id="${row.id}" data-mode="approve" title="Aprobar reversa">
                                 <i class="bi bi-check-circle"></i>
                             </button>
@@ -590,7 +604,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (mode === "approve") {
             actionTitle.textContent = `Aprobar pago #${paymentId}`;
-            submitButton.className = "btn btn-success";
+            submitButton.className = "btn btn-primary";
             submitButton.textContent = "Aprobar pago";
             reason.placeholder = "Observación opcional";
 
@@ -687,7 +701,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (mode === "approve") {
             actionTitle.textContent = `Aprobar reversa del pago #${paymentId}`;
             reason.placeholder = "Observación opcional";
-            submitButton.className = "btn btn-success";
+            submitButton.className = "btn btn-primary";
             submitButton.textContent = "Aprobar reversa";
         } else {
             actionTitle.textContent = `Rechazar reversa del pago #${paymentId}`;
