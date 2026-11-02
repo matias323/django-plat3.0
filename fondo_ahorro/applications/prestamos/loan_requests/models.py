@@ -394,3 +394,19 @@ class RequestLoanAssignment(BaseModel):
 
     def __str__(self):
         return f"Solicitud #{self.request_loan_id} -> Usuario {self.responsible_id} ({self.area_name})"
+
+class RequestLoanGuarantor(BaseModel):
+    request_loan = models.ForeignKey(
+        'RequestLoan',
+        on_delete=models.CASCADE,
+        related_name="guarantors"
+    )
+    person = models.ForeignKey(
+        'core.Person',
+        on_delete=models.PROTECT,
+        related_name="request_loan_guarantees"
+    )
+
+    class Meta:
+        db_table = "solicitud_prestamo_aval"
+        verbose_name = "Aval de Solicitud"

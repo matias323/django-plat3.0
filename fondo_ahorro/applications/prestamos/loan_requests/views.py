@@ -43,6 +43,7 @@ from .models import (
     RequestLoanRequiredDocument,
     RequestLoanState,
     RequestLoanAssignment,
+    RequestLoanGuarantor
 )
 
 # Importamos la tabla intermedia de roles
@@ -1481,6 +1482,65 @@ def request_loan_detail(request, pk):
         
         return redirect("loan_requests:detail", pk=pk)
 
+    if action == "save_guarantors":
+        print(">>> ENTRAMOS A GUARDAR AVALES")
+        ruts = request.POST.getlist("guarantor_rut[]")
+        dvs = request.POST.getlist("guarantor_dv[]")
+        first_names = request.POST.getlist("guarantor_first_name[]")
+        last_names = request.POST.getlist("guarantor_last_name_1[]")
+
+        guarantors_created = 0
+
+        for rut, dv, first_name, last_name in zip(ruts, dvs, first_names, last_names):
+            rut_limpio = rut.strip()
+
+            # CONTRAMEDIDA: Si la pestaña quedó vacía (sin RUT), se omite silenciosamente
+            if not rut_limpio:
+                continue
+
+            try:
+                # 1. Buscar o crear la persona en la tabla base
+                person, person_created = Person.objects.get_or_create(
+                    rut=int(rut_limpio),
+                    defaults={
+                        "dv": dv.strip().upper(),
+                        "first_name": first_name.strip().upper(),
+                        "last_name_1": last_name.strip().upper(),
+                        "birth_date": "1900-01-01",  # Valor por defecto obligatorio
+                    },
+                )
+
+                # 2. Asociar como aval de la solicitud
+                guarantor_rel, created = RequestLoanGuarantor.objects.get_or_create(
+                    request_loan=request_loan,
+                    person=person,
+                )
+
+                # 3. NUEVO REQUERIMIENTO: Observación individual detallada
+                if created:
+                    guarantors_created += 1
+                    
+                    _create_observation(
+                        request,
+                        request_loan,
+                        RequestLoanObservation.Action.COMMENT,
+                        f"Aval añadido a la solicitud: {_person_full_name(person)} (RUT: {_format_rut(person)}).",
+                    )
+
+            except Exception as e:
+                messages.warning(
+                    request,
+                    f"No fue posible procesar el aval RUT {rut_limpio}: {e}",
+                )
+
+        if guarantors_created > 0:
+            messages.success(request, f"Se añadieron {guarantors_created} aval(es) correctamente.")
+        else:
+            messages.info(request, "No se registraron nuevos avales (ya estaban añadidos o el formulario estaba vacío).")
+
+        print(f">>> REDIRECCIONANDO AL DETALLE DE LA SOLICITUD ID: {pk}")
+        return redirect("loan_requests:detail", pk=pk)
+    
     required_documents = (
         request_loan.required_documents
         .filter(is_active=True)
