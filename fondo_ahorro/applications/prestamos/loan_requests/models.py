@@ -15,12 +15,27 @@ from applications.prestamos.loan.models.loan import LoanType, LoanTypeConcept
 class RequestLoanState(BaseModel):
     code = models.CharField(verbose_name="Código", max_length=50, unique=True)
     name = models.CharField(verbose_name="Nombre", max_length=100)
-    sequence = models.PositiveSmallIntegerField(verbose_name="Orden", default=1)
+    sequence = models.PositiveSmallIntegerField(verbose_name="Orden", null=True, blank=True)
+    
+    is_anytime_state = models.BooleanField(
+        verbose_name="Disponible en cualquier momento",
+        default=False,
+        help_text="Se se activa, este estado ignorará la secuencia y podrá ser seleccionado siempre."
+    )
+
+    allowed_next_states = models.ManyToManyField(
+        'self',
+        symmetrical=False,
+        blank=True,
+        verbose_name="Estados siguientes permitidos",
+        help_text="Define a que estados se puede avanzar o retroceder desde este estado."
+    )
+
     is_approval_state = models.BooleanField(verbose_name="Estado de aprobación", default=False)
     is_paid_state = models.BooleanField(verbose_name="Estado pagado", default=False)
 
     class Meta:
-        db_table = "request_loan_states"
+        db_table = "solicitud_prestamo_estado"
         verbose_name = "Estado de solicitud de préstamo"
         verbose_name_plural = "Estados de solicitudes de préstamos"
         ordering = ["sequence", "id"]
@@ -116,7 +131,7 @@ class RequestLoan(BaseModel):
         return True
 
     class Meta:
-        db_table = "request_loan"
+        db_table = "solicitud_prestamo"
         verbose_name = "Solicitud de préstamo"
         verbose_name_plural = "Solicitudes de préstamos"
 
@@ -137,7 +152,7 @@ class RequestLoanDocumentRequirement(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_document_requirement"
+        db_table = "solicitud_prestamo_documento_tipo"
         verbose_name = "Documento requerido para solicitud de préstamo"
         verbose_name_plural = "Documentos requeridos para solicitudes de préstamo"
         ordering = ["id"]
@@ -145,7 +160,7 @@ class RequestLoanDocumentRequirement(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["document_type"],
-                name="unique_request_loan_document_requirement",
+                name="unique_solicitud_prestamo_documento_tipo",
             ),
         ]
 
@@ -179,14 +194,14 @@ class RequestLoanRequiredDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_required_document"
+        db_table = "solicitud_prestamo_documento_requerido"
         verbose_name = "Documento requerido de solicitud de préstamo"
         verbose_name_plural = "Documentos requeridos de solicitudes de préstamos"
         ordering = ["id"]
         constraints = [
             models.UniqueConstraint(
                 fields=["request_loan", "document_type"],
-                name="unique_request_loan_required_document",
+                name="unique_solicitud_prestamo_documento_requerido",
             ),
         ]
 
@@ -264,7 +279,7 @@ class RequestLoanDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_document"
+        db_table = "solicitud_prestamo_documento"
         verbose_name = "Documento de solicitud de préstamo"
         verbose_name_plural = "Documentos de solicitudes de préstamos"
         ordering = ["-id"]
@@ -317,10 +332,81 @@ class RequestLoanObservation(BaseModel):
     )
 
     class Meta:
-        db_table = "request_loan_observation"
+        db_table = "solicitud_prestamo_observacion"
         verbose_name = "Observación de solicitud de préstamo"
         verbose_name_plural = "Observaciones de solicitudes de préstamos"
         ordering = ["-id"]
 
     def __str__(self):
         return f"{self.request_loan} - {self.get_action_display()}"
+
+# -------------------------------------------------------
+# ASIGNACIÓN DE SOLICITUD DE PRÉSTAMO A USUARIO / AREA
+# -------------------------------------------------------
+class RequestLoanAssignment(BaseModel):
+    request_loan = models.ForeignKey(
+        RequestLoan,
+        verbose_name="Solicitud de préstamo",
+        db_column="id_request_loan",
+        on_delete=models.CASCADE,
+        related_name="assignments",
+        null=False,
+        blank=False,
+    )
+
+    responsible = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Usuario asignado",
+        db_column="id_responsible_user",
+        on_delete=models.PROTECT,
+        related_name="assigned_loan_requests",
+        null=True,
+        blank=True,
+    )
+
+    area_name = models.CharField(
+        verbose_name="Área asignada",
+        max_length=100,
+        null=False,
+        blank=False,
+    )
+
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Asignado por",
+        db_column="id_assigned_by",
+        on_delete=models.PROTECT,
+        related_name="made_loan_assignments",
+        null=False,
+        blank=False,
+    )
+
+    is_current = models.BooleanField(
+        verbose_name="Asignación vigente",
+        default=True,
+    )
+
+    class Meta:
+        db_table = "solicitud_prestamo_asignacion"
+        verbose_name = "Asignación de solicitud de préstamo"
+        verbose_name_plural = "Asignaciones de solicitudes de préstamos"
+        ordering = ["-id"]
+
+    def __str__(self):
+        return f"Solicitud #{self.request_loan_id} -> Usuario {self.responsible_id} ({self.area_name})"
+
+class RequestLoanGuarantor(BaseModel):
+    request_loan = models.ForeignKey(
+        'RequestLoan',
+        on_delete=models.CASCADE,
+        related_name="guarantors"
+    )
+    person = models.ForeignKey(
+        'core.Person',
+        on_delete=models.PROTECT,
+        related_name="request_loan_guarantees"
+    )
+
+    class Meta:
+        db_table = "solicitud_prestamo_aval"
+        verbose_name = "Aval de Solicitud"
