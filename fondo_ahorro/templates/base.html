@@ -58,6 +58,9 @@
   <!-- sweet alert -->
   <link href="{% static "core/sweet-alert/sweetalert2.min.css" %}" rel="stylesheet">
 
+  <!-- datatable -->
+  <link href="{% static "core/dataTables/css/dataTables.bootstrap5.min.css" %}" rel="stylesheet">
+
   <style>
     /* Submenús en Pantallas Grandes (Escritorio >= 992px) */
     @media (min-width: 992px) {
@@ -247,7 +250,10 @@
 
 <!-- sweet alert -->
 <script src="{% static 'core/sweet-alert/sweetalert2.all.min.js' %}"></script>
-
+<!-- datatable -->
+<script src="{% static 'core/dataTables/js/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'core/dataTables/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'core/dataTables/js/dataTables.bootstrap5.min.js' %}"></script>
 
 <script>
   document.addEventListener("DOMContentLoaded", () => {

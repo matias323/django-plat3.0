@@ -6,6 +6,7 @@ from .models import (
     RequestLoanDocumentRequirement,
     RequestLoanObservation,
     RequestLoanRequiredDocument,
+    RequestLoanState,
 )
 
 
@@ -75,3 +76,18 @@ class RequestLoanObservationAdmin(admin.ModelAdmin):
         "request_loan__employee__code",
         "observation__comment",
     )
+
+@admin.register(RequestLoanState)
+class RequestLoanStateAdmin(admin.ModelAdmin):
+    list_display = ("name", "code", "sequence", "is_approval_state", "is_paid_state", "is_active")
+    search_fields = ("name", "code")
+    ordering = ("sequence", "id")
+    filter_horizontal = ("allowed_next_states",)
+
+    def log_addition(self, request, object, message):
+        """Evita que Django Admin intente serializar el objeto al crearlo."""
+        pass
+
+    def log_change(self, request, object, message):
+        """Evita que Django Admin intente serializar el objeto al modificarlo."""
+        pass

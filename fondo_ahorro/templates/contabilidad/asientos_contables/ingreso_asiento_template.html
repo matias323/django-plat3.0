@@ -1,0 +1,302 @@
+
+<!-- importar css -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'contabilidad/asientos_contables/css/custom.css' %}">
+<!-- contenido  -->
+
+<!-- SECCIÓN 1: CABECERA DEL ASIENTO CONTABLE -->
+<section class="card card-custom mb-4">
+    <div class="card-header-custom d-flex justify-content-between align-items-center">
+        <div class="section-title">
+            <i class="bi bi-info-circle-fill text-primary"></i>
+            1. Información General del Asiento
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-muted small">Estado:</span>
+            <span class="badge bg-warning text-dark" id="badge-estado-asiento">BORRADOR</span>
+        </div>
+    </div>
+    
+    <div class="card-body p-4">
+        <div class="row g-3">
+            <!-- Fecha de Registro -->
+            <div class="col-md-4 col-sm-6">
+                <label for="fecha-asiento" class="form-label">
+                    Fecha de Registro <span class="required-badge">*</span>
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light"><i class="bi bi-calendar-event"></i></span>
+                    <input type="date" class="form-control" id="fecha-asiento">
+                </div>
+            </div>
+
+            <!-- Tipo de Asiento -->
+            <div class="col-md-4 col-sm-4">
+                <label for="tipo-asiento" class="form-label">
+                    Tipo de Asiento <span class="required-badge">*</span>
+                </label>
+                <select class="form-select form-select-sm" id="tipo-asiento">
+                    {% for tipo in tipos_asientos %}
+                        <option value="{{ tipo.id }}">{{ tipo.description }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- periodo -->
+            <div class="col-md-4 col-sm-6">
+                <label for="fecha-asiento" class="form-label">
+                    Periodo Contable <span class="required-badge">*</span>
+                </label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light"><i class="bi bi-calendar-event"></i></span>
+                    <input type="text" class="form-control" value="{{ periodo }}" id="periodo-asiento" readonly>
+                </div>
+            </div>
+
+            <!-- Glosa General / Concepto -->
+            <div class="col-md-12 col-sm-12">
+                <label for="glosa-general" class="form-label">
+                    Glosa / Descripción General del Asiento <span class="required-badge">*</span>
+                </label>
+                <input type="text" class="form-control form-control-sm" id="glosa-general" 
+                        placeholder="Ingrese el concepto o motivo de la transacción contable..."
+                        value="Ajuste contable">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- SECCIÓN 2: DETALLE DE MOVIMIENTOS CONTABLES -->
+<section class="card card-custom mb-4">
+    <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="section-title">
+            <i class="bi bi-list-columns-reverse text-primary"></i>
+            2. Detalle de Movimientos Contables
+        </div>
+        
+        <div class="d-flex align-items-center gap-2 no-print">
+            <span class="badge bg-light text-secondary border px-3 py-2">
+                <i class="bi bi-layers"></i> <span id="count-rows">0</span> líneas
+            </span>
+            <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1 shadow-sm" id="btn-add-row">
+                <i class="bi bi-plus-circle-fill"></i> Agregar Fila <kbd class="bg-primary-subtle text-primary border-0 ms-1 small">Alt+N</kbd>
+            </button>
+            <button class="btn btn-outline-success btn-sm d-flex align-items-center gap-1" id="btn-auto-balance" title="Calcular y asignar la diferencia automáticamente">
+                <i class="bi bi-calculator"></i> Auto-cuadrar <kbd class="bg-success-subtle text-success border-0 ms-1 small">F8</kbd>
+            </button>
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-movements-container">
+            <table class="table table-hover table-movements align-middle" id="table-movements">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 45px;">#</th>
+                        <th style="min-width: 250px;">Cuenta Contable <span class="required-badge">*</span></th>
+                        <!-- <th style="width: 150px;">Centro Costo</th> -->
+                        <!-- <th style="width: 140px;">Doc. Referencia</th> -->
+                        <th style="min-width: 200px;">Glosa / Detalle Línea</th>
+                        <th class="text-end text-primary" style="width: 140px;">Debe ($)</th>
+                        <th class="text-end text-success" style="width: 140px;">Haber ($)</th>
+                        <th class="text-center row-actions-column" style="width: 90px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody-movements">
+                    <!-- Filas dinámicas generadas por app.js -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white border-top-0 py-3 px-4 no-print d-flex justify-content-between align-items-center">
+        <button class="btn btn-light btn-sm text-primary fw-semibold border" id="btn-add-row-bottom">
+            <i class="bi bi-plus-lg"></i> + Añadir otra línea de movimiento
+        </button>
+        <div class="text-muted small">
+            <i class="bi bi-info-circle"></i> Use <strong>Tab</strong> o <strong>Enter</strong> para desplazarse rápidamente entre casillas.
+        </div>
+    </div>
+</section>
+
+<!-- BARRA INFERIOR FLOTANTE DE BALANCE Y ACCIONES (STICKY FOOTER) -->
+<div class="balance-bar-container no-print">
+    <div class="container-fluid px-4">
+        <div class="row g-2 align-items-center">
+            <!-- Tarjeta Debe -->
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="balance-card balance-debe">
+                    <div>
+                        <small class="text-uppercase fw-bold opacity-75 d-block" style="font-size: 0.7rem;">Total Debe</small>
+                        <span class="balance-number" id="total-debe">0.00</span>
+                    </div>
+                    <i class="bi bi-arrow-down-left-circle fs-3 text-primary opacity-75"></i>
+                </div>
+            </div>
+
+            <!-- Tarjeta Haber -->
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="balance-card balance-haber">
+                    <div>
+                        <small class="text-uppercase fw-bold opacity-75 d-block" style="font-size: 0.7rem;">Total Haber</small>
+                        <span class="balance-number" id="total-haber">0.00</span>
+                    </div>
+                    <i class="bi bi-arrow-up-right-circle fs-3 text-success opacity-75"></i>
+                </div>
+            </div>
+
+            <!-- Tarjeta Estado / Cuadre -->
+            <div class="col-lg-3 col-md-6 col-sm-6">
+                <div class="balance-card bg-light" id="balance-status-card">
+                    <div>
+                        <small class="text-uppercase fw-bold text-muted d-block" style="font-size: 0.7rem;">Diferencia</small>
+                        <span class="balance-number" id="total-diferencia">0.00</span>
+                    </div>
+                    <div>
+                        <span class="status-pill bg-secondary text-white" id="badge-status-balance">
+                            <i class="bi bi-circle"></i> SIN MOVIMIENTOS
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botonera de Acción -->
+            <div class="col-lg-3 col-md-6 col-sm-6 text-end">
+                <div class="d-flex justify-content-end gap-2 flex-wrap">
+                    <button class="btn btn-outline-secondary btn-sm" id="btn-clear-all" title="Limpiar formulario">
+                        <i class="bi bi-arrow-counterclockwise"></i> Limpiar
+                    </button>
+                    <button class="btn btn-success btn-sm fw-bold px-3 shadow-sm" id="btn-post-entry" disabled>
+                        <i class="bi bi-check2-circle"></i> Contabilizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 1: BUSCADOR DE CUENTAS DEL PLAN CONTABLE -->
+<div class="modal fade" id="modal-accounts" tabindex="-1" aria-labelledby="modalAccountsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalAccountsLabel">
+                    <i class="bi bi-journal-text me-2"></i> Plan de Cuentas Contables
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="search-account-modal" 
+                                placeholder="Buscar por código (ej. 1011, 4011) o nombre de la cuenta (Caja, Facturas, IGV)..." autofocus>
+                    </div>
+                    <small class="text-muted mt-1 d-block">Haga clic en cualquier fila para seleccionar la cuenta en la línea activa.</small>
+                </div>
+
+                <div class="table-responsive border rounded-3" style="max-height: 400px;">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Código</th>
+                                <th>Nombre de Cuenta</th>
+                                <th>Auxiliar</th>
+                                <th class="text-center">Tratamiento Especial</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-accounts-catalog">
+                            <!-- Llenado dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL 2: BUSCADOR DE AUXILIARES -->
+<div class="modal fade" id="modal-auxiliares" tabindex="-1" aria-labelledby="modalAuxiliaresLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalAccountsLabel">
+                    <i class="bi bi-person-add me-2"></i> Auxiliares
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                            <input type="hidden" id="cuenta-seleccionada-modal">
+                            <input type="text" class="form-control" id="search-auxiliar-modal" autocomplete="off" 
+                                    placeholder="Buscar por código, rut o nombre del auxiliar..." autofocus>
+                        </div>
+                        <div class="list-group" id="result-search-aux"></div>
+                        <input type="hidden" id="persona-seleccionada">
+                        <small class="text-muted mt-1 d-block">Haga clic en cualquier fila para seleccionar el auxiliar en la línea activa.</small>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-currency-dollar"></i></span>
+                            <input type="text" class="form-control input-currency" id="monto-auxiliar-modal">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary" id="btn-add-auxiliar">
+                            <i class="bi bi-plus-circle-fill"></i>Agregar
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive border rounded-3" style="max-height: 400px;">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Rut</th>
+                                <th>Nombre o razón social</th>
+                                <th>Monto</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-auxiliares-modal">
+                            <!-- Llenado dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DATALIST PARA AUTOCOMPLETADO DE CUENTAS -->
+<datalist id="list-cuentas">
+    <!-- Generado dinámicamente -->
+</datalist>
+
+<!-- CATALOGO DE CUENTAS -->
+{{ catalogo_cuentas|json_script:"catalogo_cuentas" }}
+
+
+{% block extra_js %}
+<script src="{% static 'contabilidad/asientos_contables/js/app.js' %}"></script>
+<script>
+    // CATALOGO DE CUENTAS
+    const CATALOGO_CUENTAS = JSON.parse(document.getElementById('catalogo_cuentas').textContent);
+    // Enlazar botón secundario del pie de tabla con el principal
+    document.getElementById('btn-add-row-bottom')?.addEventListener('click', () => {
+        document.getElementById('btn-add-row')?.click();
+    });
+
+    
+</script>
+
+{% endblock %}
+
+

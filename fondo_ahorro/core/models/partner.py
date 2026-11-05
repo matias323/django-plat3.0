@@ -9,6 +9,7 @@ from .request import Request
 # TIPO DE APORTE
 class PartnerContributionType(BaseModel):
     description = models.CharField(verbose_name="Descripción", max_length=255, null=False, blank=False)
+    comment = models.TextField(verbose_name="Observaciones", null=True, blank=True)
 
     class Meta:
         db_table = "core_partner_contribution_type"
@@ -45,6 +46,18 @@ class Partner(BaseModel):
 
     def __str__(self):
         return f"{self.id} - {self.person}"
+    
+    def get_ahorros(self):
+        return [
+            {
+                "id" : contrib.id,
+                "contribution_type_id" : contrib.contribution_type.id,
+                "description" : contrib.contribution_type.description,
+                "comment" : contrib.contribution_type.comment,
+                "amount" : contrib.amount 
+            }
+            for contrib in self.contributions.select_related("contribution_type").all()
+        ]
 
 
 # ============================================================
@@ -211,7 +224,7 @@ class PartnerMovement(BaseModel):
         blank=False,
     )
 
-    movement_number = models.IntegerField(verbose_name="Número Movimiento", null=False, blank=False)
+    movement_number = models.IntegerField(verbose_name="Número Movimiento", null=True, blank=True)
     description = models.CharField(verbose_name="Descripción", max_length=255, null=True, blank=True)
     amount = models.DecimalField(verbose_name="Monto", max_digits=15, decimal_places=2, null=False, blank=False)
 
@@ -223,6 +236,31 @@ class PartnerMovement(BaseModel):
 
     def __str__(self):
         return f"{self.movement_number} - {self.partner} - {self.amount}"
+    
+    def to_dict(self):
+        return {
+            "id": self.pk,
+            "movement_number": self.movement_number,
+            "description": self.description,
+            "amount": self.amount,
+            "movement_type": {
+                "id": self.movement_type_id,
+                "description": self.movement_type.name,
+            },
+            "partner": {
+                "id": self.partner_id,
+                "person": self.partner.person.get_full_name(),
+                "rut": self.partner.person.get_rut(),
+            },
+            "contribution_type": {
+                "id": self.contribution_type_id,
+                "description": self.contribution_type.description,
+                "comment": self.contribution_type.comment,
+            },
+            "created_at": self.created_at.strftime("%d-%m-%Y"),
+            "updated_at": self.updated_at,
+            "is_active": self.is_active,
+        }
 
 
 # ============================================================
@@ -264,3 +302,35 @@ class PartnerContribution(BaseModel):
 
     def __str__(self):
         return f"{self.partner} - {self.contribution_type} - {self.amount}"
+    
+# ============================================================
+# SOCIO APORTE
+class PartnerContribution(BaseModel):
+    partner = models.ForeignKey(
+        Partner,
+        verbose_name="Socio",
+        db_column="id_partner",
+        on_delete=models.PROTECT,
+        related_name="contributions",
+        null=False,
+        blank=False,
+    )
+
+    contribution_type = models.ForeignKey(
+        PartnerContributionType,
+        verbose_name="Tipo de Aporte",
+        db_column="id_contribution_type",
+        on_delete=models.PROTECT,
+        related_name="contributions",
+        null=False,
+        blank=False,
+    )
+
+    amount = models.DecimalField(verbose_name="Monto", max_digits=15, decimal_places=2, null=False, blank=False)
+    
+    class Meta:
+        db_table = "core_partner_contribution"
+        verbose_name = "Aporte de Socio"
+        verbose_name_plural = "Aportes de Socios"
+        ordering = ["id"]
+        unique_together = ("partner", "contribution_type")

@@ -1,0 +1,558 @@
+<!-- importar css -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'contabilidad/asientos_periodo/css/custom.css' %}">
+
+<!-- CONTENIDO PRINCIPAL -->
+<main class="container-fluid px-4 py-4 flex-grow-1">
+
+    <!-- 1. SECCIÓN DE MÉTRICAS Y KPIS -->
+    <div class="row g-3 mb-4 no-print">
+        <!-- KPI Total Asientos -->
+        <div class="col-xl-3 col-sm-6">
+            <div class="kpi-card kpi-primary h-100 d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="kpi-title">Total Asientos</div>
+                    <div class="kpi-value text-primary" id="kpi-dt-total-asientos">0</div>
+                    <span class="text-muted small" id="kpi-dt-total-lineas">0 movimientos registrados</span>
+                </div>
+                <div class="kpi-icon-circle bg-primary-subtle text-primary">
+                    <i class="bi bi-table"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Total Débitos -->
+        <div class="col-xl-3 col-sm-6">
+            <div class="kpi-card kpi-debe h-100 d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="kpi-title">Total Débitos (Debe)</div>
+                    <div class="kpi-value text-primary" id="kpi-dt-total-debe">0.00</div>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Sumatoria General</span>
+                </div>
+                <div class="kpi-icon-circle bg-primary-subtle text-primary">
+                    <i class="bi bi-arrow-down-left"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Total Créditos -->
+        <div class="col-xl-3 col-sm-6">
+            <div class="kpi-card kpi-haber h-100 d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="kpi-title">Total Créditos (Haber)</div>
+                    <div class="kpi-value text-success" id="kpi-dt-total-haber">0.00</div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Partida Doble</span>
+                </div>
+                <div class="kpi-icon-circle bg-success-subtle text-success">
+                    <i class="bi bi-arrow-up-right"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Balance -->
+        <div class="col-xl-3 col-sm-6">
+            <div class="kpi-card kpi-success h-100 d-flex align-items-center justify-content-between" id="kpi-dt-card-balance">
+                <div>
+                    <div class="kpi-title">Estado de Cuadre</div>
+                    <div class="kpi-value text-success" id="kpi-dt-status-text">100% Cuadrado</div>
+                    <span class="text-muted small" id="kpi-dt-balance-details">Equilibrio verificado</span>
+                </div>
+                <div class="kpi-icon-circle bg-success-subtle text-success" id="kpi-dt-icon-balance">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. TABLA PRINCIPAL CON DATATABLES -->
+    <section class="card card-custom mb-4">
+        <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="section-title mb-0">
+                    <i class="bi bi-grid-3x3-gap-fill text-primary"></i>
+                    Asientos registrados en periodo {{ periodo }}
+                </span>
+            </div>
+            <div class="text-muted small no-print">
+                <i class="bi bi-info-circle"></i> Haga clic en <strong class="text-primary">+</strong> para ver movimientos o en <strong class="text-warning">✏️</strong> para editar en modal.
+            </div>
+        </div>
+
+        <div class="card-body p-3">
+            <div class="table-responsive">
+                <table id="tabla-asientos-dt" class="table table-hover align-middle w-100 table-striped-subtle">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 35px;"></th>
+                            <th style="width: 130px;">Nº Asiento</th>
+                            <th style="width: 100px;">Fecha</th>
+                            <th style="width: 85px;">Período</th>
+                            <th style="width: 110px;">Tipo</th>
+                            <th>Glosa General / Concepto</th>
+                            <th style="width: 110px;">Doc. Ref.</th>
+                            <th class="text-end text-primary" style="width: 120px;">Debe ($)</th>
+                            <th class="text-end text-success" style="width: 120px;">Haber ($)</th>
+                            <th class="text-center" style="width: 110px;">Estado</th>
+                            <th class="text-center no-print" style="width: 140px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Llenado dinámico por DataTables -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: VER AUXILIARES DE MOVIMIENTO     -->
+    <!-- ========================================================================= -->
+    <div class="modal fade" id="modal-view-aux" tabindex="-1" aria-labelledby="modalAuxLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow border-0 rounded-4">
+                <div class="modal-header bg-primary text-white py-2">
+                    <h6 class="modal-title fw-bold" id="modalAccDtLabel"><i class="bi bi-person me-2"></i> Auxiliares</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="table-responsive border rounded-3" style="max-height: 350px;">
+                        <table class="table table-sm table-hover mb-0 align-middle" id="tabla-view-auxiliares-modal" style="width: 100%;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <!-- <th>#</th> -->
+                                    <th>Rut</th>
+                                    <th>Nombre</th>
+                                    <th>Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody class="small">
+                                <!-- Dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 2: EDITAR ASIENTO Y MOVIMIENTOS CONTABLES EN VENTANA MODAL          -->
+    <!-- ========================================================================= -->
+     <div class="modal fade" id="modal-edit-asiento" tabindex="-1" aria-labelledby="modalEditLabel" aria-hidden="true" data-bs-keyboard="false" data-bs-backdrop="static">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content shadow-lg border-0 rounded-4">
+                <div class="modal-header bg-warning text-dark border-bottom">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-pencil-square fs-4"></i>
+                        <div>
+                            <h5 class="modal-title fw-bold mb-0" id="modalEditLabel">Editar Asiento y Movimientos Contables</h5>
+                            <small class="text-muted">Modifique los datos de cabecera y agregue o quite filas de movimientos</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-body p-4">
+                    <!-- 1. Cabecera del Asiento en Modal -->
+                    <div class="card bg-light border mb-4">
+                        <div class="card-header bg-white py-2 px-3 fw-bold small text-uppercase text-secondary d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-info-circle text-primary me-1"></i> Datos Generales del Asiento</span>
+                            <span class="badge bg-secondary" id="modal-edit-badge-estado">BORRADOR</span>
+                        </div>
+                        <div class="card-body p-3">
+                            <div class="row g-2">
+                                <div class="col-md-2 col-sm-6">
+                                    <label class="form-label small mb-1 fw-bold">Nº Asiento:</label>
+                                    <input type="text" class="form-control form-control-sm font-monospace fw-bold bg-white" id="modal-edit-num" readonly>
+                                    <input type="hidden" id="modal-edit-id">
+                                </div>
+                                <div class="col-md-2 col-sm-6">
+                                    <label class="form-label small mb-1 fw-bold">Nº Voucher:</label>
+                                    <input type="text" class="form-control form-control-sm font-monospace fw-bold bg-white" id="modal-edit-voucher" readonly>
+                                </div>
+                                <div class="col-md-2 col-sm-6">
+                                    <label class="form-label small mb-1 fw-bold">Fecha Asiento:</label>
+                                    <input type="date" class="form-control form-control-sm" id="modal-edit-fecha" readonly>
+                                </div>
+                                <div class="col-md-2 col-sm-6">
+                                    <label class="form-label small mb-1 fw-bold">Periodo Contable:</label>
+                                    <input type="text" class="form-control form-control-sm" id="modal-edit-periodo" readonly>
+                                </div>
+                                <div class="col-md-4 col-sm-6">
+                                    <label class="form-label small mb-1 fw-bold">Tipo de Asiento:</label>
+                                    <input type="text" class="form-control form-control-sm" id="modal-edit-tipo" readonly>
+                                </div>
+                                <div class="col-md-12 col-12">
+                                    <label class="form-label small mb-1 fw-bold">Glosa / Concepto General:</label>
+                                    <input type="text" class="form-control form-control-sm" id="modal-edit-glosa" placeholder="Concepto o descripción del asiento...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Grilla Dinámica de Movimientos dentro del Modal -->
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-uppercase text-secondary small mb-0">
+                            <i class="bi bi-list-columns-reverse text-primary me-1"></i> Movimientos Contables
+                        </h6>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary btn-sm d-flex align-items-center gap-1 shadow-sm" id="btn-modal-add-row">
+                                <i class="bi bi-plus-circle"></i> + Agregar Movimiento
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm d-flex align-items-center gap-1" id="btn-modal-auto-balance" title="Calcular diferencia y balancear">
+                                <i class="bi bi-calculator"></i> Auto-cuadrar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive border rounded-3 mb-3" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-sm modal-edit-movements-table align-middle" id="table-modal-movements">
+                            <thead class="sticky-top">
+                                <tr>
+                                    <th class="text-center" style="width: 35px;">#</th>
+                                    <th style="min-width: 260px;">Cuenta Contable</th>
+                                    <th style="min-width: 440px;">Glosa Línea</th>
+                                    <th class="text-end text-primary" style="width: 130px;">Debe ($)</th>
+                                    <th class="text-end text-success" style="width: 130px;">Haber ($)</th>
+                                    <th class="text-center" style="width: 80px;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-modal-edit-movements">
+                                <!-- Filas dinámicas en el modal -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 3. Barra de Balance y Totales dentro del Modal -->
+                    <div class="card p-3">
+                        <div class="modal-edit-balance-bar">
+                            <div class="row align-items-center g-2">
+                                <div class="col-md-3 col-6">
+                                    <small class="text-muted d-block small">Total Debe:</small>
+                                    <span class="fw-bold font-monospace fs-5 text-primary" id="modal-edit-total-debe">0.00</span>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <small class="text-muted d-block small">Total Haber:</small>
+                                    <span class="fw-bold font-monospace fs-5 text-success" id="modal-edit-total-haber">0.00</span>
+                                </div>
+                                <div class="col-md-3 col-6">
+                                    <small class="text-muted d-block small">Diferencia:</small>
+                                    <span class="fw-bold font-monospace fs-5 text-dark" id="modal-edit-diferencia">0.00</span>
+                                </div>
+                                <div class="col-md-3 col-6 text-md-end">
+                                    <span class="status-pill balanced" id="modal-edit-status-pill">
+                                        <i class="bi bi-check-circle-fill"></i> ASIENTO CUADRADO
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-sm btn-close-modal-edit">Cancelar</button>
+                    <button type="button" class="btn btn-outline-success btn-sm fw-bold px-3 shadow-sm" id="btn-modal-save-post">
+                        <i class="bi bi-check2-circle me-1"></i> Actualizar y Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 3: BUSCADOR DE CUENTAS (CATÁLOGO RÁPIDO PARA EDICIÓN EN MODAL)     -->
+    <!-- ========================================================================= -->
+    <div class="modal fade" id="modal-accounts-dt" tabindex="-1" aria-labelledby="modalAccDtLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow border-0 rounded-4">
+                <div class="modal-header bg-primary text-white py-2">
+                    <h6 class="modal-title fw-bold" id="modalAccDtLabel"><i class="bi bi-journal-text me-2"></i> Seleccionar Cuenta Contable</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="input-group input-group-sm mb-3">
+                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="search-acc-dt" placeholder="Filtrar por código o nombre de cuenta...">
+                    </div>
+                    <div class="table-responsive border rounded-3" style="max-height: 350px;">
+                        <table class="table table-sm table-hover mb-0 align-middle">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 100px;">Código</th>
+                                    <th>Nombre de Cuenta</th>
+                                    <th>Auxiliar</th>
+                                    <th class="text-center" style="width: 70px;">Tratamiento Especial</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-accounts-dt-catalog" class="small">
+                                <!-- Dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+ <!-- ========================================================================= -->
+<!-- MODAL 4: BUSCADOR DE AUXILIARES    -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-add-auxiliares" tabindex="-1" aria-labelledby="modalAuxiliaresLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalAccountsLabel">
+                    <i class="bi bi-person-add me-2"></i> Auxiliares
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                            <input type="hidden" id="cuenta-seleccionada-modal" data-mov-id="">
+                            <input type="text" class="form-control" id="search-auxiliar-modal" autocomplete="off" 
+                                    placeholder="Buscar por código, rut o nombre del auxiliar..." autofocus>
+                        </div>
+                        <div class="list-group" id="result-search-aux"></div>
+                        <input type="hidden" id="persona-seleccionada">
+                        <small class="text-muted mt-1 d-block">Haga clic en cualquier fila para seleccionar el auxiliar en la línea activa.</small>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-currency-dollar"></i></span>
+                            <input type="text" class="form-control input-currency" id="monto-auxiliar-modal">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <button class="btn btn-outline-primary" id="btn-add-auxiliar">
+                            <i class="bi bi-plus-circle-fill"></i>Agregar
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive border rounded-3" style="max-height: 400px;">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Rut</th>
+                                <th>Nombre o razón social</th>
+                                <th>Monto</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-auxiliares-modal">
+                            <!-- Llenado dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: EXPEDIENTE DEL PROCESO DE ORIGEN Y DOCUMENTOS ADJUNTOS            -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-proceso-origen" tabindex="-1" aria-labelledby="modalProcesoOrigenLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark-navy text-white py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="brand-icon-box bg-primary bg-gradient shadow-sm">
+                        <i class="bi bi-diagram-3-fill text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="modal-title fw-bold mb-0" id="modalProcesoOrigenLabel">
+                                Proceso de Origen y Documentación de Respaldo
+                            </h5>
+                            <span class="" id="modal-proc-badge-tipo">VENTAS</span>
+                        </div>
+                        <div class="text-white-50 fs-xs mt-1">
+                            <span>Asiento Contable: <strong class="text-white font-monospace" id="modal-proc-asiento-num">AST-2026-0002</strong></span>
+                            <span class="mx-2">•</span>
+                            <span>Doc. Ref: <strong class="text-info font-monospace" id="modal-proc-ref-doc">FT F001-0004523</strong></span>
+                            <span class="mx-2">•</span>
+                            <span>Fecha: <span class="text-white" id="modal-proc-fecha">-</span></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4 bg-light">
+                <!-- 1. RESUMEN EJECUTIVO DEL PROCESO -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="row g-3">
+                            <div class="col-lg-8">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="rounded-3 p-3 bg-primary-subtle text-primary border border-primary-subtle fs-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 58px; height: 58px;" id="modal-proc-icon-box">
+                                        <i class="bi bi-receipt"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-uppercase text-muted fw-bold fs-xs" id="modal-proc-categoria">Facturación y Ventas</div>
+                                        <h5 class="fw-bold text-dark mb-1" id="modal-proc-nombre">Venta de Mercaderías y Emisión DTE</h5>
+                                        <p class="text-secondary small mb-0" id="modal-proc-glosa">
+                                            Por la venta de mercaderías según Factura F001-0004523 a Distribuidora Los Andes SAC
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-4 text-lg-end d-flex flex-column justify-content-center border-start-lg ps-lg-4">
+                                <div class="text-muted fs-xs text-uppercase fw-semibold">Monto del Proceso Original</div>
+                                <div class="fs-3 fw-bold text-primary font-monospace" id="modal-proc-monto">$ 11,800.00</div>
+                                <div class="d-flex align-items-center justify-content-lg-end gap-2 mt-1">
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-xs" id="modal-proc-estado">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Contabilizado
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-3 text-muted opacity-25">
+
+                        <!-- Metadatos detallados -->
+                        <div class="row g-2 fs-xs">
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Proceso / Referencia:</span>
+                                <strong class="text-dark d-block text-truncate" id="modal-proc-tercero"></strong>
+                                <span class="text-muted font-monospace" id="modal-proc-tercero-id"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Persona / Socio:</span>
+                                <strong class="text-dark d-block" id="modal-proc-socio"></strong>
+                                <span class="text-muted" id="modal-proc-socio-detalle"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Referencia / Modulo:</span>
+                                <strong class="text-dark d-block" id="modal-proc-module"></strong>
+                                <span class="text-muted" id="modal-proc-cc"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Operador Responsable:</span>
+                                <strong class="text-dark d-block" id="modal-proc-usuario">j_perez</strong>
+                                <span class="text-muted" id="modal-proc-creado">2026-08-05 11:15:20</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. DOS COLUMNAS: TRAZABILIDAD (TIMELINE) + DOCUMENTOS ADJUNTOS -->
+                <div class="row g-4">
+                    <!-- <div class="col-lg-6">
+                        <div class="card border-0 shadow-sm rounded-3 h-100">
+                            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-clock-history text-primary"></i>
+                                    Flujo y Trazabilidad Operativa
+                                </div>
+                                <span class="badge bg-light text-dark border fs-xs">Audit Trail</span>
+                            </div>
+                            <div class="card-body p-3 p-md-4">
+                                <div class="timeline-process-container" id="modal-proc-timeline">
+                                </div>
+                            </div>
+                        </div>
+                    </div> -->
+
+                    <!-- Columna Derecha: Documentos Adjuntos de Respaldo -->
+                    <div class="col-lg-12">
+                        <div class="card border-0 shadow-sm rounded-3 h-100">
+                            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-paperclip text-success"></i>
+                                    Documentos y Respaldo Adjuntos
+                                </div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill fs-xs" id="modal-proc-total-adjuntos">
+                                    3 archivos
+                                </span>
+                            </div>
+                            <div class="card-body p-3 p-md-4">
+                                <div class="alert alert-primary py-2 px-3 fs-xs d-flex align-items-center gap-2 mb-3 rounded-2">
+                                    <i class="bi bi-shield-check fs-6 text-primary"></i>
+                                    <span>Documentos y certificados vinculados al comprobante de referencia.</span>
+                                </div>
+
+                                <div id="modal-proc-adjuntos-list">
+                                    <!-- Tarjetas de documentos adjuntos generadas dinámicamente -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-3 d-flex">
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+ <!-- ========================================================================= -->
+<!-- MODAL ZOOM PARA VOUCHERS / DOCUMENTOS GRÁFICOS                           -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-zoom-doc" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark text-white py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-image text-info"></i>
+                    <h6 class="modal-title fw-bold mb-0" id="zoom-doc-title">Vista Previa de Documento</h6>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3 text-center bg-black bg-opacity-10">
+                <img src="" id="zoom-doc-img" alt="Documento Ampliado" class="img-fluid rounded border shadow-sm" style="max-height: 75vh;">
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <a href="#" download="documento.png" id="btn-zoom-download" class="btn btn-primary btn-sm d-flex align-items-center gap-1">
+                    <i class="bi bi-download"></i> Descargar Imagen
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</main>
+
+
+<!-- CATALOGO DE CUENTAS -->
+{{ catalogo_cuentas|json_script:"catalogo_cuentas" }}
+
+<!-- DATALIST PARA AUTOCOMPLETADO DE CUENTAS -->
+<datalist id="list-cuentas">
+    <!-- Generado dinámicamente -->
+</datalist>
+
+
+{% block extra_js %}
+<script src="{% static 'contabilidad/asientos_periodo/js/app.js' %}"></script>
+<script>
+    // CATALOGO DE CUENTAS
+    const CATALOGO_CUENTAS = JSON.parse(document.getElementById('catalogo_cuentas').textContent);
+    // Enlazar botón secundario del pie de tabla con el principal
+    document.getElementById('btn-add-row-bottom')?.addEventListener('click', () => {
+        document.getElementById('btn-add-row')?.click();
+    });
+
+    
+</script>
+
+
+
+{% endblock %}

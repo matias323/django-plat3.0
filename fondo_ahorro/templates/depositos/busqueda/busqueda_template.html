@@ -1,0 +1,463 @@
+<!-- importar css -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'depositos/busqueda/css/custom.css' %}">
+
+<!-- =========================================================================
+1. PANEL DE BÚSQUEDA Y FILTROS AVANZADOS
+========================================================================= -->
+<section class="card border-0 shadow-sm search-card mb-4">
+    <div class="card-body p-3 p-lg-4">
+        <div class="row g-3 align-items-center mb-3">
+            <!-- Buscador en tiempo real -->
+            <div class="col-12 col-lg-7">
+                <label class="form-label text-dark fw-bold small mb-1">
+                    <i class="bi bi-search text-primary me-1"></i> Búsqueda de Depósitos
+                </label>
+                <div class="input-group live-search-input-group">
+                    <!-- <span class="input-group-text bg-transparent border-0 text-muted ps-1">
+                        <i class="bi bi-search fs-5"></i>
+                    </span> -->
+                    <button class="btn btn-link text-muted p-0 pe-2 d-none" id="btn-clear-global-search" type="button" title="Limpiar búsqueda">
+                        <i class="bi bi-x-circle-fill fs-5"></i>
+                    </button>
+                    <input type="text" 
+                            id="input-busqueda-global" 
+                            class="form-control" 
+                            placeholder="Buscar por RUT, Nombre, Codigo Funcionario, N° Deposito" 
+                            autocomplete="off">
+                    
+                    <button class="btn btn-link text-muted p-0 pe-2 d-none" id="btn-search" type="button" title="Buscar">
+                        <i class="bi bi-search fs-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Botón colapsar filtros y reset -->
+            <div class="col-12 col-lg-5 d-flex align-items-end justify-content-lg-end gap-2 pt-lg-4">
+                <button class="btn btn-outline-primary btn-sm px-3" type="button" data-bs-toggle="collapse" data-bs-target="#panelFiltrosAvanzados">
+                    <i class="bi bi-sliders me-1"></i> Filtros Avanzados
+                </button>
+                <button class="btn btn-outline-secondary btn-sm px-3 btn-restablecer" type="button" id="btn-limpiar-filtros">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Restablecer
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel colapsable de Filtros Avanzados -->
+        <div class="collapse" id="panelFiltrosAvanzados">
+            <div class="filters-panel mt-3">
+                <div class="row g-3">
+                    <!-- Filtro Tipo de Cuenta -->
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label text-muted fs-xs fw-semibold mb-1">Tipo de Proceso</label>
+                        <select class="form-select form-select-sm" id="filtro-tipo-proceso">
+                            <option value="0">Todos los tipos</option>
+                            {% for tipo in tipo_proceso %}
+                                <option value="{{ tipo.id }}">{{ tipo.description }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Fechas Desde / Hasta -->
+                    <div class="col-lg-3 col-md-3 col-sm-6">
+                        <label class="form-label text-muted fs-xs fw-semibold mb-1">Rango de Fechas:</label>
+                        <div class="input-group input-group-sm">
+                            <input type="date" class="form-control px-1" id="filtro-fecha-desde" title="Fecha inicial">
+                            <span class="input-group-text p-1 text-muted"><i class="bi bi-dash"></i></span>
+                            <input type="date" class="form-control px-1" id="filtro-fecha-hasta" title="Fecha final">
+                        </div>
+                    </div>
+
+                    <!-- Filtro Monto Mínimo -->
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label text-muted fs-xs fw-semibold mb-1">Monto Mínimo (CLP)</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="filtro-monto-min" placeholder="Ej: 50000" step="1000">
+                        </div>
+                    </div>
+
+                    <!-- Filtro Monto Máximo -->
+                    <div class="col-12 col-sm-6 col-md-3">
+                        <label class="form-label text-muted fs-xs fw-semibold mb-1">Monto Máximo (CLP)</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="filtro-monto-max" placeholder="Ej: 1000000" step="1000">
+                        </div>
+                    </div>
+
+                    <!-- Botón Aplicar Filtros -->
+                    <div class="col-12 text-end pt-2">
+                        <button type="button" class="btn btn-primary btn-sm px-4" id="btn-aplicar-filtros">
+                            <i class="bi bi-funnel-fill me-1"></i> Aplicar Filtros
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =========================================================================
+2. TABLA DE DEPÓSITOS E INCREMENTOS
+========================================================================= -->
+<section class="deposits-table-card mb-4">
+    <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success p-2 rounded-circle">
+                <i class="bi bi-journal-arrow-down text-white fs-6"></i>
+            </span>
+            <div>
+                <h6 class="fw-bold mb-0 text-dark">Listado Oficial de Depósitos Registrados</h6>
+                <!-- <small class="text-muted" id="badge-count-resultados">Cargando depósitos...</small> -->
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-secondary border font-monospace fs-xs">
+                <i class="bi bi-shield-check text-success me-1"></i> Depositos Verificados
+            </span>
+        </div>
+    </div>
+
+    <!-- Tabla responsiva -->
+    <div class="table-responsive">
+        <table class="table table-hover table-depositos align-middle mb-0">
+            <thead>
+                <tr>
+                    <th style="width: 125px;">N° Deposito</th>
+                    <th style="width: 160px;">Fecha</th>
+                    <th style="width: 250px;">Persona / Socio</th>
+                    <th style="width: 160px;">Proceso</th>
+                    <th style="width: 150px;" class="text-center">Monto</th>
+                    <th style="width: 120px;" class="text-center">Adjuntos</th>
+                    <th style="width: 135px;" class="text-center">Asiento</th>
+                </tr>
+            </thead>
+            <tbody id="tbody-depositos">
+                <!-- Generado dinámicamente por js/busqueda_depositos.js -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Paginador y contador -->
+    <div class="card-footer bg-white border-top p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="text-muted fs-xs" id="info-paginacion">Mostrando registros...</span>
+        <nav aria-label="Navegación de páginas">
+            <ul class="pagination pagination-sm mb-0" id="paginador-depositos">
+                <!-- Paginación dinámica -->
+            </ul>
+        </nav>
+    </div>
+</section>
+
+<!-- =========================================================================
+MODAL 1: VISUALIZADOR DE ARCHIVOS ADJUNTOS / COMPROBANTES
+========================================================================= -->
+<div class="modal fade" id="modal-ver-adjuntos" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark text-white">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-paperclip fs-5 text-warning"></i>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0">Archivos Adjuntos de Depósito</h6>
+                        <small class="text-white-50" id="adjuntos-folio-title"></small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-3 p-lg-4">
+                <div class="p-2 bg-light rounded-2 border mb-3 small text-muted">
+                    <i class="bi bi-info-circle text-primary me-1"></i>
+                    Socio: <strong class="text-dark" id="adjuntos-socio-title">-</strong>
+                </div>
+
+                <!-- Contenedor dinámico de galería de adjuntos -->
+                <div id="contenedor-galeria-adjuntos">
+                    <!-- Renderizado dinámicamente -->
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL: EXPEDIENTE DEL PROCESO DE ORIGEN Y DOCUMENTOS ADJUNTOS            -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-proceso-origen" tabindex="-1" aria-labelledby="modalProcesoOrigenLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark-navy text-white py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="brand-icon-box bg-primary bg-gradient shadow-sm">
+                        <i class="bi bi-diagram-3-fill text-white fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2">
+                            <h5 class="modal-title fw-bold mb-0" id="modalProcesoOrigenLabel">
+                                Proceso de Origen y Documentación de Respaldo
+                            </h5>
+                            <span class="" id="modal-proc-badge-tipo"></span>
+                        </div>
+                        <div class="text-white-50 fs-xs mt-1">
+                            <span>N° Deposito: <strong class="text-white font-monospace" id="modal-proc-deposito-num"></strong></span>
+                            <span class="mx-2">•</span>
+                            <span>Doc. Ref: <strong class="text-info font-monospace" id="modal-proc-ref-doc"></strong></span>
+                            <span class="mx-2">•</span>
+                            <span>Fecha: <span class="text-white" id="modal-proc-fecha">-</span></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body p-4 bg-light">
+                <!-- 1. RESUMEN EJECUTIVO DEL PROCESO -->
+                <div class="card border-0 shadow-sm rounded-3 mb-4">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="row g-3">
+                            <div class="col-lg-8">
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="rounded-3 p-3 bg-primary-subtle text-primary border border-primary-subtle fs-3 d-flex align-items-center justify-content-center flex-shrink-0" style="width: 58px; height: 58px;" id="modal-proc-icon-box">
+                                        <i class="bi bi-receipt"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-uppercase text-muted fw-bold fs-xs" id="modal-proc-categoria"></div>
+                                        <h5 class="fw-bold text-dark mb-1" id="modal-proc-nombre"></h5>
+                                        <p class="text-secondary small mb-0" id="modal-proc-glosa">
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-lg-4 text-lg-end d-flex flex-column justify-content-center border-start-lg ps-lg-4">
+                                <div class="text-muted fs-xs text-uppercase fw-semibold">Monto del Proceso Original</div>
+                                <div class="fs-3 fw-bold text-primary font-monospace" id="modal-proc-monto"></div>
+                            </div>
+                        </div>
+
+                        <hr class="my-3 text-muted opacity-25">
+
+                        <!-- Metadatos detallados -->
+                        <div class="row g-2 fs-xs">
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Proceso / Referencia:</span>
+                                <strong class="text-dark d-block text-truncate" id="modal-proc-tercero"></strong>
+                                <span class="text-muted font-monospace" id="modal-proc-tercero-id"></span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Persona / Socio:</span>
+                                <strong class="text-dark d-block" id="modal-proc-socio"></strong>
+                                <span class="text-muted" id="modal-proc-socio-detalle"></span>
+                            </div>
+                            <!-- <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Referencia / Modulo:</span>
+                                <strong class="text-dark d-block" id="modal-proc-module"></strong>
+                                <span class="text-muted" id="modal-proc-cc"></span>
+                            </div> -->
+                            <div class="col-md-3 col-6">
+                                <span class="text-muted d-block">Operador Responsable:</span>
+                                <strong class="text-dark d-block" id="modal-proc-usuario">j_perez</strong>
+                                <span class="text-muted" id="modal-proc-creado">2026-08-05 11:15:20</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. DOS COLUMNAS: TRAZABILIDAD (TIMELINE) + DOCUMENTOS ADJUNTOS -->
+                <div class="row g-4">
+                    <!-- Columna Derecha: Documentos Adjuntos de Respaldo -->
+                    <div class="col-lg-12">
+                        <div class="card border-0 shadow-sm rounded-3 h-100">
+                            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                                    <i class="bi bi-paperclip text-success"></i>
+                                    Documentos y Respaldo Adjuntos
+                                </div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill fs-xs" id="modal-proc-total-adjuntos">
+                                    1 archivo
+                                </span>
+                            </div>
+                            <div class="card-body p-3 p-md-4">
+                                <div class="alert alert-primary py-2 px-3 fs-xs d-flex align-items-center gap-2 mb-3 rounded-2">
+                                    <i class="bi bi-shield-check fs-6 text-primary"></i>
+                                    <span>Documentos y certificados vinculados al comprobante de referencia.</span>
+                                </div>
+
+                                <div id="modal-proc-adjuntos-list">
+                                    <!-- Tarjetas de documentos adjuntos generadas dinámicamente -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-white border-top py-3 d-flex">
+                <div>
+                    <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 2: ASIENTO Y MOVIMIENTOS CONTABLES EN VENTANA MODAL          -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-asiento" tabindex="-1" aria-labelledby="modalEditLabel">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content shadow-lg border-0 rounded-4">
+            <div class="modal-header bg-dark-navy text-white border-bottom">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <div>
+                        <h5 class="modal-title fw-bold mb-0" id="modalEditLabel"></h5>
+                        <small class="text-muted"></small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-body p-4">
+                <!-- 1. Cabecera del Asiento en Modal -->
+                <div class="card bg-light border mb-4">
+                    <div class="card-header bg-white py-2 px-3 fw-bold small text-uppercase text-secondary d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-info-circle text-primary me-1"></i> Datos Generales del Asiento</span>
+                        <span class="badge bg-secondary" id="modal-asiento-badge-estado">BORRADOR</span>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="row g-2">
+                            <div class="col-md-2 col-sm-6">
+                                <label class="form-label small mb-1 fw-bold">Nº Asiento:</label>
+                                <input type="text" class="form-control form-control-sm font-monospace fw-bold bg-white" id="modal-asiento-num" readonly>
+                            </div>
+                            <div class="col-md-2 col-sm-6">
+                                <label class="form-label small mb-1 fw-bold">Nº Voucher:</label>
+                                <input type="text" class="form-control form-control-sm font-monospace fw-bold bg-white" id="modal-asiento-voucher" readonly>
+                            </div>
+                            <div class="col-md-2 col-sm-6">
+                                <label class="form-label small mb-1 fw-bold">Fecha Asiento:</label>
+                                <input type="date" class="form-control form-control-sm" id="modal-asiento-fecha" readonly>
+                            </div>
+                            <div class="col-md-2 col-sm-6">
+                                <label class="form-label small mb-1 fw-bold">Periodo Contable:</label>
+                                <input type="text" class="form-control form-control-sm" id="modal-asiento-periodo" readonly>
+                            </div>
+                            <div class="col-md-4 col-sm-6">
+                                <label class="form-label small mb-1 fw-bold">Tipo de Asiento:</label>
+                                <input type="text" class="form-control form-control-sm" id="modal-asiento-tipo" readonly>
+                            </div>
+                            <div class="col-md-12 col-12">
+                                <label class="form-label small mb-1 fw-bold">Glosa / Concepto General:</label>
+                                <input type="text" class="form-control form-control-sm" id="modal-asiento-glosa" placeholder="Concepto o descripción del asiento..." readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Grilla Dinámica de Movimientos dentro del Modal -->
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-uppercase text-secondary small mb-0">
+                        <i class="bi bi-list-columns-reverse text-primary me-1"></i> Movimientos Contables
+                    </h6>
+                </div>
+
+                <div class="table-responsive border rounded-3 mb-3" style="max-height: 380px; overflow-y: auto;">
+                    <table class="table table-sm modal-asiento-movements-table align-middle" id="table-modal-movements">
+                        <thead class="sticky-top">
+                            <tr>
+                                <th class="text-center" style="width: 35px;">#</th>
+                                <th style="min-width: 260px;">Cuenta Contable</th>
+                                <th style="min-width: 440px;">Glosa Línea</th>
+                                <th class="text-end text-primary" style="width: 130px;">Debe ($)</th>
+                                <th class="text-end text-success" style="width: 130px;">Haber ($)</th>
+                                <th class="text-center" style="width: 80px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-modal-movements">
+                            <!-- Filas dinámicas en el modal -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 3. Barra de Balance y Totales dentro del Modal -->
+                <div class="card p-3">
+                    <div class="modal-asiento-balance-bar">
+                        <div class="row align-items-center g-2">
+                            <div class="col-md-3 col-6">
+                                <small class="text-muted d-block small">Total Debe:</small>
+                                <span class="fw-bold font-monospace fs-5 text-primary" id="modal-total-debe">0.00</span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <small class="text-muted d-block small">Total Haber:</small>
+                                <span class="fw-bold font-monospace fs-5 text-success" id="modal-total-haber">0.00</span>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <small class="text-muted d-block small">Diferencia:</small>
+                                <span class="fw-bold font-monospace fs-5 text-dark" id="modal-diferencia">0.00</span>
+                            </div>
+                            <div class="col-md-3 col-6 text-md-end">
+                                <span class="status-pill balanced" id="modal-status-pill">
+                                    <i class="bi bi-check-circle-fill"></i> ASIENTO CUADRADO
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary btn-sm btn-close-modal-asiento" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- MODAL 3: VER AUXILIARES DE MOVIMIENTO     -->
+<!-- ========================================================================= -->
+<div class="modal fade" id="modal-view-aux" tabindex="-1" aria-labelledby="modalAuxLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content shadow border-0 rounded-4">
+            <div class="modal-header bg-primary text-white py-2">
+                <h6 class="modal-title fw-bold" id="modalAccDtLabel"><i class="bi bi-person me-2"></i> Auxiliares</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-3">
+                <div class="table-responsive border rounded-3" style="max-height: 350px;">
+                    <table class="table table-sm table-hover mb-0 align-middle" id="tabla-view-auxiliares-modal" style="width: 100%;">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <!-- <th>#</th> -->
+                                <th>Rut</th>
+                                <th>Nombre</th>
+                                <th>Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            <!-- Dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+{% block extra_js %}
+<script src="{% static 'depositos/busqueda/js/app.js' %}"></script>
+<script>
+</script>
+
+{% endblock %}

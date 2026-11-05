@@ -1,0 +1,376 @@
+/* ==========================================================================
+   CSS DEDICADO - LIBRO MAYOR & CUENTAS "T" (FORMATO SUNAT 6.1)
+   Plantilla: libro_mayor.html
+   ========================================================================== */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #eff6ff;
+    --success-color: #10b981;
+    --success-light: #ecfdf5;
+    --danger-color: #ef4444;
+    --danger-light: #fef2f2;
+    --warning-color: #f59e0b;
+    --warning-light: #fffbeb;
+    --debe-color: #1d4ed8;
+    --debe-bg: #f0f7ff;
+    --haber-color: #047857;
+    --haber-bg: #f0fdf4;
+    --border-subtle: #e2e8f0;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+body {
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar & Brand */
+.bg-dark-navy {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+.brand-icon-box {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.fs-xs { font-size: 0.72rem; }
+.fs-sm { font-size: 0.85rem; }
+
+.cell-currency {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* KPI Stat Cards */
+.card-kpi {
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Filtros */
+.filter-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+}
+
+/* Chips rápidos de cuentas */
+.account-chip {
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+}
+
+.account-chip:hover {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+    border-color: #93c5fd;
+}
+
+.account-chip.active {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    border-color: var(--primary-color);
+}
+
+/* ==========================================================================
+   VISTA 1: TABULAR DETALLADA DEL LIBRO MAYOR
+   ========================================================================== */
+.ledger-account-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 2rem;
+    overflow: hidden;
+}
+
+.ledger-account-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+    border-bottom: 2px solid #e2e8f0;
+    padding: 1rem 1.5rem;
+}
+
+.ledger-table {
+    margin-bottom: 0;
+    font-size: 0.83rem;
+}
+
+.ledger-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.5px;
+    padding: 0.65rem 0.75rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.ledger-table td {
+    padding: 0.55rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.ledger-table tfoot td {
+    background-color: #f8fafc;
+    font-weight: 700;
+    border-top: 2px solid #cbd5e1;
+    border-bottom: none;
+    padding: 0.75rem 0.75rem;
+}
+
+/* ==========================================================================
+   VISTA 2: ESQUEMA GRÁFICO CUENTA "T"
+   ========================================================================== */
+.t-account-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.t-account-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.t-account-top {
+    background: linear-gradient(to right, #f8fafc, #f1f5f9);
+    border-bottom: 2px solid #1e293b;
+    padding: 0.85rem 1rem;
+    text-align: center;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
+}
+
+.t-account-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+}
+
+.t-account-subtitle {
+    font-size: 0.76rem;
+    color: #64748b;
+}
+
+.t-account-labels {
+    display: flex;
+    border-bottom: 1px solid #cbd5e1;
+    background-color: #ffffff;
+}
+
+.t-label-debe, .t-label-haber {
+    flex: 1;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.t-label-debe {
+    color: #166534;
+    background-color: #f0fdf4;
+    border-right: 2px solid #1e293b;
+}
+
+.t-label-haber {
+    color: #1e40af;
+    background-color: #eff6ff;
+}
+
+.t-account-columns {
+    display: flex;
+    flex: 1;
+    min-height: 140px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.t-col-debe, .t-col-haber {
+    flex: 1;
+    padding: 0.5rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.t-col-debe {
+    border-right: 2px solid #1e293b;
+    background-color: #fcfdfd;
+}
+
+.t-col-haber {
+    background-color: #fafbfc;
+}
+
+.t-movement-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.78rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    background: #ffffff;
+    border: 1px solid #f1f5f9;
+}
+
+.t-movement-item:hover {
+    background-color: #f1f5f9;
+}
+
+.t-movement-ref {
+    color: #64748b;
+    font-size: 0.7rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 90px;
+}
+
+.t-movement-amount {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 600;
+}
+
+.t-account-subtotals {
+    display: flex;
+    border-top: 1px solid #cbd5e1;
+    border-bottom: 2px solid #1e293b;
+    background-color: #f8fafc;
+}
+
+.t-subtotal-debe, .t-subtotal-haber {
+    flex: 1;
+    padding: 0.45rem 0.65rem;
+    text-align: right;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 700;
+    font-size: 0.82rem;
+}
+
+.t-subtotal-debe {
+    border-right: 2px solid #1e293b;
+    color: #166534;
+}
+
+.t-subtotal-haber {
+    color: #1e40af;
+}
+
+.t-account-balance-footer {
+    padding: 0.6rem 0.85rem;
+    background: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom-left-radius: 11px;
+    border-bottom-right-radius: 11px;
+    font-size: 0.8rem;
+}
+
+/* Doble raya contable de cierre */
+.t-closing-line {
+    border-bottom: 3px double #0f172a;
+    padding-bottom: 2px;
+}
+
+/* ==========================================================================
+   IMPRESIÓN OFICIAL (LIBRO MAYOR SUNAT 6.1)
+   ========================================================================== */
+@media print {
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        font-size: 10pt;
+    }
+
+    .navbar,
+    .filter-card,
+    .btn,
+    .btn-group,
+    .nav-pills,
+    footer,
+    .d-print-none {
+        display: none !important;
+    }
+
+    .container, .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .ledger-account-card {
+        box-shadow: none !important;
+        border: 1px solid #94a3b8 !important;
+        page-break-inside: avoid;
+        margin-bottom: 1.5rem !important;
+    }
+
+    .t-account-card {
+        box-shadow: none !important;
+        border: 1px solid #475569 !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem !important;
+    }
+
+    .t-col-debe {
+        border-right: 2px solid #000000 !important;
+    }
+
+    .d-print-block {
+        display: block !important;
+    }
+
+    .table {
+        border-color: #cbd5e1 !important;
+    }
+}

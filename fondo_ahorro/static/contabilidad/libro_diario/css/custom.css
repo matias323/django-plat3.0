@@ -1,0 +1,210 @@
+/* ==========================================================================
+   CSS DEDICADO - LIBRO DIARIO OFICIAL (FORMATO SUNAT 5.1)
+   Plantilla: libro_diario.html
+   ========================================================================== */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #eff6ff;
+    --success-color: #10b981;
+    --success-light: #ecfdf5;
+    --danger-color: #ef4444;
+    --danger-light: #fef2f2;
+    --warning-color: #f59e0b;
+    --warning-light: #fffbeb;
+    --debe-color: #1d4ed8;
+    --debe-bg: #f0f7ff;
+    --haber-color: #047857;
+    --haber-bg: #f0fdf4;
+    --border-subtle: #e2e8f0;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+body {
+    background-color: #f8fafc;
+    color: #1e293b;
+    font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar & Brand */
+.bg-dark-navy {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+}
+
+.brand-icon-box {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.fs-xs { font-size: 0.72rem; }
+.fs-sm { font-size: 0.85rem; }
+
+.cell-currency {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+/* KPI Stat Cards */
+.card-kpi {
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.icon-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Filtros */
+.filter-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+}
+
+/* ==========================================================================
+   ESTILOS DE ASIENTOS DEL LIBRO DIARIO
+   ========================================================================== */
+.journal-entry-card {
+    background: #ffffff;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.journal-entry-card:hover {
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.journal-entry-header {
+    background: linear-gradient(to right, #f8fafc, #f1f5f9);
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 0.75rem 1.25rem;
+}
+
+.journal-number-badge {
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    color: var(--primary-color);
+}
+
+.journal-entry-table {
+    margin-bottom: 0;
+    font-size: 0.84rem;
+}
+
+.journal-entry-table th {
+    background-color: #fafbfc;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #64748b;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.journal-entry-table td {
+    padding: 0.55rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.journal-entry-footer {
+    background-color: #f8fafc;
+    border-top: 1px solid var(--border-subtle);
+    padding: 0.6rem 1.25rem;
+    font-size: 0.85rem;
+}
+
+.journal-grand-total-card {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 1.25rem 1.75rem;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.2);
+}
+
+/* ==========================================================================
+   IMPRESIÓN OFICIAL (LIBRO DIARIO SUNAT 5.1)
+   ========================================================================== */
+@media print {
+    body {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        font-size: 10pt;
+    }
+
+    .navbar,
+    .filter-card,
+    .btn,
+    .btn-group,
+    footer,
+    .d-print-none {
+        display: none !important;
+    }
+
+    .container, .container-fluid {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .journal-entry-card {
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem !important;
+    }
+
+    .journal-entry-header {
+        background-color: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .journal-grand-total-card {
+        background: #0f172a !important;
+        color: #ffffff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        page-break-inside: avoid;
+    }
+
+    .d-print-block {
+        display: block !important;
+    }
+
+    .table {
+        border-color: #cbd5e1 !important;
+    }
+}
