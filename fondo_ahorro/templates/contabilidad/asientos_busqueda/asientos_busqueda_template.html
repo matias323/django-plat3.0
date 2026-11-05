@@ -1,0 +1,167 @@
+<!-- importar css -->
+{% load static %}
+<link rel="stylesheet" href="{% static 'contabilidad/asientos_periodo/css/custom.css' %}">
+
+<!-- CONTENIDO PRINCIPAL -->
+<main class="container-fluid px-4 py-4 flex-grow-1">
+
+    <!-- 2. BARRA DE FILTROS AVANZADOS -->
+    <section class="card card-custom filter-card mb-4 no-print">
+        <div class="card-header-custom py-3 d-flex justify-content-between align-items-center">
+            <div class="section-title">
+                <i class="bi bi-funnel-fill text-primary"></i>
+                Filtros de Búsqueda y Selección
+            </div>
+            <div>
+                <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" id="btn-clear-filters">
+                    <i class="bi bi-x-circle"></i> Limpiar Filtros
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-3">
+            <div class="row g-2">
+                <!-- Búsqueda por texto -->
+                <div class="col-lg-2 col-md-12">
+                    <label class="form-label mb-1">Buscar por Nº de asiento:</label>
+                    <div class="input-group input-group">
+                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control filter-input-search input-int" id="filter-num" placeholder="Ej: 1011...">
+                    </div>
+                </div>
+
+                <!-- Período Fiscal -->
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label class="form-label mb-1">Período:</label>
+                    <select class="form-select form-select" id="filter-periodo">
+                        <option value="0" selected>-- Todos los períodos --</option>
+                        {% for periodo in periodos %}
+                            <option value="{{ periodo.id }}">{{ periodo.period_date }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Tipo de Asiento -->
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label class="form-label mb-1">Tipo de Asiento:</label>
+                    <select class="form-select form-select" id="filter-tipo">
+                        <option value="0" selected>-- Todos los tipos --</option>
+                        {% for tipo in asientos_tipos %}
+                            <option value="{{ tipo.id }}">{{ tipo.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Estado -->
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label class="form-label mb-1">Estado:</label>
+                    <select class="form-select form-select" id="filter-estado">
+                        <option value="0" selected>-- Todos los estados --</option>
+                        {% for estado in asientos_estados %}
+                            <option value="{{ estado.id }}">{{ estado.description }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Fechas Desde / Hasta -->
+                <div class="col-lg-3 col-md-3 col-sm-6">
+                    <label class="form-label mb-1">Rango de Fechas:</label>
+                    <div class="input-group input-group">
+                        <input type="date" class="form-control px-1" id="filter-fecha-desde" title="Fecha inicial">
+                        <span class="input-group-text p-1 text-muted"><i class="bi bi-dash"></i></span>
+                        <input type="date" class="form-control px-1" id="filter-fecha-hasta" title="Fecha final">
+                    </div>
+                </div>
+            </div>
+            <div class="row">   
+                <!-- btn buscar -->
+                <div class="d-flex justify-content-center mt-3">
+                    <button class="btn btn-outline-primary btn-sm" id="btn-search">
+                        <i class="bi bi-search"></i> Buscar
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+    </section>
+
+    <!-- 2. TABLA PRINCIPAL CON DATATABLES -->
+    <section class="card card-custom mb-4">
+        <div class="card-header-custom d-flex flex-wrap justify-content-between align-items-center gap-2 py-3">
+            <div class="d-flex align-items-center gap-2">
+                <span class="section-title mb-0">
+                    <i class="bi bi-grid-3x3-gap-fill text-primary"></i>
+                    Resultado de busqueda
+                </span>
+            </div>
+            <div class="text-muted small no-print">
+                <i class="bi bi-info-circle"></i> Haga clic en <strong class="text-primary">+</strong> para ver movimientos o en <strong class="text-warning">✏️</strong> para editar en modal.
+            </div>
+        </div>
+
+        <div class="card-body p-3">
+            <div class="table-responsive">
+                <table id="tabla-asientos-dt" class="table table-hover align-middle w-100 table-striped-subtle">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width: 35px;"></th>
+                            <th style="width: 130px;">Nº Asiento</th>
+                            <th style="width: 100px;">Fecha</th>
+                            <th style="width: 85px;">Período</th>
+                            <th style="width: 110px;">Tipo</th>
+                            <th>Glosa General / Concepto</th>
+                            <th class="text-end text-primary" style="width: 120px;">Debe ($)</th>
+                            <th class="text-end text-success" style="width: 120px;">Haber ($)</th>
+                            <th class="text-center" style="width: 110px;">Estado</th>
+                            <th class="text-center no-print" style="width: 140px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Llenado dinámico por DataTables -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: VER AUXILIARES DE MOVIMIENTO     -->
+    <!-- ========================================================================= -->
+    <div class="modal fade" id="modal-view-aux" tabindex="-1" aria-labelledby="modalAuxLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content shadow border-0 rounded-4">
+                <div class="modal-header bg-primary text-white py-2">
+                    <h6 class="modal-title fw-bold" id="modalAccDtLabel"><i class="bi bi-person me-2"></i> Auxiliares</h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-3">
+                    <div class="table-responsive border rounded-3" style="max-height: 350px;">
+                        <table class="table table-sm table-hover mb-0 align-middle" id="tabla-view-auxiliares-modal" style="width: 100%;">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <!-- <th>#</th> -->
+                                    <th>Rut</th>
+                                    <th>Nombre</th>
+                                    <th>Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody class="small">
+                                <!-- Dinámico -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+{% block extra_js %}
+<script src="{% static 'contabilidad/asientos_busqueda/js/app.js' %}"></script>
+<script>
+</script>
+
+{% endblock %}

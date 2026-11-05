@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+    {% if user.is_authenticated %}
+            {% include "depositos/cartola/cartola_template.html" %} 
+            <!-- Token CSRF para las peticiones -->
+        {% csrf_token %}
+    {% endif %}
+{% endblock %}
+{% block extra_js %}
+
+{% endblock %}

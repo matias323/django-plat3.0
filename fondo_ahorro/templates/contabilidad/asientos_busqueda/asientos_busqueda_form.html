@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+    {% if user.is_authenticated %}
+            <!-- mostrar catalogo cuentas -->
+            {% include "contabilidad/asientos_busqueda/asientos_busqueda_template.html" %} 
+            <!-- Token CSRF para las peticiones -->
+        {% csrf_token %}
+    {% endif %}
+{% endblock %}
+{% block extra_js %}
+
+{% endblock %}
