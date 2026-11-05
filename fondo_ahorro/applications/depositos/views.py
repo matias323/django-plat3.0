@@ -254,7 +254,6 @@ class DepositoAppComprobantePDF(View):
 class CartolaMovimientos(View):
     def post(self, request):
         data = json.loads(request.body)
-        print(data)
                 
         anio = int(data.get("anio", 0))
         tipo = int(data.get("tipo", 0))
@@ -270,6 +269,6 @@ class CartolaMovimientos(View):
             return JsonResponse({"success":False, "message":"No se ha seleccionado una persona"}, status=HTTPStatus.BAD_REQUEST)
         
         movimientos = DepositoServices.search_movimientos(anio, tipo, cuenta, persona)
-        saldos = DepositoServices.saldo_anio(persona, anio, cuenta)
+        saldos = DepositoServices.saldo_anio(persona, anio, cuenta, tipo)
         return JsonResponse({"success":True, "data":movimientos, "saldo":saldos}, status=HTTPStatus.OK)
         

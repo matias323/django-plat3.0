@@ -210,10 +210,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 })
                 return;
             }
+            Swal.showLoading();
 
             const data = await buscarMovimientos(anio, tipo, cuenta, SelectedPerson.id_person);
 
             renderTablaCartola(data);
+            renderKPIs(data.saldo);
         }
     });
 
@@ -236,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             const data = await response.json();
             console.log(data)
-            return data.data;
+            return data;
         } catch (error) {
             console.error(error);
             Swal.fire({
@@ -250,9 +252,15 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * Renderiza la tabla de movimientos de la cartola
      */
-    const renderTablaCartola = (data) => {
+    const renderTablaCartola = (obj) => {
+        Swal.close();
+        const data = obj.data;
+        let saldo_inicio = obj.saldo.saldo_inicio;
+        let abono = 0;
+        let cargo = 0;
         const tbody = document.getElementById('tbody-cartola-movimientos');
         if (!tbody) return;
+        tbody.innerHTML = '';
 
         // Conteo en badge de encabezado
         const badgeCoincidencias = document.getElementById('badge-total-coincidencias-cartola');
@@ -272,11 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
             titleCuenta.textContent = filtroCuenta.options[filtroCuenta.selectedIndex].text;
         }
 
-        // const list = cartolaState.movimientosFiltrados;
-        // const start = (cartolaState.paginaActual - 1) * cartolaState.registrosPorPagina;
-        // const end = start + cartolaState.registrosPorPagina;
-        // const pageItems = list.slice(start, end);
-
         if (data.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -290,12 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        
-
         let html = '';
         data.forEach((m, idx) => {
             // Badges por tipo de cuenta
-            let badgeCta = 'bg-primary-subtle text-primary border-primary-subtle';
+            let badgeCta = 'bg-primary-subtle text-success border-primary-subtle';
             let iconoCta = 'bi-bank';
             if (m.contribution_type.id == 2) {
                 badgeCta = 'bg-success-subtle text-success border-success-subtle';
@@ -324,7 +325,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 labelTipo = 'Interes Ganado';
             }
 
-            html += `
+            saldo_inicio += m.movement_type.id == 1 ? -Number(m.amount) : Number(m.amount);
+
+            abono += m.movement_type.id > 1 ? Number(m.amount) : 0;
+            cargo += m.movement_type.id == 1 ? Number(m.amount) : 0;
+
+            html = `
                 <tr>
                     <td class="text-nowrap">
                         <div class="fw-bold text-dark">${m.created_at}</div>
@@ -348,54 +354,43 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${m.movement_type.id > 1 ? `+ ${formatMoney(m.amount)}` : '-'}
                     </td>
                     <td class="text-end font-monospace text-dark fw-bold bg-light">
-                        ${formatMoney(m.amount)}
+                        ${formatMoney(saldo_inicio)}
                     </td>
                 </tr>
             `;
+
+            tbody.insertAdjacentHTML('afterbegin', html);
         });
 
-        tbody.innerHTML = html;
-
-        // Listeners de modales para cada fila
-        // tbody.querySelectorAll('.btn-ver-ticket-op').forEach(btn => {
-        //     btn.addEventListener('click', () => {
-        //         const opId = btn.getAttribute('data-op');
-        //         const mov = cartolaState.todosMovimientosSocio.find(m => m.id === opId);
-        //         if (mov) abrirModalTicket(mov);
-        //     });
-        // });
-
-        // tbody.querySelectorAll('.btn-ver-asiento-op').forEach(btn => {
-        //     btn.addEventListener('click', () => {
-        //         const opId = btn.getAttribute('data-op');
-        //         const mov = cartolaState.todosMovimientosSocio.find(m => m.id === opId);
-        //         if (mov) abrirModalAsiento(mov);
-        //     });
-        // });
-
-        // tbody.querySelectorAll('.btn-print-individual').forEach(btn => {
-        //     btn.addEventListener('click', () => {
-        //         const opId = btn.getAttribute('data-op');
-        //         const mov = cartolaState.todosMovimientosSocio.find(m => m.id === opId);
-        //         if (mov) {
-        //             abrirModalTicket(mov);
-        //             setTimeout(() => window.print(), 300);
-        //         }
-        //     });
-        // });
+        html = `
+                <tr class="table-light fw-bold">
+                    <td colspan="4" class="text-end text-uppercase fs-xs">Totales del Período Filtrado:</td>
+                    <td class="text-end font-monospace text-danger">${formatMoney(cargo)}</td>
+                    <td class="text-end font-monospace text-success">${formatMoney(abono)}</td>
+                    <td class="text-end font-monospace text-dark bg-secondary-subtle">${formatMoney(saldo_inicio)}</td>
+                </tr>
+                `
+        tbody.insertAdjacentHTML('afterbegin', html);
     }
 
+    function renderKPIs(data) {
 
+        //quitar clase d-none
+        document.getElementById('seccion-kpis-anuales').classList.remove('d-none');
 
+        // Actualizar textos en el DOM
+        document.getElementById('kpi-saldo-inicial').innerHTML = `Saldo Inicial: <b>${formatMoney(data.saldo_inicio)}</b>`;
+        document.getElementById('kpi-saldo-final').innerHTML = `Saldo Final: <b>${formatMoney(data.saldo_final)}</b>`;
 
+        document.getElementById('kpi-aporteA1-inicial').innerHTML = `Saldo Inicial: <b>${formatMoney(data.a1_inicio)}</b>`;
+        document.getElementById('kpi-aporteA1-final').innerHTML = `Saldo Final: <b>${formatMoney(data.a1_final)}</b>`;
 
+        document.getElementById('kpi-aporteA2-inicial').innerHTML = `Saldo Inicial: <b>${formatMoney(data.a2_inicio)}</b>`;
+        document.getElementById('kpi-aporteA2-final').innerHTML = `Saldo Final: <b>${formatMoney(data.a2_final)}</b>`;
 
-
-
-
-
-
-
+        document.getElementById('kpi-aporteA3-inicial').innerHTML = `Saldo Inicial: <b>${formatMoney(data.a3_inicio)}</b>`;
+        document.getElementById('kpi-aporteA3-final').innerHTML = `Saldo Final: <b>${formatMoney(data.a3_final)}</b>`;
+    }
 
     /**
      * Formatear RUT Chileno con puntos y guión
@@ -421,11 +416,6 @@ document.addEventListener('DOMContentLoaded', () => {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0 });
     }
-
-
-
-
-
 
 })
 

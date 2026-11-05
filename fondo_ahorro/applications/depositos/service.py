@@ -326,13 +326,14 @@ class DepositoServices():
         if persona_pk:
             filters &= Q(partner__person=persona_pk)
             
-        movimientos = PartnerMovement.objects.filter(filters).order_by("-created_at")
+        movimientos = PartnerMovement.objects.filter(filters).order_by("created_at")
         
         return [movimiento.to_dict() for movimiento in movimientos]
     
     #saldo de socio anio
-    def saldo_anio(persona_pk, anio, cuenta = None):
+    def saldo_anio(persona_pk, anio, cuenta = None, tipo = None):
         fecha_inicio = date(anio, 1, 1)
+        fecha_fin = date(anio, 12, 31)
 
         # 1. Obtenemos los montos actuales de forma segura
         contribuciones = PartnerContribution.objects.filter(
@@ -340,19 +341,14 @@ class DepositoServices():
         ).values("contribution_type", "amount")
 
         contri_dict = {c["contribution_type"]: int(c["amount"]) for c in contribuciones}
-        a1_actual = int(contri_dict.get(1, 0))
-        a2_actual = int(contri_dict.get(2, 0))
-        a3_actual = int(contri_dict.get(3, 0))
-        a1_inicio = a1_actual
-        a2_inicio = a2_actual
-        a3_inicio = a3_actual
-        saldo_actual = a1_actual + a2_actual + a3_actual
+        a1_inicio = int(contri_dict.get(1, 0))
+        a2_inicio = int(contri_dict.get(2, 0))
+        a3_inicio = int(contri_dict.get(3, 0))
+
 
         # 2. Filtro base para los movimientos posteriores a la fecha
-        filters = Q(is_active=True) & Q(partner__person=persona_pk) & Q(created_at__gte=fecha_inicio)
+        filters = Q(is_active=True) & Q(partner__person=persona_pk) & Q(created_at__date__gte=fecha_inicio)
         
-        if cuenta:
-            filters &= Q(contribution_type=cuenta)
 
         # 3. Agregación inteligente considerando los tipos de movimientos (Giros, Depósitos, etc.)
         # Aquí ajustas la condición de acuerdo a cómo guardas los giros y depósitos en tu BD.
@@ -389,12 +385,58 @@ class DepositoServices():
         a2_inicio += neto_a2
         a3_inicio += neto_a3
         saldo_inicio = a1_inicio + a2_inicio + a3_inicio
+        
+        a1_final = a1_inicio
+        a2_final = a2_inicio
+        a3_final = a3_inicio
+        
+        #buscar movimientos dentro del periodo de busqueda para obtenr el saldo final del periodo de busqueda
+        filters &= Q(created_at__date__lte=fecha_fin)
+        print(fecha_fin)
+        
+        if cuenta:
+            filters &= Q(contribution_type=cuenta)
+        
+        if tipo:
+            filters &= Q(movement_type=tipo)
+        
+        movimientos_agregados_fin = (
+                    PartnerMovement.objects.filter(filters)
+                    .values("contribution_type")
+                    .annotate(
+                        neto=Sum(
+                            Case(
+                                # giro
+                                When(movement_type=1, then=-F("amount")),
+                                # depositos
+                                When(movement_type__gt=1, then=F("amount")),
+                                # Por defecto por si hay otro tipo
+                                default=0,
+                                output_field=IntegerField(),
+                            ),
+                            output_field=IntegerField(),
+                        )
+                    )
+                )
+        
+        mov_dict_fin = {m["contribution_type"]: (m["neto"] or 0) for m in movimientos_agregados_fin}
+        
+        neto_a1_fin = mov_dict_fin.get(1, 0)
+        neto_a2_fin = mov_dict_fin.get(2, 0)
+        neto_a3_fin = mov_dict_fin.get(3, 0)
+        
+        a1_final += neto_a1_fin
+        a2_final += neto_a2_fin
+        a3_final += neto_a3_fin
+        saldo_final = a1_final + a2_final + a3_final
+        
+        
 
         return {
-            "a1_actual": a1_actual,
-            "a2_actual": a2_actual,
-            "a3_actual": a3_actual,
-            "saldo_actual": saldo_actual,
+            "a1_final": a1_final,
+            "a2_final": a2_final,
+            "a3_final": a3_final,
+            "saldo_final": saldo_final,
             "saldo_inicio": saldo_inicio,
             "a1_inicio": a1_inicio,
             "a2_inicio": a2_inicio,

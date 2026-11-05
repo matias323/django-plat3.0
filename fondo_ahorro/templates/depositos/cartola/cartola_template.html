@@ -13,7 +13,6 @@ SECCIÓN 1: BUSCADOR REACTIVO EN VIVO DE SOCIOS / PERSONAS
                     <span>
                         <i class="bi bi-search text-primary me-1"></i> Búsqueda de Socios
                     </span>
-                    <span class="badge bg-light text-secondary border fs-xs">Atajo: Presiona <strong>F2</strong></span>
                 </label>
 
                 <!-- Input de Búsqueda con Dropdown Flotante -->
@@ -157,53 +156,50 @@ SECCIÓN 3: FILTROS AVANZADOS
 <!-- =====================================================================
 SECCIÓN 5: KPIS ANUALES / RESUMEN DEL PERÍODO (PESO CHILENO)
 ===================================================================== -->
-<section id="seccion-kpis-anuales" class="mb-4">
+<section id="seccion-kpis-anuales" class="mb-4 d-none">
     <div class="row g-3">
-        <!-- Saldo Inicial -->
-        <div class="col-6 col-lg">
-            <div class="kpi-financial-card kpi-saldo-inicial shadow-sm">
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                    <span class="kpi-title text-uppercase">Saldo Inicial Período</span>
-                    <i class="bi bi-door-open text-secondary"></i>
-                </div>
-                <div class="kpi-amount text-dark" id="kpi-saldo-inicial">$ 0</div>
-                <div class="kpi-subtext text-muted">Apertura del ejercicio</div>
-            </div>
-        </div>
-
         <!-- aporte a1 -->
         <div class="col-6 col-lg">
             <div class="kpi-financial-card kpi-abonos shadow-sm">
                 <div class="d-flex align-items-center justify-content-between mb-1">
-                    <span class="kpi-title text-uppercase text-success">Aporte A1</span>
-                    <i class="bi bi-graph-up-arrow text-success"></i>
+                    <span class="kpi-title text-uppercase text-secondary">Aporte A1</span>
+                    <i class="bi bi-graph-up-arrow text-secondary"></i>
                 </div>
-                <div class="kpi-amount text-success" id="kpi-total-aporteA1">$ 0</div>
-                <div class="kpi-subtext text-success" id="kpi-count-aporteA1">0 movimientos</div>
+                <div class="kpi-amount text-secondary" id="kpi-aporteA1-inicial"></div>
+                <div class="kpi-amount text-secondary" id="kpi-aporteA1-final"></div>
             </div>
         </div>
-
         <!-- aporte a2 -->
         <div class="col-6 col-lg">
             <div class="kpi-financial-card kpi-cargos shadow-sm">
                 <div class="d-flex align-items-center justify-content-between mb-1">
-                    <span class="kpi-title text-uppercase text-danger">Aporte A2</span>
-                    <i class="bi bi-graph-up-arrow text-danger"></i>
+                    <span class="kpi-title text-uppercase text-secondary">Aporte A2</span>
+                    <i class="bi bi-graph-up-arrow text-secondary"></i>
                 </div>
-                <div class="kpi-amount text-danger" id="kpi-total-aporteA2">$ 0</div>
-                <div class="kpi-subtext text-danger" id="kpi-count-aporteA2">0 movimientos</div>
+                <div class="kpi-amount text-secondary" id="kpi-aporteA2-inicial"></div>
+                <div class="kpi-amount text-secondary" id="kpi-aporteA2-final"></div>
             </div>
         </div>
-
         <!-- aporte a3 -->
         <div class="col-6 col-lg">
             <div class="kpi-financial-card kpi-intereses shadow-sm">
                 <div class="d-flex align-items-center justify-content-between mb-1">
-                    <span class="kpi-title text-uppercase text-warning">Aporte A3</span>
-                    <i class="bi bi-graph-up-arrow text-warning"></i>
+                    <span class="kpi-title text-uppercase text-secondary">Aporte A3</span>
+                    <i class="bi bi-graph-up-arrow text-secondary"></i>
                 </div>
-                <div class="kpi-amount text-warning" id="kpi-total-aporteA3">$ 0</div>
-                <div class="kpi-subtext text-danger" id="kpi-count-aporteA3">0 movimientos</div>
+                <div class="kpi-amount text-secondary" id="kpi-aporteA3-inicial"></div>
+                <div class="kpi-amount text-secondary" id="kpi-aporteA3-final"></div>
+            </div>
+        </div>
+        <!-- Saldo Período -->
+        <div class="col-6 col-lg">
+            <div class="kpi-financial-card kpi-saldo-inicial shadow-sm">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="kpi-title text-uppercase text-secondary">Saldo Período</span>
+                    <i class="bi bi-door-open text-secondary"></i>
+                </div>
+                <div class="kpi-amount text-secondary" id="kpi-saldo-inicial"></div>
+                <div class="kpi-amount text-secondary" id="kpi-saldo-final"></div>
             </div>
         </div>
     </div>
@@ -224,15 +220,6 @@ SECCIÓN 4: TABLA DETALLADA DE CARTOLA DE MOVIMIENTOS
                     Mostrando: <strong class="text-dark" id="cartola-cuenta-nombre-label">Todas las Cuentas (Consolidado)</strong> | Período: <strong class="text-dark" id="cartola-anio-activo-label">--</strong>
                 </small>
             </div>
-
-            <div class="d-flex align-items-center gap-2 no-print">
-                <label for="select-page-size-cartola" class="fs-xs text-muted text-nowrap mb-0">Mostrar:</label>
-                <select id="select-page-size-cartola" class="form-select form-select-sm" style="width: 80px;">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                </select>
-            </div>
         </div>
     </div>
 
@@ -241,27 +228,18 @@ SECCIÓN 4: TABLA DETALLADA DE CARTOLA DE MOVIMIENTOS
             <table class="table table-hover align-middle mb-0 table-cartola">
                 <thead class="table-dark-subtle">
                     <tr>
-                        <th style="width: 110px;">Fecha / Hora</th>
-                        <th style="width: 140px;">Cuenta</th>
-                        <th style="width: 120px;">Tipo</th>
+                        <th>Fecha / Hora</th>
+                        <th>Cuenta</th>
+                        <th>Tipo</th>
                         <th>Glosa / Detalle del Movimiento</th>
-                        <th class="text-end" style="width: 130px;">Cargos (-) CLP</th>
-                        <th class="text-end" style="width: 130px;">Abonos (+) CLP</th>
-                        <th class="text-end" style="width: 140px;">Saldo Resultante</th>
-                        <!-- <th class="text-center no-print btn-action-col" style="width: 90px;">Acciones</th> -->
+                        <th class="text-end">Cargos (-) CLP</th>
+                        <th class="text-end">Abonos (+) CLP</th>
+                        <th class="text-end">Saldo Resultante</th>
                     </tr>
                 </thead>
                 <tbody id="tbody-cartola-movimientos">
                     <!-- Filas generadas reactivamente por renderTablaCartola() -->
                 </tbody>
-                <tfoot class="table-light fw-bold">
-                    <tr>
-                        <td colspan="4" class="text-end text-uppercase fs-xs">Totales del Período Filtrado (CLP):</td>
-                        <td class="text-end font-monospace text-danger" id="tfoot-total-cargos">$ 0</td>
-                        <td class="text-end font-monospace text-success" id="tfoot-total-abonos">$ 0</td>
-                        <td class="text-end font-monospace text-dark bg-secondary-subtle" id="tfoot-saldo-final">$ 0</td>
-                    </tr>
-                </tfoot>
             </table>
         </div>
     </div>
