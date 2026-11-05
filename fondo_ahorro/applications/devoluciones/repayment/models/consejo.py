@@ -21,6 +21,8 @@ class DevoConsejo(BaseModel):
         db_column='estado', related_name='consejos',
     )
     fecha_consejo = models.DateField()
+    cerrado = models.BooleanField(default=False)
+    fecha_cierre = models.DateTimeField(null=True, blank=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
     class Meta:

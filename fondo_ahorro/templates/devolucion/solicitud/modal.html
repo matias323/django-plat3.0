@@ -14,7 +14,7 @@
             <label class="form-label" for="devoBuscarFuncionario">Buscar funcionario</label>
             <div class="input-group">
                 <input type="text" class="form-control" id="devoBuscarFuncionario"
-                       placeholder="Código, RUT, nombre o apellidos" autocomplete="off">
+                    placeholder="Código, RUT, nombre o apellidos" autocomplete="off">
                 <button type="button" class="btn btn-primary" id="devoBtnBuscar">
                     <i class="bi bi-search me-1"></i>Buscar
                 </button>
@@ -89,9 +89,9 @@
                         <option value="">Seleccione una opción</option>
 
                         {% for tipo in tipos %}
-                            <option value="{{ tipo.id }}" data-nombre="{{ tipo.nombre }}">
-                                {{ tipo.nombre }}
-                            </option>
+                        <option value="{{ tipo.id }}" data-nombre="{{ tipo.nombre }}">
+                            {{ tipo.nombre }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -103,32 +103,35 @@
                     <div class="row g-3" id="devoMontos">
                         <div class="col-md-6 d-none" id="devoFilaA1">
                             <label class="form-label" for="devoMontoA1">Monto A1</label>
-                            <input type="text" class="form-control devo-monto" id="devoMontoA1"
-                                   data-aporte="A1" inputmode="numeric" placeholder="0">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" class="form-check-input devo-total" id="devoTotalA1" data-aporte="A1">
-                                <label class="form-check-label" for="devoTotalA1">Total de aportes A1</label>
-                            </div>
+                            <input type="text" class="form-control devo-monto" id="devoMontoA1" data-aporte="A1"
+                                inputmode="numeric" placeholder="0">
+                            <div class="form-text">Monto fijo que se descontará del aporte A1.</div>
                         </div>
 
                         <div class="col-md-6 d-none" id="devoFilaA2">
                             <label class="form-label" for="devoMontoA2">Monto A2</label>
-                            <input type="text" class="form-control devo-monto" id="devoMontoA2"
-                                   data-aporte="A2" inputmode="numeric" placeholder="0">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" class="form-check-input devo-mitad" id="devoMitadA2" data-aporte="A2">
-                                <label class="form-check-label" for="devoMitadA2">50 % de los aportes A2</label>
-                            </div>
+                            <input type="text" class="form-control devo-monto" id="devoMontoA2" data-aporte="A2"
+                                inputmode="numeric" placeholder="0">
+                            <label for="devoPorcentajeA2" class="form-label small mt-2">Modalidad de cálculo A2</label>
+                            <select id="devoPorcentajeA2" class="form-select form-select-sm devo-porcentaje" data-aporte="A2">
+                                <option value="">Monto fijo (sin concepto)</option>
+                                <option value="25">25 % del saldo al pagar</option>
+                                <option value="50">50 % del saldo al pagar</option>
+                                <option value="100">100 % del saldo al pagar</option>
+                            </select>
                         </div>
 
                         <div class="col-md-6 d-none" id="devoFilaA3">
                             <label class="form-label" for="devoMontoA3">Monto A3</label>
-                            <input type="text" class="form-control devo-monto" id="devoMontoA3"
-                                   data-aporte="A3" inputmode="numeric" placeholder="0">
-                            <div class="form-check mt-2">
-                                <input type="checkbox" class="form-check-input devo-total" id="devoTotalA3" data-aporte="A3">
-                                <label class="form-check-label" for="devoTotalA3">Total de aportes A3</label>
-                            </div>
+                            <input type="text" class="form-control devo-monto" id="devoMontoA3" data-aporte="A3"
+                                inputmode="numeric" placeholder="0">
+                            <label for="devoPorcentajeA3" class="form-label small mt-2">Modalidad de cálculo A3</label>
+                            <select id="devoPorcentajeA3" class="form-select form-select-sm devo-porcentaje" data-aporte="A3">
+                                <option value="">Monto fijo (sin concepto)</option>
+                                <option value="25">25 % del saldo al pagar</option>
+                                <option value="50">50 % del saldo al pagar</option>
+                                <option value="100">100 % del saldo al pagar</option>
+                            </select>
                         </div>
                     </div>
 
@@ -137,8 +140,8 @@
                             <label class="form-label" for="devoMontoGeneral">Monto de devolución</label>
                             <div class="input-group">
                                 <span class="input-group-text">$</span>
-                                <input type="text" class="form-control" id="devoMontoGeneral"
-                                       inputmode="numeric" autocomplete="off" disabled>
+                                <input type="text" class="form-control" id="devoMontoGeneral" inputmode="numeric"
+                                    autocomplete="off" disabled>
                             </div>
                         </div>
                     </div>
@@ -149,7 +152,7 @@
                             <select class="form-select" id="devoMotivo">
                                 <option value="">Seleccione una opción</option>
                                 {% for motivo in motivos %}
-                                    <option value="{{ motivo.pk }}">{{ motivo.descripcion }}</option>
+                                <option value="{{ motivo.pk }}">{{ motivo.descripcion }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -162,7 +165,7 @@
                             <select class="form-select" id="devoRegion" required>
                                 <option value="">Seleccione una región</option>
                                 {% for region in regiones %}
-                                    <option value="{{ region.pk }}">{{ region.name }}</option>
+                                <option value="{{ region.pk }}">{{ region.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -174,40 +177,21 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="devoTelefono">Teléfono</label>
-                            <input
-                                type="tel"
-                                class="form-control"
-                                id="devoTelefono"
-                                name="telefono"
-                                inputmode="numeric"
-                                autocomplete="tel-national"
-                                maxlength="9"
-                                minlength="9"
-                                pattern="[0-9]{9}"
-                                title="Ingrese exactamente 9 dígitos numéricos"
-                                placeholder="912345678"
-                                required
-                            >
+                            <input type="tel" class="form-control" id="devoTelefono" name="telefono" inputmode="numeric"
+                                autocomplete="tel-national" maxlength="9" minlength="9" pattern="[0-9]{9}"
+                                title="Ingrese exactamente 9 dígitos numéricos" placeholder="912345678" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="devoCorreo">Correo</label>
-                            <input
-                                type="email"
-                                class="form-control"
-                                id="devoCorreo"
-                                name="correo"
-                                maxlength="254"
-                                autocomplete="email"
-                                placeholder="nombre@dominio.cl"
-                                required
-                            >
+                            <input type="email" class="form-control" id="devoCorreo" name="correo" maxlength="254"
+                                autocomplete="email" placeholder="nombre@dominio.cl" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="devoMetodoPago">Método de pago</label>
                             <select class="form-select" id="devoMetodoPago" required>
                                 <option value="">Seleccione un método</option>
                                 {% for metodo in metodos %}
-                                    <option value="{{ metodo.pk }}">{{ metodo.tipo }}</option>
+                                <option value="{{ metodo.pk }}">{{ metodo.tipo }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -216,7 +200,7 @@
                             <select class="form-select" id="devoBanco">
                                 <option value="">Seleccione un banco</option>
                                 {% for banco in bancos %}
-                                    <option value="{{ banco.pk }}">{{ banco.nombre }}</option>
+                                <option value="{{ banco.pk }}">{{ banco.nombre }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -231,18 +215,10 @@
                                 Número de cuenta
                             </label>
 
-                            <input
-                                type="text"
-                                class="form-control"
-                                id="devoNumeroCuenta"
-                                name="numero_cuenta"
-                                inputmode="numeric"
-                                pattern="[0-9]+"
-                                maxlength="50"
-                                autocomplete="off"
+                            <input type="text" class="form-control" id="devoNumeroCuenta" name="numero_cuenta"
+                                inputmode="numeric" pattern="[0-9]+" maxlength="50" autocomplete="off"
                                 title="El número de cuenta debe contener solo números"
-                                placeholder="Ingrese el número de cuenta"
-                            >
+                                placeholder="Ingrese el número de cuenta">
                         </div>
                     </div>
                 </div>
@@ -264,130 +240,130 @@
 
 <!-- JavaScript exclusivo del modal -->
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    const modalElement = document.getElementById('devolucionCrearModal');
-    const buscarInput = document.getElementById('devoBuscarFuncionario');
-    const resultados = document.getElementById('devoResultados');
-    const datos = document.getElementById('devoDatos');
-    const tipoSelect = document.getElementById('devolucionTipo');
+    document.addEventListener('DOMContentLoaded', function () {
+        const modalElement = document.getElementById('devolucionCrearModal');
+        const buscarInput = document.getElementById('devoBuscarFuncionario');
+        const resultados = document.getElementById('devoResultados');
+        const datos = document.getElementById('devoDatos');
+        const tipoSelect = document.getElementById('devolucionTipo');
 
-    const urls = {
-        buscar: "{% url 'devolucion:buscar_funcionarios' %}",
-        datos: "{% url 'devolucion:datos_funcionario' 999999 %}",
-        comunas: "{% url 'devolucion:comunas_region' 999999 %}",
-        cuentas: "{% url 'devolucion:cuentas_banco' 999999 %}",
-        crear: "{% url 'devolucion:crear_solicitud' %}"
-    };
+        const urls = {
+            buscar: "{% url 'devolucion:buscar_funcionarios' %}",
+            datos: "{% url 'devolucion:datos_funcionario' 999999 %}",
+            comunas: "{% url 'devolucion:comunas_region' 999999 %}",
+            cuentas: "{% url 'devolucion:cuentas_banco' 999999 %}",
+            crear: "{% url 'devolucion:crear_solicitud' %}"
+        };
 
-    const balances = { A1: 0, A2: 0, A3: 0 };
-    let searchVersion = 0;
-    let personVersion = 0;
-    let comunasVersion = 0;
-    let cuentasVersion = 0;
-    const regionSelect = field('devoRegion');
-    const comunaSelect = field('devoComuna');
-    const bancoSelect = field('devoBanco');
-    const cuentaSelect = field('devoTipoCuenta');
-    const crearBoton = field('devoCrearSolicitud');
+        const balances = { A1: 0, A2: 0, A3: 0 };
+        let searchVersion = 0;
+        let personVersion = 0;
+        let comunasVersion = 0;
+        let cuentasVersion = 0;
+        const regionSelect = field('devoRegion');
+        const comunaSelect = field('devoComuna');
+        const bancoSelect = field('devoBanco');
+        const cuentaSelect = field('devoTipoCuenta');
+        const crearBoton = field('devoCrearSolicitud');
 
-    function field(id) {
-        return document.getElementById(id);
-    }
-
-    function escapeHtml(value) {
-        const node = document.createElement('div');
-        node.textContent = String(value ?? '');
-        return node.innerHTML;
-    }
-
-    function money(value) {
-        return Math.trunc(Number(value) || 0).toLocaleString('es-CL');
-    }
-
-    function amount(value) {
-        return Number(String(value || '').replace(/\D/g, '')) || 0;
-    }
-
-    function alertHtml(message, type = 'secondary') {
-        return `<div class="alert alert-${type} py-2 mb-0">${escapeHtml(message)}</div>`;
-    }
-
-    function resetAmounts() {
-        for (const key of ['A1', 'A2', 'A3']) {
-            const input = field('devoMonto' + key);
-            input.value = '';
-            input.disabled = true;
-            field('devoFila' + key).classList.add('d-none');
+        function field(id) {
+            return document.getElementById(id);
         }
 
-        field('devoTotalA1').checked = false;
-        field('devoMitadA2').checked = false;
-        field('devoTotalA3').checked = false;
-        field('devoMontoGeneral').value = '';
-        field('devoMontoGeneral').disabled = true;
-        field('devoFilaMontoGeneral').classList.add('d-none');
-        field('devoInformacion').classList.add('d-none');
-    }
-
-    function resetSelection() {
-        personVersion++;
-        datos.classList.add('d-none');
-        field('devoPersonaId').value = '';
-        tipoSelect.value = '';
-        resetAmounts();
-        actualizarBoton();
-    }
-
-    function resetModal() {
-        searchVersion++;
-        resetSelection();
-        buscarInput.value = '';
-        resultados.innerHTML = '';
-
-        for (const key of ['A1', 'A2', 'A3']) balances[key] = 0;
-
-        for (const id of [
-            'devoMotivo', 'devoDireccion', 'devoTelefono', 'devoCorreo',
-            'devoMetodoPago', 'devoNumeroCuenta'
-        ]) {
-            field(id).value = '';
-        }
-        regionSelect.value = '';
-        bancoSelect.value = '';
-        comunasVersion++;
-        cuentasVersion++;
-        limpiarSelect(comunaSelect, 'Seleccione primero una región');
-        limpiarSelect(cuentaSelect, 'Seleccione primero un banco');
-        actualizarBoton();
-    }
-
-    async function buscarFuncionarios() {
-        const term = buscarInput.value.trim();
-        const currentSearch = ++searchVersion;
-        resetSelection();
-
-        if (term.length < 2) {
-            resultados.innerHTML = alertHtml('Ingrese al menos dos caracteres.');
-            return;
+        function escapeHtml(value) {
+            const node = document.createElement('div');
+            node.textContent = String(value ?? '');
+            return node.innerHTML;
         }
 
-        resultados.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        function money(value) {
+            return Math.trunc(Number(value) || 0).toLocaleString('es-CL');
+        }
 
-        try {
-            const response = await fetch(`${urls.buscar}?q=${encodeURIComponent(term)}`, {
-                headers: { 'X-App-Request': 'true' }
-            });
-            const data = await response.json();
+        function amount(value) {
+            return Number(String(value || '').replace(/\D/g, '')) || 0;
+        }
 
-            if (currentSearch !== searchVersion) return;
-            if (!response.ok) throw new Error(data.message || 'No se pudo realizar la búsqueda.');
+        function alertHtml(message, type = 'secondary') {
+            return `<div class="alert alert-${type} py-2 mb-0">${escapeHtml(message)}</div>`;
+        }
 
-            if (!data.results || data.results.length === 0) {
-                resultados.innerHTML = alertHtml('No se encontraron funcionarios.');
+        function resetAmounts() {
+            for (const key of ['A1', 'A2', 'A3']) {
+                const input = field('devoMonto' + key);
+                input.value = '';
+                input.disabled = true;
+                input.readOnly = false;
+                field('devoFila' + key).classList.add('d-none');
+            }
+
+            field('devoPorcentajeA2').value = '';
+            field('devoPorcentajeA3').value = '';
+            field('devoMontoGeneral').value = '';
+            field('devoMontoGeneral').disabled = true;
+            field('devoFilaMontoGeneral').classList.add('d-none');
+            field('devoInformacion').classList.add('d-none');
+        }
+
+        function resetSelection() {
+            personVersion++;
+            datos.classList.add('d-none');
+            field('devoPersonaId').value = '';
+            tipoSelect.value = '';
+            resetAmounts();
+            actualizarBoton();
+        }
+
+        function resetModal() {
+            searchVersion++;
+            resetSelection();
+            buscarInput.value = '';
+            resultados.innerHTML = '';
+
+            for (const key of ['A1', 'A2', 'A3']) balances[key] = 0;
+
+            for (const id of [
+                'devoMotivo', 'devoDireccion', 'devoTelefono', 'devoCorreo',
+                'devoMetodoPago', 'devoNumeroCuenta'
+            ]) {
+                field(id).value = '';
+            }
+            regionSelect.value = '';
+            bancoSelect.value = '';
+            comunasVersion++;
+            cuentasVersion++;
+            limpiarSelect(comunaSelect, 'Seleccione primero una región');
+            limpiarSelect(cuentaSelect, 'Seleccione primero un banco');
+            actualizarBoton();
+        }
+
+        async function buscarFuncionarios() {
+            const term = buscarInput.value.trim();
+            const currentSearch = ++searchVersion;
+            resetSelection();
+
+            if (term.length < 2) {
+                resultados.innerHTML = alertHtml('Ingrese al menos dos caracteres.');
                 return;
             }
 
-            resultados.innerHTML = `
+            resultados.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+
+            try {
+                const response = await fetch(`${urls.buscar}?q=${encodeURIComponent(term)}`, {
+                    headers: { 'X-App-Request': 'true' }
+                });
+                const data = await response.json();
+
+                if (currentSearch !== searchVersion) return;
+                if (!response.ok) throw new Error(data.message || 'No se pudo realizar la búsqueda.');
+
+                if (!data.results || data.results.length === 0) {
+                    resultados.innerHTML = alertHtml('No se encontraron funcionarios.');
+                    return;
+                }
+
+                resultados.innerHTML = `
                 <div class="list-group">
                     ${data.results.map(item => `
                         <button type="button" class="list-group-item list-group-item-action devoElegir"
@@ -404,344 +380,395 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
 
-        } catch (error) {
-            if (currentSearch === searchVersion) resultados.innerHTML = alertHtml(error.message, 'danger');
-        }
-    }
-
-    async function seleccionarFuncionario(personId) {
-        const currentPerson = ++personVersion;
-        resultados.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
-
-        try {
-            const response = await fetch(urls.datos.replace('999999', String(personId)), {
-                headers: { 'X-App-Request': 'true' }
-            });
-            const data = await response.json();
-
-            if (currentPerson !== personVersion) return;
-            if (!response.ok) throw new Error(data.message || 'No se pudieron cargar los datos.');
-
-            for (const key of ['A1', 'A2', 'A3']) {
-                balances[key] = Number(data.ahorros?.[key]?.valor || 0);
-                field('devo' + key).value = money(balances[key]);
+            } catch (error) {
+                if (currentSearch === searchVersion) resultados.innerHTML = alertHtml(error.message, 'danger');
             }
+        }
 
-            const values = {
-                devoPersonaId: data.id,
-                devoNombre: data.nombre,
-                devoRut: data.rut,
-                devoCodigo: data.codigo,
-                devoGrado: data.grado,
-                devoSocio: data.socio ? 'Socio' : 'No socio'
-            };
+        async function seleccionarFuncionario(personId) {
+            const currentPerson = ++personVersion;
+            resultados.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
 
-            for (const [id, value] of Object.entries(values)) field(id).value = value ?? '';
+            try {
+                const response = await fetch(urls.datos.replace('999999', String(personId)), {
+                    headers: { 'X-App-Request': 'true' }
+                });
+                const data = await response.json();
 
-            tipoSelect.value = '';
+                if (currentPerson !== personVersion) return;
+                if (!response.ok) throw new Error(data.message || 'No se pudieron cargar los datos.');
+
+                for (const key of ['A1', 'A2', 'A3']) {
+                    balances[key] = Number(data.ahorros?.[key]?.valor || 0);
+                    field('devo' + key).value = money(balances[key]);
+                }
+
+                const values = {
+                    devoPersonaId: data.id,
+                    devoNombre: data.nombre,
+                    devoRut: data.rut,
+                    devoCodigo: data.codigo,
+                    devoGrado: data.grado,
+                    devoSocio: data.socio ? 'Socio' : 'No socio'
+                };
+
+                for (const [id, value] of Object.entries(values)) field(id).value = value ?? '';
+
+                tipoSelect.value = '';
+                resetAmounts();
+                resultados.innerHTML = '';
+                datos.classList.remove('d-none');
+                actualizarBoton();
+
+            } catch (error) {
+                if (currentPerson === personVersion) resultados.innerHTML = alertHtml(error.message, 'danger');
+            }
+        }
+
+        function actualizarTipo() {
             resetAmounts();
-            resultados.innerHTML = '';
-            datos.classList.remove('d-none');
-            actualizarBoton();
+            if (!tipoSelect.value) return;
 
-        } catch (error) {
-            if (currentPerson === personVersion) resultados.innerHTML = alertHtml(error.message, 'danger');
-        }
-    }
+            const nombre = String(tipoSelect.selectedOptions[0]?.dataset.nombre || '').toUpperCase();
+            const disponibles = ['A1', 'A2', 'A3'].filter(key => new RegExp(`\\b${key}\\b`).test(nombre));
 
-    function actualizarTipo() {
-        resetAmounts();
-        if (!tipoSelect.value) return;
-
-        const nombre = String(tipoSelect.selectedOptions[0]?.dataset.nombre || '').toUpperCase();
-        const disponibles = ['A1', 'A2', 'A3'].filter(key => new RegExp(`\\b${key}\\b`).test(nombre));
-
-        if (disponibles.length) {
-            for (const key of disponibles) {
-                field('devoFila' + key).classList.remove('d-none');
-                field('devoMonto' + key).disabled = false;
+            if (disponibles.length) {
+                for (const key of disponibles) {
+                    field('devoFila' + key).classList.remove('d-none');
+                    field('devoMonto' + key).disabled = false;
+                }
+            } else {
+                field('devoFilaMontoGeneral').classList.remove('d-none');
+                field('devoMontoGeneral').disabled = false;
             }
-        } else {
-            field('devoFilaMontoGeneral').classList.remove('d-none');
-            field('devoMontoGeneral').disabled = false;
-        }
 
-        field('devoInformacion').classList.remove('d-none');
-        actualizarBoton();
-    }
-
-    function actualizarCheckbox(checkbox) {
-        const key = checkbox.dataset.aporte;
-        const input = field('devoMonto' + key);
-
-        if (!checkbox.checked) {
-            input.value = '';
-            return;
-        }
-
-        const valor = checkbox.classList.contains('devo-mitad')
-            ? Math.floor(balances[key] / 2)
-            : balances[key];
-
-        input.value = money(valor);
-    }
-
-    // ============================================================
-    // SELECTORES DEPENDIENTES Y GUARDADO AJAX
-    // ============================================================
-    function limpiarSelect(select, texto) {
-        select.replaceChildren(new Option(texto, ''));
-        select.disabled = true;
-    }
-
-    async function cargarDependientes(url, select, versionActual) {
-        limpiarSelect(select, 'Cargando...');
-        const response = await fetch(url, { headers: { 'X-App-Request': 'true' } });
-        const result = await response.json();
-
-        if (versionActual() === false) return;
-        if (!response.ok || result.status !== 'ok') {
-            throw new Error(result.message || 'No se pudo consultar el catálogo.');
-        }
-
-        limpiarSelect(select, 'Seleccione una opción');
-        for (const item of result.results) {
-            select.add(new Option(item.nombre, item.id));
-        }
-        select.disabled = result.results.length === 0;
-    }
-
-    regionSelect.addEventListener('change', async function () {
-        const version = ++comunasVersion;
-        if (!this.value) {
-            limpiarSelect(comunaSelect, 'Seleccione primero una región');
-            return;
-        }
-        try {
-            await cargarDependientes(urls.comunas.replace('999999', this.value),
-                comunaSelect, () => version === comunasVersion);
-        } catch (error) {
-            if (version === comunasVersion) limpiarSelect(comunaSelect, 'Error al cargar comunas');
-            console.error(error);
-        }
-    });
-
-    bancoSelect.addEventListener('change', async function () {
-        const version = ++cuentasVersion;
-        if (!this.value) {
-            limpiarSelect(cuentaSelect, 'Seleccione primero un banco');
-            return;
-        }
-        try {
-            await cargarDependientes(urls.cuentas.replace('999999', this.value),
-                cuentaSelect, () => version === cuentasVersion);
-        } catch (error) {
-            if (version === cuentasVersion) limpiarSelect(cuentaSelect, 'Error al cargar tipos de cuenta');
-            console.error(error);
-        }
-    });
-
-    function actualizarBoton() {
-        crearBoton.disabled = !(field('devoPersonaId').value && tipoSelect.value);
-    }
-
-    field('devoMontoGeneral').addEventListener('input', function () {
-        const digits = this.value.replace(/\D/g, '');
-        this.value = digits ? Number(digits).toLocaleString('es-CL') : '';
-    });
-
-    // El navegador restringe la escritura a dígitos y 9 posiciones.
-    const telefonoInput = field('devoTelefono');
-    const correoInput = field('devoCorreo');
-    const numeroCuentaInput = field('devoNumeroCuenta');
-
-    telefonoInput.addEventListener('input', function () {
-        this.value = this.value.replace(/\D/g, '').slice(0, 9);
-        this.setCustomValidity('');
-    });
-
-    correoInput.addEventListener('input', function () {
-        this.setCustomValidity('');
-    });
-
-    numeroCuentaInput.addEventListener('input', function () {
-        // Eliminar cualquier carácter que no sea numérico
-        this.value = this.value.replace(/\D/g, '').slice(0, 50);
-
-        // Limpiar mensajes de validación anteriores
-        this.setCustomValidity('');
-    });
-
-    crearBoton.addEventListener('click', async function () {
-        const nombreTipo = String(tipoSelect.selectedOptions[0]?.dataset.nombre || '').toUpperCase();
-        const claves = ['A1', 'A2', 'A3'].filter(k => new RegExp(`\\b${k}\\b`).test(nombreTipo));
-        const valores = claves.map(k => ({ clave: k, valor: amount(field('devoMonto' + k).value) }));
-
-        // if (!field('devoPersonaId').value || !tipoSelect.value || !field('devoMotivo').value ||
-        //     !field('devoDireccion').value.trim() || !regionSelect.value || !comunaSelect.value ||
-        //     !field('devoMetodoPago').value) {
-        //     mostrarError('Complete funcionario, tipo, motivo, dirección, región, comuna y método de pago.');
-        //     return;
-        // }
-
-        if (claves.length ? valores.some(v => v.valor <= 0) : amount(field('devoMontoGeneral').value) <= 0) {
-            mostrarError('Ingrese un monto mayor a cero para cada aporte seleccionado.');
-            return;
-        }
-
-        // Comprobar teléfono y correo antes del diálogo de confirmación.
-        if (!/^[0-9]{9}$/.test(telefonoInput.value)) {
-            telefonoInput.setCustomValidity('Ingrese un teléfono de exactamente 9 números.');
-            telefonoInput.reportValidity();
-            telefonoInput.focus();
-            return;
-        }
-
-        if (!correoInput.value.trim() || !correoInput.checkValidity()) {
-            correoInput.setCustomValidity('Ingrese una dirección de correo válida.');
-            correoInput.reportValidity();
-            correoInput.focus();
-            return;
-        }
-
-        const banco = bancoSelect.value;
-        const cuentaTipo = cuentaSelect.value;
-        const numeroCuenta = field('devoNumeroCuenta').value.trim();
-        if ((banco || cuentaTipo || numeroCuenta) && !(banco && cuentaTipo && numeroCuenta)) {
-            mostrarError('Complete banco, tipo de cuenta y número, o deje los tres vacíos.');
-            return;
-        }
-
-        if (window.AppSwalConfirm) {
-            const decision = await AppSwalConfirm({
-                title: 'Crear solicitud', text: '¿Confirma el registro de esta devolución?',
-                confirmText: 'Crear solicitud', confirmClass: 'btn-primary'
-            });
-            if (!decision.isConfirmed) return;
-        } else if (!confirm('¿Confirma crear la solicitud de devolución?')) {
-            return;
-        }
-
-        // Validar número de cuenta bancaria
-        if (numeroCuenta && !/^[0-9]+$/.test(numeroCuenta)) {
-            numeroCuentaInput.setCustomValidity(
-                'El número de cuenta debe contener solo números.'
-            );
-
-            numeroCuentaInput.reportValidity();
-            numeroCuentaInput.focus();
-            return;
-        }
-
-        const formData = new FormData();
-        const pares = {
-            persona_id: field('devoPersonaId').value,
-            tipo_devolucion: tipoSelect.value,
-            motivo: field('devoMotivo').value,
-            direccion: field('devoDireccion').value,
-            region: regionSelect.value,
-            comuna: comunaSelect.value,
-            telefono: field('devoTelefono').value,
-            correo: field('devoCorreo').value,
-            metodo_pago: field('devoMetodoPago').value,
-            banco: banco, cuenta_tipo: cuentaTipo, numero_cuenta: numeroCuenta,
-            monto_general: amount(field('devoMontoGeneral').value)
-        };
-        for (const [key, value] of Object.entries(pares)) formData.append(key, value);
-        for (const item of valores) formData.append('monto_' + item.clave.toLowerCase(), item.valor);
-
-
-        // ============================================================
-        // ENVIAR CONCEPTOS DE DEVOLUCIÓN
-        // ============================================================
-
-        // IDs existentes en devo_solicitud_concepto:
-        // 1 = 100%
-        // 2 = 50%
-        // 3 = 25%
-
-        if (claves.includes('A2')) {
-            const conceptoA2 = field('devoMitadA2').checked ? 2 : 1;
-
-            formData.append('conceptos', conceptoA2);
-        }
-
-        if (claves.includes('A3')) {
-            formData.append('conceptos', 1);
-        }
-
-        if (claves.includes('A1')) {
-            formData.append('conceptos', 1);
-        }
-
-        if (claves.length === 0) {
-            formData.append('conceptos', 1);
-        }
-
-
-        const original = crearBoton.innerHTML;
-        crearBoton.disabled = true;
-        crearBoton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
-
-        try {
-            const csrfToken = modalElement.querySelector('[name=csrfmiddlewaretoken]').value;
-            const response = await fetch(urls.crear, {
-                method: 'POST', headers: { 'X-CSRFToken': csrfToken, 'X-App-Request': 'true' },
-                body: formData
-            });
-            const result = await response.json();
-            if (!response.ok || result.status !== 'ok') throw new Error(result.message || 'No se pudo guardar.');
-
-            bootstrap.Modal.getInstance(modalElement).hide();
-            window.recargarDevoluciones?.();
-            if (window.AppSwalSuccess) AppSwalSuccess('Solicitud creada', result.message);
-            else if (window.Swal) Swal.fire('Solicitud creada', result.message, 'success');
-            else alert(result.message);
-        } catch (error) {
-            mostrarError(error.message);
-        } finally {
-            crearBoton.innerHTML = original;
+            field('devoInformacion').classList.remove('d-none');
             actualizarBoton();
         }
-    });
 
-    function mostrarError(mensaje) {
-        if (window.AppSwalError) AppSwalError('Error', mensaje);
-        else if (window.Swal) Swal.fire('Error', mensaje, 'error');
-        else alert(mensaje);
-    }
-
-    document.getElementById('devoBtnBuscar').addEventListener('click', buscarFuncionarios);
-
-    buscarInput.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            buscarFuncionarios();
+        function actualizarPorcentaje(select) {
+            const key = select.dataset.aporte;
+            const input = field('devoMonto' + key);
+            const porcentaje = Number(select.value || 0);
+            if (porcentaje) {
+                const valor = Math.floor(balances[key] * porcentaje / 100);
+                input.value = valor > 0 ? money(valor) : '';
+                input.readOnly = true;
+            } else {
+                input.readOnly = false;
+                input.value = '';
+            }
         }
+
+        // ============================================================
+        // SELECTORES DEPENDIENTES Y GUARDADO AJAX
+        // ============================================================
+        function limpiarSelect(select, texto) {
+            select.replaceChildren(new Option(texto, ''));
+            select.disabled = true;
+        }
+
+        async function cargarDependientes(url, select, versionActual) {
+            limpiarSelect(select, 'Cargando...');
+            const response = await fetch(url, { headers: { 'X-App-Request': 'true' } });
+            const result = await response.json();
+
+            if (versionActual() === false) return;
+            if (!response.ok || result.status !== 'ok') {
+                throw new Error(result.message || 'No se pudo consultar el catálogo.');
+            }
+
+            limpiarSelect(select, 'Seleccione una opción');
+            for (const item of result.results) {
+                select.add(new Option(item.nombre, item.id));
+            }
+            select.disabled = result.results.length === 0;
+        }
+
+        regionSelect.addEventListener('change', async function () {
+            const version = ++comunasVersion;
+            if (!this.value) {
+                limpiarSelect(comunaSelect, 'Seleccione primero una región');
+                return;
+            }
+            try {
+                await cargarDependientes(urls.comunas.replace('999999', this.value),
+                    comunaSelect, () => version === comunasVersion);
+            } catch (error) {
+                if (version === comunasVersion) limpiarSelect(comunaSelect, 'Error al cargar comunas');
+                console.error(error);
+            }
+        });
+
+        bancoSelect.addEventListener('change', async function () {
+            const version = ++cuentasVersion;
+            if (!this.value) {
+                limpiarSelect(cuentaSelect, 'Seleccione primero un banco');
+                return;
+            }
+            try {
+                await cargarDependientes(urls.cuentas.replace('999999', this.value),
+                    cuentaSelect, () => version === cuentasVersion);
+            } catch (error) {
+                if (version === cuentasVersion) limpiarSelect(cuentaSelect, 'Error al cargar tipos de cuenta');
+                console.error(error);
+            }
+        });
+
+        function actualizarBoton() {
+            crearBoton.disabled = !(field('devoPersonaId').value && tipoSelect.value);
+        }
+
+        field('devoMontoGeneral').addEventListener('input', function () {
+            const digits = this.value.replace(/\D/g, '');
+            this.value = digits ? Number(digits).toLocaleString('es-CL') : '';
+        });
+
+        // El navegador restringe la escritura a dígitos y 9 posiciones.
+        const telefonoInput = field('devoTelefono');
+        const correoInput = field('devoCorreo');
+        const numeroCuentaInput = field('devoNumeroCuenta');
+
+        telefonoInput.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 9);
+            this.setCustomValidity('');
+        });
+
+        correoInput.addEventListener('input', function () {
+            this.setCustomValidity('');
+        });
+
+        numeroCuentaInput.addEventListener('input', function () {
+            // Eliminar cualquier carácter que no sea numérico
+            this.value = this.value.replace(/\D/g, '').slice(0, 50);
+
+            // Limpiar mensajes de validación anteriores
+            this.setCustomValidity('');
+        });
+
+        crearBoton.addEventListener('click', async function () {
+            const nombreTipo = String(tipoSelect.selectedOptions[0]?.dataset.nombre || '').toUpperCase();
+            const claves = ['A1', 'A2', 'A3'].filter(k => new RegExp(`\\b${k}\\b`).test(nombreTipo));
+            const valores = claves.map(k => ({ clave: k, valor: amount(field('devoMonto' + k).value) }));
+
+            // if (!field('devoPersonaId').value || !tipoSelect.value || !field('devoMotivo').value ||
+            //     !field('devoDireccion').value.trim() || !regionSelect.value || !comunaSelect.value ||
+            //     !field('devoMetodoPago').value) {
+            //     mostrarError('Complete funcionario, tipo, motivo, dirección, región, comuna y método de pago.');
+            //     return;
+            // }
+
+            if (claves.length ? valores.some(v => v.valor <= 0) : amount(field('devoMontoGeneral').value) <= 0) {
+                mostrarError('Ingrese un monto mayor a cero para cada aporte seleccionado.');
+                return;
+            }
+
+            // Comprobar teléfono y correo antes del diálogo de confirmación.
+            if (!/^[0-9]{9}$/.test(telefonoInput.value)) {
+                telefonoInput.setCustomValidity('Ingrese un teléfono de exactamente 9 números.');
+                telefonoInput.reportValidity();
+                telefonoInput.focus();
+                return;
+            }
+
+            if (!correoInput.value.trim() || !correoInput.checkValidity()) {
+                correoInput.setCustomValidity('Ingrese una dirección de correo válida.');
+                correoInput.reportValidity();
+                correoInput.focus();
+                return;
+            }
+
+            const banco = bancoSelect.value;
+            const cuentaTipo = cuentaSelect.value;
+            const numeroCuenta = field('devoNumeroCuenta').value.trim();
+            if ((banco || cuentaTipo || numeroCuenta) && !(banco && cuentaTipo && numeroCuenta)) {
+                mostrarError('Complete banco, tipo de cuenta y número, o deje los tres vacíos.');
+                return;
+            }
+
+            if (window.AppSwalConfirm) {
+                const decision = await AppSwalConfirm({
+                    title: 'Crear solicitud', text: '¿Confirma el registro de esta devolución?',
+                    confirmText: 'Crear solicitud', confirmClass: 'btn-primary'
+                });
+                if (!decision.isConfirmed) return;
+            } else if (!confirm('¿Confirma crear la solicitud de devolución?')) {
+                return;
+            }
+
+            // Validar número de cuenta bancaria
+            if (numeroCuenta && !/^[0-9]+$/.test(numeroCuenta)) {
+                numeroCuentaInput.setCustomValidity(
+                    'El número de cuenta debe contener solo números.'
+                );
+
+                numeroCuentaInput.reportValidity();
+                numeroCuentaInput.focus();
+                return;
+            }
+
+            const formData = new FormData();
+            const pares = {
+                persona_id: field('devoPersonaId').value,
+                tipo_devolucion: tipoSelect.value,
+                motivo: field('devoMotivo').value,
+                direccion: field('devoDireccion').value,
+                region: regionSelect.value,
+                comuna: comunaSelect.value,
+                telefono: field('devoTelefono').value,
+                correo: field('devoCorreo').value,
+                metodo_pago: field('devoMetodoPago').value,
+                banco: banco, cuenta_tipo: cuentaTipo, numero_cuenta: numeroCuenta,
+                monto_general: amount(field('devoMontoGeneral').value)
+            };
+            for (const [key, value] of Object.entries(pares)) formData.append(key, value);
+            for (const item of valores) formData.append('monto_' + item.clave.toLowerCase(), item.valor);
+
+
+            // Monto fijo por aporte: NO se envía concepto.
+            // Modalidad porcentual: el servidor resolverá la relación tipo-concepto,
+            // sin asumir que los IDs son iguales en todas las bases de datos.
+            for (const key of ['A2', 'A3']) {
+                if (!claves.includes(key)) continue;
+                const porcentaje = field('devoPorcentaje' + key).value;
+                if (porcentaje) formData.append('porcentaje_' + key.toLowerCase(), porcentaje);
+            }
+
+            // ============================================================
+            // GUARDAR SOLICITUD DE DEVOLUCIÓN
+            // ============================================================
+
+            // Impedir un segundo envío mientras se procesa.
+            if (crearBoton.dataset.guardando === 'true') return;
+
+            const original = crearBoton.innerHTML;
+            let guardadoCorrectamente = false;
+
+            crearBoton.dataset.guardando = 'true';
+            crearBoton.disabled = true;
+            crearBoton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+
+            try {
+                const csrfToken = modalElement.querySelector('[name="csrfmiddlewaretoken"]').value;
+
+                const response = await fetch(urls.crear, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-App-Request': 'true'
+                    },
+                    body: formData
+                });
+
+                // Comprobar que la respuesta del servidor sea JSON.
+                const contentType = response.headers.get('content-type') || '';
+
+                if (!contentType.includes('application/json')) {
+                    const contenido = await response.text();
+
+                    console.error('Error al crear devolución:', {
+                        status: response.status,
+                        url: response.url,
+                        contenido: contenido
+                    });
+
+                    throw new Error(
+                        `Error HTTP ${response.status}. El servidor no devolvió JSON.`
+                    );
+                }
+
+                const resultado = await response.json();
+
+                if (!response.ok || resultado.status !== 'ok') {
+                    throw new Error(
+                        resultado.message || 'No se pudo guardar la solicitud.'
+                    );
+                }
+
+                // La solicitud se guardó correctamente en Django.
+                guardadoCorrectamente = true;
+
+                // Actualizar listado.
+                window.recargarDevoluciones?.();
+
+                // Mostrar SweetAlert después de cerrar completamente el modal.
+                modalElement.addEventListener('hidden.bs.modal', function () {
+                    crearBoton.dataset.guardando = 'false';
+                    crearBoton.innerHTML = original;
+
+                    const mensaje = resultado.message ||
+                        'Solicitud de devolución creada correctamente.';
+
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Solicitud creada correctamente',
+                            text: mensaje,
+                            confirmButtonText: 'Aceptar',
+                            confirmButtonColor: '#198754',
+                            allowOutsideClick: false,
+                            allowEscapeKey: false
+                        });
+                    } else {
+                        alert(mensaje);
+                    }
+                }, { once: true });
+
+                bootstrap.Modal.getOrCreateInstance(modalElement).hide();
+
+            } catch (error) {
+                console.error('Error al guardar devolución:', error);
+                mostrarError(error.message);
+
+            } finally {
+                if (!guardadoCorrectamente) {
+                    // Si falló, permitir corregir y volver a intentar.
+                    crearBoton.dataset.guardando = 'false';
+                    crearBoton.innerHTML = original;
+                    actualizarBoton();
+                } else {
+                    // Si se guardó, impedir una segunda solicitud.
+                    crearBoton.disabled = true;
+                }
+            }
+
+        });
+
+        function mostrarError(mensaje) {
+            if (window.AppSwalError) AppSwalError('Error', mensaje);
+            else if (window.Swal) Swal.fire('Error', mensaje, 'error');
+            else alert(mensaje);
+        }
+
+        document.getElementById('devoBtnBuscar').addEventListener('click', buscarFuncionarios);
+
+        buscarInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                buscarFuncionarios();
+            }
+        });
+
+        resultados.addEventListener('click', function (event) {
+            const option = event.target.closest('.devoElegir');
+            if (option) seleccionarFuncionario(Number(option.dataset.id));
+        });
+
+        tipoSelect.addEventListener('change', actualizarTipo);
+        field('devoLimpiar').addEventListener('click', resetModal);
+        modalElement.addEventListener('hidden.bs.modal', resetModal);
+
+        document.querySelectorAll('#devolucionCrearModal .devo-porcentaje')
+            .forEach(select => select.addEventListener('change', function () {
+                actualizarPorcentaje(this);
+            }));
+
+        document.querySelectorAll('#devolucionCrearModal .devo-monto')
+            .forEach(input => input.addEventListener('input', function () {
+                const key = this.dataset.aporte;
+                const valor = Math.min(amount(this.value), Math.floor(balances[key]));
+                this.value = valor > 0 ? money(valor) : '';
+                if (key === 'A2' || key === 'A3') field('devoPorcentaje' + key).value = '';
+            }));
     });
-
-    resultados.addEventListener('click', function (event) {
-        const option = event.target.closest('.devoElegir');
-        if (option) seleccionarFuncionario(Number(option.dataset.id));
-    });
-
-    tipoSelect.addEventListener('change', actualizarTipo);
-    field('devoLimpiar').addEventListener('click', resetModal);
-    modalElement.addEventListener('hidden.bs.modal', resetModal);
-
-    document.querySelectorAll('#devolucionCrearModal .devo-total, #devolucionCrearModal .devo-mitad')
-        .forEach(checkbox => checkbox.addEventListener('change', function () {
-            actualizarCheckbox(this);
-        }));
-
-    document.querySelectorAll('#devolucionCrearModal .devo-monto')
-        .forEach(input => input.addEventListener('input', function () {
-            const key = this.dataset.aporte;
-            const value = Math.min(amount(this.value), Math.floor(balances[key]));
-            this.value = value > 0 ? money(value) : '';
-
-            const option = key === 'A2' ? field('devoMitadA2') : field('devoTotal' + key);
-            option.checked = false;
-        }));
-});
 </script>

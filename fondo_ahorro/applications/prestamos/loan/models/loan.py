@@ -13,7 +13,7 @@ class LoanType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_type"
+        db_table = "prestamo_tipo"
         verbose_name = "Tipo de Préstamo"
         verbose_name_plural = "Tipos de Préstamo"
         ordering = ["id"]
@@ -28,7 +28,7 @@ class LoanConcept(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=255, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_concept"
+        db_table = "prestamo_concepto"
         verbose_name = "Concepto de Préstamo"
         verbose_name_plural = "Conceptos de Préstamo"
         ordering = ["id"]
@@ -61,12 +61,12 @@ class LoanTypeConcept(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_type_concept"
+        db_table = "prestamo_tipo_concepto"
         verbose_name = "Concepto de Tipo de Préstamo"
         verbose_name_plural = "Conceptos de Tipos de Préstamo"
         ordering = ["id"]
         constraints = [
-            models.UniqueConstraint(fields=["loan_type", "concept"], name="unique_loan_type_concept"),
+            models.UniqueConstraint(fields=["loan_type", "concept"], name="unique_prestamo_tipo_concepto"),
         ]
 
     def __str__(self):
@@ -87,7 +87,7 @@ class LoanRate(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_rate"
+        db_table = "prestamo_tasas"
         verbose_name = "Tasa de Préstamo"
         verbose_name_plural = "Tasas de Préstamo"
         ordering = ["id"]
@@ -102,7 +102,7 @@ class LoanStatus(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_status"
+        db_table = "prestamo_estado"
         verbose_name = "Estado de Préstamo"
         verbose_name_plural = "Estados de Préstamo"
         ordering = ["id"]
@@ -117,7 +117,7 @@ class LoanCollectionMethod(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_collection_method"
+        db_table = "prestamo_metodo_cobro"
         verbose_name = "Método de Cobro"
         verbose_name_plural = "Métodos de Cobro"
         ordering = ["id"]
@@ -285,7 +285,7 @@ class Loan(BaseModel):
     )
 
     class Meta:
-        db_table = "loan"
+        db_table = "prestamo"
         verbose_name = "Préstamo"
         verbose_name_plural = "Préstamos"
         ordering = ["-created_at"]
@@ -340,7 +340,7 @@ class LoanRateRecord(BaseModel):
     ip = models.GenericIPAddressField(verbose_name="Dirección IP", null=False, blank=False)
 
     class Meta:
-        db_table = "loan_rate_record"
+        db_table = "prestamos_tasa_registro"
         verbose_name = "Registro de Cambio de Tasa"
         verbose_name_plural = "Registros de Cambios de Tasa"
         ordering = ["-created_at"]
@@ -395,7 +395,7 @@ class LoanCollectionMethodRecord(BaseModel):
     ip = models.GenericIPAddressField(verbose_name="Dirección IP", null=False, blank=False)
 
     class Meta:
-        db_table = "loan_collection_method_record"
+        db_table = "prestamo_metodo_cobro_registro"
         verbose_name = "Método de Cobro Registro"
         verbose_name_plural = "Métodos de Cobro Registros"
         ordering = ["id"]
@@ -428,12 +428,12 @@ class LoanGuarantor(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_guarantor"
+        db_table = "prestamo_aval"
         verbose_name = "Préstamo Aval"
         verbose_name_plural = "Préstamo Avales"
         ordering = ["id"]
         constraints = [
-            models.UniqueConstraint(fields=["loan", "person"], name="unique_loan_guarantor"),
+            models.UniqueConstraint(fields=["loan", "person"], name="unique_prestamo_aval"),
         ]
 
     def __str__(self):
@@ -476,7 +476,7 @@ class LoanGuarantorMovement(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_guarantor_movement"
+        db_table = "prestamo_aval_movimiento"
         verbose_name = "Movimiento Aval"
         verbose_name_plural = "Movimientos Aval"
         ordering = ["id"]
@@ -511,7 +511,7 @@ class LoanExtraordinary(BaseModel):
     ip = models.GenericIPAddressField(verbose_name="Dirección IP", null=True, blank=True)
 
     class Meta:
-        db_table = "loan_extraordinary"
+        db_table = "prestamo_extraordinario"
         verbose_name = "Préstamo Extraordinario"
         verbose_name_plural = "Préstamos Extraordinarios"
         ordering = ["id"]
@@ -554,7 +554,7 @@ class LoanDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_document"
+        db_table = "prestamo_documento"
         verbose_name = "Préstamo Documento"
         verbose_name_plural = "Préstamo Documentos"
         ordering = ["id"]
@@ -569,7 +569,7 @@ class LoanInstallmentStatus(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_installment_status"
+        db_table = "prestamo_dividendo_estado"
         verbose_name = "Dividendo Estado"
         verbose_name_plural = "Dividendos Estados"
         ordering = ["id"]
@@ -644,14 +644,14 @@ class LoanInstallment(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_installment"
+        db_table = "prestamo_dividendo"
         verbose_name = "Dividendo"
         verbose_name_plural = "Dividendos"
         ordering = ["loan", "installment_number"]
         constraints = [
             models.UniqueConstraint(
                 fields=["loan", "installment_number"],
-                name="unique_loan_installment_number",
+                name="unique_prestamo_dividendo",
             ),
         ]
 

@@ -13,7 +13,7 @@ class LoanPaymentType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_payment_type"
+        db_table = "pago_prestamo_tipo"
         verbose_name = "Pago Préstamo Tipo"
         verbose_name_plural = "Pago Préstamo Tipos"
         ordering = ["id"]
@@ -28,7 +28,7 @@ class LoanPaymentStatus(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_payment_status"
+        db_table = "pago_prestamo_estado"
         verbose_name = "Pago de Préstamo Estado"
         verbose_name_plural = "Pago de Préstamo Estados"
         ordering = ["id"]
@@ -104,7 +104,7 @@ class LoanPayment(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment"
+        db_table = "pago_prestamo"
         verbose_name = "Pago de Préstamo"
         verbose_name_plural = "Pagos de Préstamo"
         ordering = ["-created_at"]
@@ -151,7 +151,7 @@ class LoanPaymentReversal(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment_reversal"
+        db_table = "pago_prestamo_reversa"
         verbose_name = "Pago Reversa"
         verbose_name_plural = "Pago Reversas"
         ordering = ["-created_at"]
@@ -200,7 +200,7 @@ class LoanPaymentContribution(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment_contribution"
+        db_table = "pago_prestamo_aporte"
         verbose_name = "Pago de Préstamo Aporte"
         verbose_name_plural = "Pagos de Préstamo Aportes"
         ordering = ["id"]
@@ -233,7 +233,7 @@ class LoanPaymentDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment_document"
+        db_table = "pago_prestamo_documento"
         verbose_name = "Pago Documento"
         verbose_name_plural = "Pago Documentos"
         ordering = ["id"]
@@ -274,7 +274,7 @@ class LoanPaymentDeposit(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment_deposit"
+        db_table = "pago_prestamo_deposito"
         verbose_name = "Pago Deposito"
         verbose_name_plural = "Pago Depósitos"
         ordering = ["id"]
@@ -289,7 +289,7 @@ class LoanPaymentExternalMethod(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_payment_external_method"
+        db_table = "pago_prestamo_extrasistema_metodo"
         verbose_name = "Método de Pago Extrasistema"
         verbose_name_plural = "Métodos de Pago Extrasistema"
         ordering = ["id"]
@@ -334,7 +334,7 @@ class LoanPaymentExternal(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment_external"
+        db_table = "pago_prestamo_extrasistema"
         verbose_name = "Pago Extrasistema"
         verbose_name_plural = "Pagos Extrasistema"
         ordering = ["id"]
@@ -367,7 +367,7 @@ class LoanPaymentExternalDocument(BaseModel):
     )
 
     class Meta:
-        db_table = "loan_payment_external_document"
+        db_table = "pago_prestamo_extrasistema_documento"
         verbose_name = "Pago Extrasistema Documento"
         verbose_name_plural = "Pago Extrasistema Documentos"
         ordering = ["id"]
@@ -382,7 +382,7 @@ class LoanDocumentNumberType(BaseModel):
     name = models.CharField(verbose_name="Nombre", max_length=100, unique=True, null=False, blank=False)
 
     class Meta:
-        db_table = "loan_document_number_type"
+        db_table = "pago_prestamo_tipo_numero_documento"
         verbose_name = "Tipo de Número de Documento"
         verbose_name_plural = "Tipos de Número de Documento"
         ordering = ["id"]
@@ -417,7 +417,7 @@ class LoanDocumentNumber(BaseModel):
     number = models.BigIntegerField(verbose_name="Número", null=True, blank=True)
 
     class Meta:
-        db_table = "loan_document_number"
+        db_table = "pago_prestamo_numero_documento"
         verbose_name = "Número de Documento"
         verbose_name_plural = "Números de Documento"
         ordering = ["id"]

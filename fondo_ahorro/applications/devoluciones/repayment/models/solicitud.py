@@ -103,10 +103,16 @@ class DevoSolicitudAporte(BaseModel):
         DevoSolicitud, on_delete=models.CASCADE,
         db_column='id_devo_solicitud', related_name='aportes',
     )
+    # FIJO: importe invariable. PORCENTAJE: calcular sobre el saldo vigente al pagar.
+    modalidad = models.CharField(
+        max_length=12, choices=[('FIJO', 'Monto fijo'), ('PORCENTAJE', 'Porcentaje')],
+        default='FIJO',
+    )
+    porcentaje = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     monto = models.DecimalField(max_digits=15, decimal_places=2)
 
     class Meta:
-        db_table = 'devo_solicitud_aporte'
+        db_table = 'devo_solicitud_aporte' 
 
     def __str__(self):
         return f'{self.aporte_tipo}: {self.monto}'

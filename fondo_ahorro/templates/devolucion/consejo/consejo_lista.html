@@ -14,6 +14,9 @@
             </h3>
             <p class="text-body-secondary mb-0">Registro y consulta de consejos</p>
         </div>
+        <a href="{% url 'devolucion:estadisticas_consejos' %}" class="btn btn-outline-success">
+            <i class="bi bi-bar-chart-line me-1"></i>Ver estadísticas
+        </a>
     </div>
 
     <!-- ========================================================
@@ -111,6 +114,8 @@
     </div>
 </div>
 
+{% include 'devolucion/solicitud/modal_detalle.html' %}
+
 <!-- MODAL DE SOLICITUDES ASOCIADAS AL CONSEJO -->
 <div class="modal fade" id="consejoSolicitudesModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
@@ -127,10 +132,17 @@
                     <span class="badge text-bg-primary" id="csmCantidad">0 solicitudes</span>
                     <span class="badge text-bg-secondary" id="csmEstado"></span>
                 </div>
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <strong>Importe total estimado: <span id="csmTotal">$ 0</span></strong>
+                    <button type="button" class="btn btn-success btn-sm d-none" id="csmCerrar">
+                        <i class="bi bi-check-circle me-1"></i>Finalizar consejo y enviar a Tesorería
+                    </button>
+                </div>
+                <div class="alert alert-info py-2 small">Los importes porcentuales son estimados: se recalculan con el saldo vigente al efectuar el pago. Los montos fijos no cambian.</div>
                 <div id="csmCargando" class="text-center p-5 d-none"><div class="spinner-border text-primary"></div><div class="small mt-2">Cargando solicitudes...</div></div>
                 <div class="table-responsive" id="csmTablaWrapper">
                     <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light"><tr><th>N.º</th><th>Funcionario</th><th>RUT</th><th>Tipo</th><th>Motivo</th><th class="text-end">Monto general</th><th>Estado</th><th>Fecha</th></tr></thead>
+                        <thead class="table-light"><tr><th>N.º</th><th>Funcionario</th><th>RUT</th><th>Tipo</th><th>Motivo</th><th class="text-end">Importe estimado</th><th>Estado</th><th>Fecha de pago</th><th>Acciones</th></tr></thead>
                         <tbody id="csmSolicitudes"></tbody>
                     </table>
                 </div>
@@ -303,18 +315,43 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalSolicitudes = bootstrap.Modal.getOrCreateInstance(modalSolicitudesEl, { focus: false });
     const urlSolicitudes = "{% url 'devolucion:consejo_solicitudes' 999999 %}";
     let consultaConsejo = 0;
+    let consejoSeleccionado = null;
+    let consejoCerrado = false;
+    const urlFecha = "{% url 'devolucion:consejo_actualizar_fecha_pago' 999999 888888 %}";
+    const urlAnular = "{% url 'devolucion:consejo_anular_solicitud' 999999 888888 %}";
+    const urlCerrar = "{% url 'devolucion:consejo_cerrar' 999999 %}";
+    const csrf = () => formulario.querySelector('[name="csrfmiddlewaretoken"]').value;
+    const money = v => '$ ' + Number(v || 0).toLocaleString('es-CL');
+    const rutaAccion = (ruta, consejo, solicitud) => ruta.replace('999999', String(consejo)).replace('888888', String(solicitud));
 
-    $('#tablaConsejos').on('click', '.btn-ver-solicitudes-consejo', async function () {
-        const id = Number(this.dataset.id);
+    async function enviar(url, datos) {
+        const respuesta = await fetch(url, { method: 'POST',
+            headers: { 'X-CSRFToken': csrf(), 'X-App-Request': 'true' }, body: datos });
+        const resultado = await leerJson(respuesta);
+        if (!respuesta.ok || resultado.status !== 'ok') throw new Error(resultado.message || 'No fue posible guardar.');
+        return resultado;
+    }
+
+    async function confirmar(texto) {
+        if (window.Swal) {
+            return (await Swal.fire({icon: 'question', title: 'Confirmar acción', text: texto,
+                showCancelButton: true, confirmButtonText: 'Confirmar', cancelButtonText: 'Cancelar'})).isConfirmed;
+        }
+        return window.confirm(texto);
+    }
+
+    async function cargarConsejo(id) {
         const consulta = ++consultaConsejo;
+        consejoSeleccionado = id;
         document.getElementById('csmNumero').textContent = `#${id}`;
         document.getElementById('csmPeriodo').textContent = '';
         document.getElementById('csmCantidad').textContent = '0 solicitudes';
         document.getElementById('csmEstado').textContent = '';
+        document.getElementById('csmTotal').textContent = '$ 0';
+        document.getElementById('csmCerrar').classList.add('d-none');
         document.getElementById('csmSolicitudes').replaceChildren();
         document.getElementById('csmCargando').classList.remove('d-none');
         document.getElementById('csmTablaWrapper').classList.add('d-none');
-        modalSolicitudes.show();
         try {
             const response = await fetch(urlSolicitudes.replace('999999', String(id)), {
                 headers: { 'X-App-Request': 'true' }
@@ -322,30 +359,38 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await leerJson(response);
             if (!response.ok || data.status !== 'ok') throw new Error(data.message || 'Error al consultar solicitudes.');
             if (consulta !== consultaConsejo) return;
+            consejoCerrado = !!data.consejo.cerrado;
             document.getElementById('csmPeriodo').textContent = `Consejo ${data.consejo.fecha}`;
             document.getElementById('csmCantidad').textContent = `${data.cantidad} solicitud(es)`;
-            document.getElementById('csmEstado').textContent = data.consejo.estado;
+            document.getElementById('csmEstado').textContent = consejoCerrado ? 'Finalizado' : data.consejo.estado;
+            document.getElementById('csmTotal').textContent = money(data.total_estimado);
+            document.getElementById('csmCerrar').classList.toggle('d-none', consejoCerrado);
             const tbody = document.getElementById('csmSolicitudes');
             if (!data.solicitudes.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-body-secondary py-4">Este consejo no tiene solicitudes asociadas.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center text-body-secondary py-4">Sin solicitudes.</td></tr>';
             } else {
                 for (const item of data.solicitudes) {
                     const estado = String(item.estado || '').toLowerCase();
-                    const color = estado.includes('rechaz') ? 'danger' : estado.includes('pagad') || estado.includes('aprobad') ? 'success' : 'primary';
-                    const monto = Number(item.monto_general || 0).toLocaleString('es-CL');
+                    const anulada = estado.includes('anulad');
+                    const color = anulada ? 'secondary' : estado.includes('pago') ? 'success' : 'primary';
+                    const acciones = `<button type="button" class="btn btn-sm btn-outline-primary csmDetalle" data-id="${Number(item.id)}" title="Ver detalle"><i class="bi bi-eye"></i></button>` +
+                        (!consejoCerrado && !anulada ? ` <button type="button" class="btn btn-sm btn-outline-danger csmAnular" data-id="${Number(item.id)}" title="Anular"><i class="bi bi-x-circle"></i></button>` : '');
+                    const fecha = (!consejoCerrado && !anulada)
+                        ? `<input type="date" class="form-control form-control-sm csmFecha" data-id="${Number(item.id)}" value="${escaparHtml(item.fecha_pago)}" style="min-width:145px">`
+                        : escaparHtml(item.fecha_pago || '—');
                     tbody.insertAdjacentHTML('beforeend', `<tr>
                         <td class="fw-semibold">#${Number(item.id)}</td>
                         <td>${escaparHtml(item.funcionario)}</td><td>${escaparHtml(item.rut)}</td>
                         <td>${escaparHtml(item.tipo)}</td><td>${escaparHtml(item.motivo)}</td>
-                        <td class="text-end">$ ${monto}</td>
+                        <td class="text-end fw-semibold">${money(item.importe_estimado)} <small class="d-block text-muted">${escaparHtml(item.modalidad)}</small></td>
                         <td><span class="badge text-bg-${color}">${escaparHtml(item.estado)}</span></td>
-                        <td>${escaparHtml(item.fecha)}</td></tr>`);
+                        <td>${fecha}</td><td class="text-nowrap">${acciones}</td></tr>`);
                 }
             }
         } catch (error) {
             if (consulta === consultaConsejo) {
                 document.getElementById('csmSolicitudes').innerHTML =
-                    `<tr><td colspan="8" class="text-center text-danger py-3">${escaparHtml(error.message)}</td></tr>`;
+                    `<tr><td colspan="9" class="text-center text-danger py-3">${escaparHtml(error.message)}</td></tr>`;
                 mostrarError(error.message);
             }
         } finally {
@@ -354,6 +399,60 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('csmTablaWrapper').classList.remove('d-none');
             }
         }
+    }
+
+    document.getElementById('csmSolicitudes').addEventListener('click', async event => {
+        const detalle = event.target.closest('.csmDetalle');
+        if (detalle) {
+            const id = Number(detalle.dataset.id);
+            // Un modal a la vez, para no dejar fondos superpuestos.
+            modalSolicitudesEl.addEventListener('hidden.bs.modal', function abrir() {
+                modalSolicitudesEl.removeEventListener('hidden.bs.modal', abrir);
+                window.abrirDetalleDevolucion?.(id);
+            }, {once:true});
+            modalSolicitudes.hide();
+            return;
+        }
+        const anular = event.target.closest('.csmAnular');
+        if (!anular || consejoCerrado) return;
+        const motivo = window.Swal ? (await Swal.fire({title: 'Motivo de anulación', input: 'textarea',
+            inputPlaceholder: 'Indique el motivo...', showCancelButton: true,
+            inputValidator: value => !value || value.trim().length < 5 ? 'Ingrese al menos 5 caracteres.' : undefined,
+            confirmButtonText: 'Anular solicitud', confirmButtonColor: '#dc3545'})).value : prompt('Motivo de anulación:');
+        if (!motivo) return;
+        try {
+            const datos = new FormData(); datos.append('motivo', motivo);
+            const r = await enviar(rutaAccion(urlAnular, consejoSeleccionado, anular.dataset.id), datos);
+            await cargarConsejo(consejoSeleccionado);
+            mostrarExito(r.message);
+        } catch (error) { mostrarError(error.message); }
+    });
+
+    document.getElementById('csmSolicitudes').addEventListener('change', async event => {
+        const fecha = event.target.closest('.csmFecha');
+        if (!fecha || consejoCerrado) return;
+        try {
+            const datos = new FormData(); datos.append('fecha_pago', fecha.value);
+            await enviar(rutaAccion(urlFecha, consejoSeleccionado, fecha.dataset.id), datos);
+            await cargarConsejo(consejoSeleccionado);
+        } catch (error) { mostrarError(error.message); await cargarConsejo(consejoSeleccionado); }
+    });
+
+    document.getElementById('csmCerrar').addEventListener('click', async function () {
+        if (consejoCerrado || !await confirmar('¿Finalizar el consejo y enviar todas las solicitudes no anuladas a En espera de pago?')) return;
+        this.disabled = true;
+        try {
+            const r = await enviar(urlCerrar.replace('999999', String(consejoSeleccionado)), new FormData());
+            await cargarConsejo(consejoSeleccionado);
+            tabla.ajax.reload(null, false);
+            mostrarExito(r.message);
+        } catch (error) { mostrarError(error.message); }
+        finally { this.disabled = false; }
+    });
+
+    $('#tablaConsejos').on('click', '.btn-ver-solicitudes-consejo', function () {
+        modalSolicitudes.show();
+        cargarConsejo(Number(this.dataset.id));
     });
     modalSolicitudesEl.addEventListener('hidden.bs.modal', () => { consultaConsejo++; });
 

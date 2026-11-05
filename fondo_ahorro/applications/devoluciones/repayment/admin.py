@@ -1,5 +1,7 @@
 
 from django.contrib import admin
+from django.db import transaction
+from .models import DevoConsejoEstado
 
 from .models import (
     DevoConsejo,
@@ -25,6 +27,22 @@ class DevoConsejoAdmin(admin.ModelAdmin):
     search_fields = ("id",)
     list_filter = ("estado", "is_active", "fecha_consejo")
     ordering = ("-fecha_consejo",)
+
+    @transaction.atomic
+    def save_model(self, request, obj, form, change):
+        if obj.estado and obj.estado.nombre.casefold() == 'activado':
+            activo = (DevoConsejoEstado.objects.select_for_update()
+                      .get(pk=obj.estado_id))
+            desactivado = DevoConsejoEstado.objects.filter(
+                nombre__iexact='Desactivado', is_active=True).first()
+            if desactivado is None:
+                from django.core.exceptions import ValidationError
+                raise ValidationError('Debe existir un estado Desactivado activo.')
+            for anterior in DevoConsejo.objects.select_for_update().filter(
+                is_active=True, estado=activo).exclude(pk=obj.pk):
+                anterior.estado = desactivado
+                anterior.save(user=request.user)
+        obj.save(user=request.user)
 
 
 # ============================================================
@@ -76,6 +94,7 @@ class DevoSolicitudEstadoAdmin(admin.ModelAdmin):
 # ============================================================
 @admin.register(DevoSolicitud)
 class DevoSolicitudAdmin(admin.ModelAdmin):
+    readonly_fields = ("consejo",)
     list_display = (
         "id",
         "solicitud",

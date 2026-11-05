@@ -195,24 +195,44 @@
                     </div>
                 </div>
 
-                {% if has_loan and can_edit %}
+                {% comment %} {% if has_loan and can_edit %}
                     <div class="alert alert-warning mt-3 mb-0">
                         <i class="bi bi-exclamation-triangle me-1"></i>
                         Esta solicitud fue aprobada por consejo con modificaciones.
                         Los datos pueden editarse y, al guardar, el préstamo y sus dividendos se recalcularán con los nuevos valores.
-                    </div>
-                {% elif has_loan %}
+                    </div> {% endcomment %}
+                {% comment %} {% if has_loan %}
                     <div class="alert alert-info mt-3 mb-0">
                         Esta solicitud ya generó un préstamo y sus datos se encuentran en solo lectura.
                     </div>
-                {% endif %}
+                {% endif %} {% endcomment %}
 
-                {% if can_edit %}
-                    <div class="d-flex justify-content-end mt-3">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save me-1"></i>
-                            Guardar cambios
-                        </button>
+                {% if can_edit or can_assign and not is_final %}
+                    <div class="d-flex flex-wrap justify-content-end gap-2 mt-3">
+
+                    {% if can_edit %}
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#guarantorModal">
+                        <i class="bi bi-people-fill me-1"></i> Gestionar Avales
+                    </button>
+                    {% endif %}
+
+                    {% if not is_final and can_assign %}
+                    <button type="button"
+                            class="btn btn-info text-white"
+                            data-bs-toggle="modal"
+                            data-bs-target="#assignModal">
+                        <i class="bi bi-person-lines-fill me-1"></i>
+                        Asignar responsable
+                    </button>
+                    {% endif %}
+
+                    {% if can_edit %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>
+                        Guardar cambios
+                    </button>
+                    {% endif %}
+
                     </div>
                 {% endif %}
             </div>
@@ -222,91 +242,82 @@
     <!-- ============================================================
          CAMBIO DE ESTADO
     ============================================================ -->
+    
+    {% if request_states %}
     <div class="card shadow-sm mb-4">
         <div class="card-header">
             <strong>Estado de la solicitud</strong>
         </div>
 
         <div class="card-body">
-            {% if is_rejected %}
-                <div class="alert alert-danger mb-0">
-                    <i class="bi bi-x-circle me-1"></i>
-                    La solicitud fue rechazada en el estado
-                    <strong>{{ request_loan.state.name|default:"Ingresado" }}</strong>.
+            {% if can_change_state and has_next_state %}
+            <form method="post" class="row g-2 align-items-end">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_state">
+
+                <!-- Selector de Estado -->
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Siguiente estado</label>
+                    <select name="request_state"
+                            class="form-select"
+                            required>
+                        <option value="" selected disabled>Seleccione...</option>
+
+                        {% for state in request_states %}
+                            <option value="{{ state.id }}">{{ state.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
-            {% elif can_change_state and has_next_state %}
-                <form method="post" class="row g-2 align-items-end">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="change_state">
+                <!-- Campo de Observación -->
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Observación <span class="text-muted fw-normal">(Opcional)</span></label>
+                    <input type="text" name="observation_text" class="form-control" placeholder="Motivo del cambio de estado..." autocomplete="off">
+                </div>
 
-                    <div class="col-md-9">
-                        <label class="form-label fw-semibold">Siguiente estado</label>
-
-                        <select name="request_state"
-                                class="form-select"
-                                required>
-                            <option value="" selected disabled>Seleccione...</option>
-
-                            {% for state in request_states %}
-                                <option value="{{ state.id }}">
-                                    {{ state.name }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="col-md-3 d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-arrow-right-circle me-1"></i>
-                            Avanzar estado
-                        </button>
-                    </div>
-                </form>
+                <!-- Botón cambio de estado -->
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-right-circle me-1"></i>
+                        Avanzar estado
+                    </button>
+                </div>
+            </form>
 
             {% else %}
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted">Estado actual:</span>
-                    <span class="badge bg-success">
-                        {{ request_loan.state.name }}
-                    </span>
-                    <span class="text-muted small">
-                        No existen estados posteriores disponibles.
-                    </span>
-                </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted">Estado actual:</span>
+                <span class="badge bg-success">
+                    {{ request_loan.state.name }}
+                </span>
+                <span class="text-muted small">
+                    No existen estados posteriores disponibles.
+                </span>
+            </div>
             {% endif %}
         </div>
     </div>
+    {% endif %}
 
     <!-- ============================================================
-         LINEA DE TIEMPO
+         BARRA DE PROGRESO
     ============================================================ -->
     <div class="card shadow-sm mb-4">
-        <div class="card-header">
-            <strong>Estado de la solicitud</strong>
-        </div>
-
-        <div class="card-body">
-            <div class="row g-2 text-center">
-                {% for step in timeline %}
-                    <div class="col-6 col-md">
-                        <div class="request-step request-step-{{ step.state }}">
-                            <div class="request-step-icon">
-                                {% if step.state == "done" %}
-                                    <i class="bi bi-check-circle-fill"></i>
-                                {% elif step.state == "current" %}
-                                    <i class="bi bi-circle-fill"></i>
-                                {% elif step.state == "rejected" %}
-                                    <i class="bi bi-x-circle-fill"></i>
-                                {% else %}
-                                    <i class="bi bi-circle"></i>
-                                {% endif %}
-                            </div>
-
-                            <div>{{ step.label }}</div>
-                        </div>
-                    </div>
-                {% endfor %}
+        <div class="card-body py-4">
+            <div class="text-center mb-3">
+                <span class="text-muted d-block small mb-1">Estado de la solicitud</span>
+                <strong class="fs-4">{{ progress.label }}</strong>
+            </div>
+            
+            <div class="progress" style="height: 25px; border-radius: 15px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated {{ progress.color }}" 
+                     role="progressbar" 
+                     style="width: {{ progress.percentage }}%; font-weight: bold; font-size: 14px;" 
+                     aria-valuenow="{{ progress.percentage }}" 
+                     aria-valuemin="0" 
+                     aria-valuemax="100">
+                    {{ progress.percentage }}%
+                </div>
             </div>
         </div>
     </div>
@@ -498,18 +509,6 @@
          ACCIONES
     ============================================================ -->
     <div class="d-flex flex-wrap gap-2 justify-content-end mb-4">
-
-        <!-- Visible solo para jefaturas -->
-        {% if not is_final and can_assign %}
-        <button type="button"
-                class="btn btn-info text-white"
-                data-bs-toggle="modal"
-                data-bs-target="#assignModal">
-            <i class="bi bi-person-lines-fill me-1"></i>
-            Asignar responsable
-        </button>
-        {% endif %}
-
         {% if not is_final %}
             {% if not has_loan %}
             <button type="button"
@@ -557,7 +556,7 @@
                             <td>{{ relation.created_at|date:"d-m-Y H:i" }}</td>
                             <td>{{ relation.get_action_display }}</td>
                             <td>{{ relation.observation.user }}</td>
-                            <td>{{ relation.observation.comment }}</td>
+                            <td>{{ relation.observation.comment|linebreaksbr }}</td>
                         </tr>
 
                         {% empty %}
@@ -733,7 +732,8 @@
 <div class="modal fade" id="assignModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post">
+            <!-- Apuntamos explícitamente a la vista de detalle -->
+            <form method="post" action="{% url 'loan_requests:detail' request_loan.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="assign_group">
 
@@ -746,22 +746,24 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Área de destino</label>
-                        <select name="assignment_area" class="form-select" required>
+                        <!-- Le agregamos el id="assignmentAreaSelect" -->
+                        <select name="assignment_area" id="assignmentAreaSelect" class="form-select" required>
                             <option value="" selected disabled>Seleccione un área...</option>
-                            <option value="Área Jurídica">Área Jurídica</option>
-                            <option value="Área de Préstamos">Área de Préstamos</option>
-                            <option value="Abogados">Abogados</option>
-                            <option value="Directorio">Directorio</option>
+                            {% for role in assignable_roles %}
+                                <option value="{{ role.name }}">{{ role.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Funcionario responsable</label>
-                        <select name="assignment_employee" class="form-select" required>
-                            <option value="" selected disabled>Seleccione un funcionario...</option>
-                            {% for emp in active_employees %}
-                                <option value="{{ emp.id }}">
-                                    {{ emp.person.first_name }} {{ emp.person.last_name_1 }} {% if emp.person.last_name_2 %}{{ emp.person.last_name_2 }}{% endif %} (Cód: {{ emp.code|default:"-" }})
+                        <label class="form-label">Usuario responsable</label>
+                        <!-- Le agregamos el id="assignmentEmployeeSelect" -->
+                        <select name="assignment_responsible" id="assignmentEmployeeSelect" class="form-select" required>
+                            <option value="" selected disabled>Seleccione un área primero...</option>
+                            {% for u in assignable_users %}
+                                <!-- Ocultamos por defecto y le inyectamos la variable de áreas -->
+                                <option value="{{ u.id }}" data-areas="{{ u.areas_asignadas }}" class="d-none">
+                                    {{ u.person.first_name }} {{ u.person.last_name_1 }} (Usuario: {{ u.username|default:"-" }})
                                 </option>
                             {% endfor %}
                         </select>
@@ -782,46 +784,110 @@
     </div>
 </div>
 
+<!-- MODAL GESTIÓN DE AVALES -->
+<div class="modal fade" id="guarantorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'loan_requests:detail' request_loan.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="save_guarantors">
+                
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title"><i class="bi bi-people-fill me-2"></i>Avales de la Solicitud</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body bg-light">
+                    <!-- Pestañas -->
+                    <ul class="nav nav-tabs" id="guarantorTabs" role="tablist">
+                        <!-- Pestaña Base (Aval 1) -->
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-semibold" id="tab-1" data-bs-toggle="tab" data-bs-target="#pane-1" type="button" role="tab">Aval 1</button>
+                        </li>
+                        
+                        <!-- Botón (+) -->
+                        <li class="nav-item" id="addTabBtnLi" role="presentation">
+                            <button type="button" class="nav-link text-success fw-bold" id="addGuarantorBtn" title="Agregar otro aval">
+                                <i class="bi bi-plus-circle-fill"></i> Nuevo Aval
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Contenido de las pestañas -->
+                    <div class="tab-content bg-white border border-top-0 p-3 shadow-sm" id="guarantorTabsContent">
+                        <!-- Formulario Base (Aval 1) -->
+                        <div class="tab-pane fade show active" id="pane-1" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">RUT (Sin puntos ni guion) <span class="text-danger">*</span></label>
+                                    <input type="number" name="guarantor_rut[]" class="form-control" placeholder="Ej: 12345678">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">DV <span class="text-danger">*</span></label>
+                                    <input type="text" name="guarantor_dv[]" class="form-control" placeholder="Ej: 9" maxlength="1">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Primer Nombre <span class="text-danger">*</span></label>
+                                    <input type="text" name="guarantor_first_name[]" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Primer Apellido <span class="text-danger">*</span></label>
+                                    <input type="text" name="guarantor_last_name_1[]" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info text-white"><i class="bi bi-save me-1"></i> Guardar Avales</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
-.request-step{
-    min-height:90px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:5px;
-    padding:12px 8px;
-    border-radius:10px;
-    border:1px solid var(--bs-border-color);
-    font-weight:600;
-}
-.request-step-icon{font-size:1.35rem}
-.request-step-done{
-    background:rgba(var(--bs-success-rgb),.12);
-    color:var(--bs-success);
-    border-color:rgba(var(--bs-success-rgb),.35);
-}
-.request-step-current{
-    background:rgba(var(--bs-primary-rgb),.12);
-    color:var(--bs-primary);
-    border-color:rgba(var(--bs-primary-rgb),.35);
-}
-.request-step-rejected{
-    background:rgba(var(--bs-danger-rgb),.12);
-    color:var(--bs-danger);
-    border-color:rgba(var(--bs-danger-rgb),.35);
-}
-.request-step-future{
-    background:var(--bs-tertiary-bg);
-    color:var(--bs-secondary-color);
-}
-.document-category-row{cursor:pointer}
-.document-category-row:hover{background:var(--bs-tertiary-bg)}
-.document-chevron{display:inline-block;transition:transform .18s ease}
-.document-category-row[aria-expanded="true"] .document-chevron{transform:rotate(90deg)}
-.document-detail-row > td{background:var(--bs-tertiary-bg)}
-.employee-result{cursor:pointer}
-.employee-result:hover{background:var(--bs-tertiary-bg)}
+    .request-step{
+        min-height:90px;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:5px;
+        padding:12px 8px;
+        border-radius:10px;
+        border:1px solid var(--bs-border-color);
+        font-weight:600;
+    }
+    .request-step-icon{font-size:1.35rem}
+    .request-step-done{
+        background:rgba(var(--bs-success-rgb),.12);
+        color:var(--bs-success);
+        border-color:rgba(var(--bs-success-rgb),.35);
+    }
+    .request-step-current{
+        background:rgba(var(--bs-primary-rgb),.12);
+        color:var(--bs-primary);
+        border-color:rgba(var(--bs-primary-rgb),.35);
+    }
+    .request-step-rejected{
+        background:rgba(var(--bs-danger-rgb),.12);
+        color:var(--bs-danger);
+        border-color:rgba(var(--bs-danger-rgb),.35);
+    }
+    .request-step-future{
+        background:var(--bs-tertiary-bg);
+        color:var(--bs-secondary-color);
+    }
+    .document-category-row{cursor:pointer}
+    .document-category-row:hover{background:var(--bs-tertiary-bg)}
+    .document-chevron{display:inline-block;transition:transform .18s ease}
+    .document-category-row[aria-expanded="true"] .document-chevron{transform:rotate(90deg)}
+    .document-detail-row > td{background:var(--bs-tertiary-bg)}
+    .employee-result{cursor:pointer}
+    .employee-result:hover{background:var(--bs-tertiary-bg)}
 </style>
 
 <script>
@@ -841,8 +907,17 @@ document.addEventListener("DOMContentLoaded", function () {
     const loanAmountDisplay = document.getElementById("loanAmountDisplay");
     const loanAmount = document.getElementById("loanAmount");
 
+    const addBtn = document.getElementById("addGuarantorBtn");
+    const tabsList = document.getElementById("guarantorTabs");
+    const addTabBtnLi = document.getElementById("addTabBtnLi");
+    const tabsContent = document.getElementById("guarantorTabsContent");
+    let guarantorCount = 1;
+
     const employeeSearchUrl = "{% url 'loan_requests:employee_search' %}";
     const conceptsUrl = "{% url 'loan_requests:concepts' %}";
+
+    const areaSelect = document.getElementById("assignmentAreaSelect");
+    const employeeSelect = document.getElementById("assignmentEmployeeSelect");
 
     function escapeHtml(value){
         const div = document.createElement("div");
@@ -1038,6 +1113,81 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("rejectDocumentName").textContent = this.dataset.name;
         });
     });
+    
+    if (areaSelect && employeeSelect) {
+        // Guardamos todas las opciones originales que tienen áreas asignadas
+        const allEmployees = Array.from(employeeSelect.querySelectorAll("option[data-areas]"));
+
+        areaSelect.addEventListener("change", function () {
+            const selectedArea = this.value;
+
+            // Limpiamos el selector de funcionarios
+            employeeSelect.innerHTML = '<option value="" selected disabled>Seleccione un funcionario...</option>';
+
+            // Solo agregamos a los funcionarios cuya área asignada coincida con la elegida
+            let matchCount = 0;
+            allEmployees.forEach(opt => {
+                const areas = opt.getAttribute("data-areas") || "";
+                if (areas.split(",").includes(selectedArea)) {
+                    // Le quitamos el d-none por si lo tenía
+                    opt.classList.remove("d-none");
+                    employeeSelect.appendChild(opt);
+                    matchCount++;
+                }
+            });
+
+            // Si nadie de esa área tiene registro en la tabla de Empleados
+            if (matchCount === 0) {
+                employeeSelect.innerHTML = '<option value="" selected disabled>No hay funcionarios registrados en esta área</option>';
+            }
+        });
+    }
+
+    if (addBtn) {
+        addBtn.addEventListener("click", function () {
+            guarantorCount++;
+            const newId = guarantorCount;
+
+            // 1. Crear el botón de la nueva pestaña
+            const newTabLi = document.createElement("li");
+            newTabLi.className = "nav-item";
+            newTabLi.innerHTML = `<button class="nav-link fw-semibold" id="tab-${newId}" data-bs-toggle="tab" data-bs-target="#pane-${newId}" type="button" role="tab">Aval ${newId}</button>`;
+            
+            // Insertar antes del botón (+)
+            tabsList.insertBefore(newTabLi, addTabBtnLi);
+
+            // 2. Crear el contenido del nuevo formulario
+            const newPane = document.createElement("div");
+            newPane.className = "tab-pane fade";
+            newPane.id = `pane-${newId}`;
+            newPane.setAttribute("role", "tabpanel");
+            newPane.innerHTML = `
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">RUT (Sin puntos ni guion) <span class="text-danger">*</span></label>
+                        <input type="number" name="guarantor_rut[]" class="form-control" placeholder="Ej: 12345678">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">DV <span class="text-danger">*</span></label>
+                        <input type="text" name="guarantor_dv[]" class="form-control" placeholder="Ej: 9" maxlength="1">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Primer Nombre <span class="text-danger">*</span></label>
+                        <input type="text" name="guarantor_first_name[]" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Primer Apellido <span class="text-danger">*</span></label>
+                        <input type="text" name="guarantor_last_name_1[]" class="form-control">
+                    </div>
+                </div>
+            `;
+            tabsContent.appendChild(newPane);
+
+            // 3. Activar visualmente la nueva pestaña
+            const triggerEl = new bootstrap.Tab(newTabLi.querySelector('button'));
+            triggerEl.show();
+        });
+    }
 });
 </script>
 {% endblock %}
