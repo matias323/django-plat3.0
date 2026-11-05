@@ -1,9 +1,14 @@
 from django.urls import path
 from . import views
+from .views.estadisticas import estadisticas_consejos
+from .views.consejo import consejo_cerrar, consejo_anular_solicitud, consejo_actualizar_fecha_pago
 
 app_name = 'devolucion'
 urlpatterns = [
     path('', views.lista, name='lista'),
+
+    # Estadísticas
+    path('estadisticas/', estadisticas_consejos, name='estadisticas_consejos'),
 
     # Consejos
     path('consejos/', views.consejo_lista, name='consejo_lista'),
@@ -11,6 +16,10 @@ urlpatterns = [
     path('consejos/crear/', views.consejo_crear, name='consejo_crear'),
     path('consejos/activos/', views.consejos_activos, name='consejos_activos'),
     path('consejos/<int:pk>/solicitudes/',views.consejo_solicitudes,name='consejo_solicitudes'),
+
+    path('consejos/<int:pk>/cerrar/', consejo_cerrar, name='consejo_cerrar'),
+    path('consejos/<int:pk>/solicitudes/<int:solicitud_id>/anular/', consejo_anular_solicitud, name='consejo_anular_solicitud'),
+    path('consejos/<int:pk>/solicitudes/<int:solicitud_id>/fecha/', consejo_actualizar_fecha_pago, name='consejo_actualizar_fecha_pago'),
 
     # Devolucion
     path('crear/', views.crear_solicitud, name='crear_solicitud'),

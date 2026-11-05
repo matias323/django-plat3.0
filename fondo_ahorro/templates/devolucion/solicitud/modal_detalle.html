@@ -863,7 +863,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     recuadro.className = 'dd-aporte';
                     const titulo = document.createElement('span');
                     titulo.className = 'fw-medium';
-                    titulo.textContent = item.tipo || 'Aporte';
+                    titulo.textContent = (item.tipo || 'Aporte') +
+                        (item.modalidad === 'PORCENTAJE' ? ` (${item.porcentaje} % del saldo actual)` : ' (monto fijo)');
                     const monto = document.createElement('strong');
                     monto.className = 'text-success';
                     monto.textContent = '$ ' + (item.monto || '0');
@@ -875,6 +876,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             selector.value = String(d.estado_id);
             estadoInicial = d.estado_id;
+            const estadoConsejo = ['en espera de consejo', 'en espera de pago', 'anulado', 'anulada', 'pagado'];
+            selector.disabled = estadoConsejo.includes(String(d.estado || '').toLowerCase());
+            guardar.disabled = true;
             cargando.classList.add('d-none');
             contenido.classList.remove('d-none');
             ddCargarDocs().catch(error => avisarError(error.message));
@@ -886,7 +890,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    document.getElementById('devolucionesTable').addEventListener('click', function (event) {
+    // Permite abrir el mismo modal desde solicitudes y desde consejos.
+    window.abrirDetalleDevolucion = abrirDetalle;
+    document.getElementById('devolucionesTable')?.addEventListener('click', function (event) {
         const boton = event.target.closest('.btn-detalle-devolucion');
         if (boton) abrirDetalle(Number(boton.dataset.id));
     });

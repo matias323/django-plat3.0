@@ -1,4 +1,8 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
+from datetime import date
+from calendar import monthrange
+from django.utils import timezone
+from .calculos import resumen_importe
 import re
 import unicodedata
 from django.contrib.auth.decorators import login_required
@@ -28,6 +32,7 @@ from ..models import (
     DevoSolicitudDetalle,
     DevoMetodoPago,
     DevoConsejo,
+    DevoConsejoEstado,
     DevoObservacion,
 )
 
@@ -199,6 +204,16 @@ def _monto(raw):
     return Decimal(value)
 
 
+def _seis_meses(fecha):
+    anio = fecha.year + (fecha.month - 1 + 6) // 12
+    mes = (fecha.month - 1 + 6) % 12 + 1
+    return date(anio, mes, min(fecha.day, monthrange(anio, mes)[1]))
+
+
+def _estado_devolucion(nombre):
+    return DevoSolicitudEstado.objects.filter(nombre__iexact=nombre, is_active=True).order_by('pk').first()
+
+
 def _guardar(instance, user):
     instance.save(user=user)
     return instance
@@ -242,15 +257,6 @@ def crear_solicitud(request):
             'solicitud_concepto'
         ).order_by('pk')
     )
-
-    if not tipos_conceptos:
-        return JsonResponse({
-            'status': 'error',
-            'message': (
-                'El tipo de devolución seleccionado no tiene '
-                'conceptos configurados.'
-            )
-        }, status=400)
     # ============================================================
 
     if not all((employee, tipo, motivo, comuna, metodo)):
@@ -329,13 +335,65 @@ def crear_solicitud(request):
     except (ValueError, InvalidOperation) as exc:
         return JsonResponse({'status': 'error', 'message': str(exc)}, status=400)
 
-    # Los catálogos deben tener sus estados creados. No inventar IDs ni crearlos implícitamente.
-    tipo_request = RequestType.objects.filter(is_active=True, name__icontains='repayment').order_by('pk').first()
-    estado_request = RequestStatus.objects.filter(is_active=True, status_type__iexact='ingresado').first()
-    estado_devo = DevoSolicitudEstado.objects.filter(is_active=True, nombre__iexact='ingresado').first()
-    if not all((tipo_request, estado_request, estado_devo)):
-        return JsonResponse({'status': 'error', 'message':
-            'Falta configurar tipo DEVOLUCIÓN o estado Ingresado en los catálogos core/devolución.'}, status=400)
+    # Solo se permite asignar porcentaje a un aporte cuando se marca expresamente.
+    # Para monto FIJO, no se crea concepto y el importe no cambiará al pagar.
+    modalidades = {}
+    relaciones = {}
+    for key, monto in importes.items():
+        es_porcentaje = str(post.get('porcentaje_' + key.lower(), '')).strip()
+        if not es_porcentaje:
+            modalidades[key] = ('FIJO', None)
+            continue
+        try:
+            pct = Decimal(es_porcentaje)
+        except InvalidOperation:
+            return JsonResponse({'status': 'error', 'message': f'Porcentaje inválido para {key}.'}, status=400)
+        if pct not in (Decimal('25'), Decimal('50'), Decimal('100')):
+            return JsonResponse({'status': 'error', 'message': f'Porcentaje no admitido para {key}.'}, status=400)
+        esperado = (saldos[key] * pct / Decimal(100)).quantize(Decimal('1'), rounding=ROUND_DOWN)
+        if monto != esperado:
+            return JsonResponse({'status': 'error', 'message': f'El importe porcentual de {key} no corresponde al saldo actual.'}, status=400)
+        # Resolver la relación del catálogo por porcentaje; no suponer IDs globales.
+        relacion = next((r for r in tipos_conceptos
+                         if re.search(rf'(?<!\d){int(pct)}\s*%', r.solicitud_concepto.descripcion)), None)
+        if not relacion:
+            return JsonResponse({'status': 'error', 'message': f'No existe concepto {pct}% asociado al tipo seleccionado.'}, status=400)
+        relaciones[key] = relacion
+        modalidades[key] = ('PORCENTAJE', pct)
+
+    if general and importes:
+        return JsonResponse({'status': 'error', 'message': 'No se admite mezclar monto general con aportes.'}, status=400)
+
+    tipo_request = RequestType.objects.filter(pk=2,is_active=True).first()
+    estado_request = RequestStatus.objects.filter(pk=9,is_active=True).first()
+    estado_devo = DevoSolicitudEstado.objects.filter(pk=4,is_active=True).first()
+    if not tipo_request or not estado_request or not estado_devo:
+        return JsonResponse({
+            'status': 'error',
+            'message': (
+                'No se pudo crear la solicitud porque falta '
+                'alguno de los registros de configuración.'
+            )
+        }, status=400)
+
+    # La solicitud siempre se incorpora al consejo vigente al momento de su creación.
+    # Bloqueamos la fila del catálogo Activado, igual que al crear un consejo.
+    estado_consejo_activo = (DevoConsejoEstado.objects.select_for_update()
+                             .filter(nombre__iexact='Activado', is_active=True).first())
+    if not estado_consejo_activo:
+        return JsonResponse({
+            'status': 'error', 'message': 'No está configurado el estado Activado de consejos.'
+        }, status=400)
+
+    consejos_vigentes = list(DevoConsejo.objects.filter(
+        estado=estado_consejo_activo, cerrado=False, is_active=True).order_by('-pk')[:2])
+    if len(consejos_vigentes) != 1:
+        return JsonResponse({
+            'status': 'error',
+            'message': ('No hay un consejo activo.' if not consejos_vigentes else
+                        'Existen varios consejos activos. Debe regularizar sus estados.'),
+        }, status=409)
+    consejo_actual = consejos_vigentes[0]
 
     if banco_id:
         cuenta = PersonaBanco.objects.filter(
@@ -351,26 +409,22 @@ def crear_solicitud(request):
     solicitud_general = _guardar(Request(request_type=tipo_request, status=estado_request), request.user)
     devolucion = _guardar(DevoSolicitud(
         solicitud=solicitud_general, estado=estado_devo, tipo=tipo,
-        motivo=motivo, grado=employee.grade, monto_general=general,
+        motivo=motivo, grado=employee.grade, consejo=consejo_actual, monto_general=general,
+        fecha_pago=_seis_meses(timezone.localdate()),
         direccion=direccion, comuna=comuna, telefono=telefono, correo=correo,
     ), request.user)
 
-    # ============================================================
-    # ASOCIAR CONCEPTOS A LA SOLICITUD DE DEVOLUCIÓN
-    for tipo_concepto in tipos_conceptos:
-
-        _guardar(
-            DevoSolicitudTipoConcepto(
-                solicitud_devolucion=devolucion,
-                tipo_concepto=tipo_concepto,
-            ),
-            request.user
-        )
-    # ============================================================
+    # Los conceptos son opcionales: únicamente se asocian a aportes porcentuales.
+    for key, relacion in relaciones.items():
+        _guardar(DevoSolicitudTipoConcepto(
+            solicitud_devolucion=devolucion, tipo_concepto=relacion
+        ), request.user)
 
     for key, monto in importes.items():
+        modalidad, porcentaje = modalidades[key]
         _guardar(DevoSolicitudAporte(
-            solicitud_devolucion=devolucion, aporte_tipo=tipos_aporte[key], monto=monto
+            solicitud_devolucion=devolucion, aporte_tipo=tipos_aporte[key],
+            monto=monto, modalidad=modalidad, porcentaje=porcentaje,
         ), request.user)
 
     _guardar(DevoSolicitudDetalle(
@@ -380,7 +434,7 @@ def crear_solicitud(request):
 
     DevoObservacion(
         solicitud=devolucion, accion=DevoObservacion.Accion.SOLICITUD_CREADA,
-        descripcion=f'Se creó la solicitud de devolución #{devolucion.pk} con estado {estado_devo.nombre}.',
+        descripcion=(f'Se creó la solicitud de devolución #{devolucion.pk} con estado ' f'{estado_devo.nombre}, asignada automáticamente al consejo #{consejo_actual.pk}.'),
     ).save(user=request.user)
 
     return JsonResponse({
@@ -409,9 +463,15 @@ def detalle_solicitud(request, pk):
     cuenta = detalle.persona_banco if detalle else None
     empleado = Employee.objects.filter(person_id=persona.pk, is_active=True).first() if persona else None
 
+    resumen = resumen_importe(devolucion)
     aportes = [
-        {'tipo': item.aporte_tipo.description, 'monto': _clp(item.monto)}
-        for item in devolucion.aportes.all() if item.is_active
+        {
+            'tipo': item['tipo'], 'monto': _clp(item['importe']),
+            'modalidad': item['modalidad'], 'porcentaje': item['porcentaje'],
+            'saldo_actual': _clp(item['saldo_actual']),
+            'saldo_insuficiente': item['saldo_insuficiente'],
+        }
+        for item in resumen['aportes']
     ]
 
     return JsonResponse({
@@ -430,6 +490,8 @@ def detalle_solicitud(request, pk):
             'fecha_aprobacion': devolucion.fecha_aprobacion.strftime('%d/%m/%Y') if devolucion.fecha_aprobacion else '—',
             'fecha_pago': devolucion.fecha_pago.strftime('%d/%m/%Y') if devolucion.fecha_pago else '—',
             'monto_general': _clp(devolucion.monto_general),
+            'importe_estimado': _clp(resumen['importe']),
+            'modalidad': resumen['modalidad'],
             'aportes': aportes,
             'nombre': _full_name(persona) if persona else '—',
             'rut': _rut(persona) if persona else '—',
@@ -465,6 +527,13 @@ def cambiar_estado_solicitud(request, pk):
     estado = DevoSolicitudEstado.objects.filter(pk=estado_id, is_active=True).first()
     if not estado:
         return JsonResponse({'status': 'error', 'message': 'Estado inexistente o inactivo.'}, status=400)
+
+    protegidos = {'EN ESPERA DE CONSEJO', 'EN ESPERA DE PAGO', 'ANULADO', 'ANULADA', 'PAGADO', 'PAGADA'}
+    if _norm(estado.nombre).strip() in protegidos or _norm(devolucion.estado.nombre).strip() in protegidos:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'El cambio de estado de consejo, anulación y pago se realiza mediante su flujo correspondiente.'
+        }, status=403)
 
     # El pago real se debe registrar mediante un flujo financiero aparte.
     if _norm(estado.nombre).strip() in ('PAGADO', 'PAGADA'):
@@ -509,36 +578,9 @@ def cambiar_estado_solicitud(request, pk):
 
 @login_required
 @require_POST
-@transaction.atomic
 def vincular_consejo_solicitud(request, pk):
-    devolucion = get_object_or_404(
-        DevoSolicitud.objects.select_for_update(), pk=pk, is_active=True
-    )
-    valor = request.POST.get('consejo_id', '').strip()
-    if valor:
-        try:
-            consejo_id = int(valor)
-        except (TypeError, ValueError):
-            return JsonResponse({'status': 'error', 'message': 'Identificador inválido.'}, status=400)
-        consejo = DevoConsejo.objects.filter(
-            pk=consejo_id, is_active=True,
-            estado__nombre__iexact='Activado', estado__is_active=True,
-        ).first()
-        if not consejo:
-            return JsonResponse({'status': 'error', 'message': 'El consejo no está activo.'}, status=400)
-    else:
-        consejo = None
-    if devolucion.consejo_id != (consejo.pk if consejo else None):
-        anterior = f'Consejo #{devolucion.consejo_id}' if devolucion.consejo_id else 'Sin consejo'
-        devolucion.consejo = consejo
-        devolucion.save(user=request.user)
-        nuevo = f'Consejo #{consejo.pk}' if consejo else 'Sin consejo'
-        DevoObservacion(
-            solicitud=devolucion, accion=DevoObservacion.Accion.CONSEJO,
-            descripcion=f'Asignación de consejo modificada: {anterior} → {nuevo}.',
-        ).save(user=request.user)
+    """Ruta antigua: se bloquea la asignación manual desde cualquier cliente."""
     return JsonResponse({
-        'status': 'ok',
-        'message': 'Consejo asignado correctamente.' if consejo else 'Solicitud sin consejo asignado.',
-        'consejo_id': consejo.pk if consejo else None,
-    })
+        'status': 'error',
+        'message': 'La asignación de consejos es automática al crear la devolución.'
+    }, status=403)
