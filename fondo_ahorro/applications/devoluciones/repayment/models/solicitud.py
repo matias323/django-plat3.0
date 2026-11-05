@@ -48,7 +48,6 @@ class DevoSolicitudEstado(BaseModel):
 
 
 class DevoSolicitud(BaseModel):
-    # Campos propios de la devolución; no alterar el catálogo core.Request.
     tipo = models.ForeignKey(
         'DevoSolicitudTipo', on_delete=models.PROTECT, db_column='id_tipo',
         related_name='solicitudes', null=True, blank=True,
