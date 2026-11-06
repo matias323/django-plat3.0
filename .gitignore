@@ -8,12 +8,12 @@ env/
 db.sqlite3
 *.pyc
 
-*.pdf
+# *.pdf
 
-media/*
+# media/*
 
 #estilos
-bootstrap*
-staticfiles*
-*.png
-*:Zone.Identifier
+# bootstrap*
+# staticfiles*
+# *.png
+# *:Zone.Identifier
