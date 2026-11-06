@@ -419,17 +419,15 @@ document.addEventListener("DOMContentLoaded", function () {
             resetSimulation();
             return false;
         }
-
         const data = new FormData();
         data.append("csrfmiddlewaretoken", csrfToken());
         data.append("loan_amount", getAmount());
         data.append("rate", loanRate.value);
         data.append("term", loanTerm.value);
-
         try {
             const response = await fetch(simulateUrl, {
                 method: "POST",
-                headers: { "X-CSRFToken": csrfToken() },
+                headers: { "X-CSRFToken": csrfToken(), 'X-App-Request': 'true' },
                 body: data
             });
 
@@ -487,7 +485,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     form.addEventListener("submit", async function (event) {
         event.preventDefault();
-
         const error = validateForm();
         if (error) {
             await showError("Datos incompletos", error);
@@ -496,12 +493,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const simulated = await simulate(true);
         if (!simulated) return;
-
         const confirmResult = await showConfirm(
             "Crear préstamo extraordinario",
             "¿Confirmas que deseas crear este préstamo y generar todos sus dividendos?"
         );
-
         if (!confirmResult.isConfirmed) return;
 
         const data = new FormData(form);
@@ -516,29 +511,23 @@ document.addEventListener("DOMContentLoaded", function () {
         const oldHtml = btnCreateLoan.innerHTML;
         btnCreateLoan.disabled = true;
         btnCreateLoan.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creando...';
-
         try {
             const response = await fetch(createUrl, {
                 method: "POST",
                 headers: { "X-CSRFToken": csrfToken() },
                 body: data
             });
-
             const result = await response.json();
-
             if (!response.ok || result.status !== "ok") {
                 throw new Error(result.message || "No se pudo crear el préstamo extraordinario.");
             }
-
             await showSuccess("Préstamo creado", `${result.message} ID préstamo: ${result.loan_id}.`);
-
             form.reset();
             personId.value = "0";
             selectedPerson.textContent = "No hay persona seleccionada.";
             startDate.textContent = initialStartDate;
             resetConcepts();
             resetSimulation();
-
         } catch (error) {
             await showError("No se pudo crear el préstamo extraordinario", error.message);
 
